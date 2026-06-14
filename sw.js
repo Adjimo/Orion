@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v15';
+const VERSION = 'orion-v16';
 const ASSETS = [
   './',
   './index.html',
@@ -58,15 +58,24 @@ self.addEventListener('message', (e) => {
 // ── Stratégie de fetch.
 // Local : "stale-while-revalidate" — on sert le cache immédiatement (rapide),
 // puis on rafraîchit en arrière-plan pour la prochaine ouverture.
-// Externe : network-first avec fallback cache.
-// Le HTML (navigation) est traité network-first pour récupérer les updates au
-// plus vite si la connexion est dispo.
+// Externe : network-first avec fallback cache, MAIS on laisse passer
+// directement les tiles map (basemaps.cartocdn.com) sans interception —
+// l'interception cassait le rendu d'images cross-origin sur certains navigateurs.
+// HTML (navigation) : network-first pour récupérer les updates au plus vite.
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  const isExternal = url.origin !== self.location.origin;
 
+  // Tiles map et autres ressources sensibles au CORS : on n'intercepte pas du tout.
+  // Le navigateur les fait passer directement au réseau comme d'habitude.
+  if (url.hostname.endsWith('basemaps.cartocdn.com') ||
+      url.hostname.endsWith('tile.openstreetmap.org') ||
+      url.hostname.endsWith('maps.wikimedia.org')) {
+    return;
+  }
+
+  const isExternal = url.origin !== self.location.origin;
   if (isExternal) {
     e.respondWith(networkFirst(req));
     return;

@@ -1586,11 +1586,11 @@ function renderMapInto(mapEl, activity) {
   // CartoDB Voyager : palette claire (beige terre, bleu pâle eau, blanc routes),
   // CDN fiable, aucune clé requise. Couleurs natives belles, on n'applique
   // aucun filtre CSS — c'est le tracé orange/doré qui apporte la touche Orion.
+  // Le SW ne touche pas à ces tiles (cf sw.js) pour éviter tout problème CORS.
   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
     attribution: '© OSM · CartoDB',
     subdomains: 'abcd',
-    maxZoom: 19,
-    crossOrigin: true
+    maxZoom: 19
   }).addTo(map);
   const latlngs = activity.points.map(p => [p.lat, p.lon]);
   // Tracé multi-couches pour éclat sur fond clair :

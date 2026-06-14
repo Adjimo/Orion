@@ -92,10 +92,70 @@
 
   <script src="app.js"></script>
   <script>
+    // ── Service worker : enregistrement + mise à jour automatique.
+    // Quand le SW signale qu'une nouvelle version est active (postMessage 'SW_ACTIVATED'),
+    // on recharge la page UNE SEULE FOIS pour basculer sur la nouvelle version.
+    // On expose aussi window.OrionSW pour la section "À propos" du Profil.
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('sw.js').catch(() => {});
+      let reloadGuard = false;
+
+      navigator.serviceWorker.addEventListener('message', (e) => {
+        if (e.data?.type === 'SW_ACTIVATED' && !reloadGuard) {
+          reloadGuard = true;
+          // Petit délai pour laisser l'app actuelle finir une éventuelle écriture.
+          setTimeout(() => location.reload(), 600);
+        }
       });
+
+      // Si le contrôleur change pendant la session, on recharge aussi
+      // (cas où skipWaiting prend la main sur un autre onglet).
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloadGuard) return;
+        reloadGuard = true;
+        setTimeout(() => location.reload(), 600);
+      });
+
+      window.addEventListener('load', async () => {
+        try {
+          const reg = await navigator.serviceWorker.register('sw.js');
+          // Force un check de mise à jour à chaque chargement de la page.
+          // Le navigateur le fait spontanément ~24h, mais on accélère.
+          reg.update().catch(() => {});
+
+          // API utilitaire pour la vue Profil.
+          window.OrionSW = {
+            registration: reg,
+            getVersion() {
+              return new Promise((resolve) => {
+                if (!navigator.serviceWorker.controller) return resolve(null);
+                const channel = new MessageChannel();
+                channel.port1.onmessage = (e) => resolve(e.data?.version || null);
+                navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+                setTimeout(() => resolve(null), 1000);
+              });
+            },
+            async clearCacheAndReload() {
+              try {
+                // 1. Désinscrit tous les SW
+                const regs = await navigator.serviceWorker.getRegistrations();
+                await Promise.all(regs.map(r => r.unregister()));
+                // 2. Vide tous les caches
+                if ('caches' in window) {
+                  const keys = await caches.keys();
+                  await Promise.all(keys.map(k => caches.delete(k)));
+                }
+              } catch {}
+              // 3. Recharge en hard reload (sans cache HTTP)
+              location.reload();
+            },
+            async forceCheckUpdate() {
+              try { await reg.update(); } catch {}
+            }
+          };
+        } catch {}
+      });
+    } else {
+      window.OrionSW = null;
     }
   </script>
 </body>

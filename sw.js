@@ -1,9 +1,10 @@
 // ============================================================================
 // Orion — Service Worker
-// Cache l'app pour qu'elle marche hors-ligne et se charge instantanément.
+// Cache l'app pour qu'elle marche hors-ligne, se charge instantanément,
+// et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v9';
+const VERSION = 'orion-v10';
 const ASSETS = [
   './',
   './index.html',
@@ -13,9 +14,10 @@ const ASSETS = [
   './icons/favicon.svg',
   './icons/icon-192.png',
   './icons/icon-512.png',
-  // Externes (Leaflet, Chart.js, fonts) - mises en cache au premier accès
 ];
 
+// ── Installation : on précharge tous les assets locaux dans un cache versionné.
+// skipWaiting() pour ne pas rester bloqué en "waiting" derrière l'ancien SW.
 self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(VERSION).then(cache => cache.addAll(ASSETS).catch(() => {}))
@@ -23,47 +25,86 @@ self.addEventListener('install', (e) => {
   self.skipWaiting();
 });
 
+// ── Activation : on supprime les caches des anciennes versions, on prend la main
+// sur tous les clients déjà ouverts, puis on leur envoie un message pour qu'ils
+// se rechargent eux-mêmes avec la nouvelle version.
 self.addEventListener('activate', (e) => {
-  e.waitUntil(
-    caches.keys().then(keys => Promise.all(
-      keys.filter(k => k !== VERSION).map(k => caches.delete(k))
-    ))
-  );
-  self.clients.claim();
+  e.waitUntil((async () => {
+    const keys = await caches.keys();
+    await Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k)));
+    await self.clients.claim();
+    const clients = await self.clients.matchAll({ type: 'window' });
+    for (const client of clients) {
+      client.postMessage({ type: 'SW_ACTIVATED', version: VERSION });
+    }
+  })());
 });
 
+// ── Réception de messages depuis l'app (utilisés pour debug / forçage manuel).
+self.addEventListener('message', (e) => {
+  if (e.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  } else if (e.data?.type === 'GET_VERSION') {
+    e.source?.postMessage({ type: 'VERSION', version: VERSION });
+  } else if (e.data?.type === 'CLEAR_CACHE') {
+    e.waitUntil((async () => {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      e.source?.postMessage({ type: 'CACHE_CLEARED' });
+    })());
+  }
+});
+
+// ── Stratégie de fetch.
+// Local : "stale-while-revalidate" — on sert le cache immédiatement (rapide),
+// puis on rafraîchit en arrière-plan pour la prochaine ouverture.
+// Externe : network-first avec fallback cache.
+// Le HTML (navigation) est traité network-first pour récupérer les updates au
+// plus vite si la connexion est dispo.
 self.addEventListener('fetch', (e) => {
-  // Stratégie : Cache First, fallback Network. Pour les CDN externes : network-first.
-  const url = new URL(e.request.url);
+  const req = e.request;
+  if (req.method !== 'GET') return;
+  const url = new URL(req.url);
   const isExternal = url.origin !== self.location.origin;
 
   if (isExternal) {
-    // Network-first pour les CDN, mais cache les réponses
-    e.respondWith(
-      fetch(e.request).then(resp => {
-        if (resp.ok) {
-          const clone = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, clone)).catch(() => {});
-        }
-        return resp;
-      }).catch(() => caches.match(e.request))
-    );
+    e.respondWith(networkFirst(req));
     return;
   }
 
-  // Cache-first pour les assets locaux
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).then(resp => {
-        if (resp.ok) {
-          const clone = resp.clone();
-          caches.open(VERSION).then(c => c.put(e.request, clone)).catch(() => {});
-        }
-        return resp;
-      }).catch(() => {
-        // Fallback à index.html pour la navigation SPA
-        if (e.request.mode === 'navigate') return caches.match('./index.html');
-      });
-    })
-  );
+  // Navigation HTML : on tente le réseau d'abord pour ne pas servir une vieille app.
+  if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
+    e.respondWith(networkFirst(req, './index.html'));
+    return;
+  }
+
+  // Autres assets locaux (JS/CSS/SVG) : stale-while-revalidate.
+  e.respondWith(staleWhileRevalidate(req));
 });
+
+async function networkFirst(req, fallbackPath) {
+  try {
+    const resp = await fetch(req);
+    if (resp.ok) {
+      const cache = await caches.open(VERSION);
+      cache.put(req, resp.clone()).catch(() => {});
+    }
+    return resp;
+  } catch {
+    const cached = await caches.match(req);
+    if (cached) return cached;
+    if (fallbackPath) return caches.match(fallbackPath);
+    return Response.error();
+  }
+}
+
+async function staleWhileRevalidate(req) {
+  const cache = await caches.open(VERSION);
+  const cached = await cache.match(req);
+  const networkPromise = fetch(req).then(resp => {
+    if (resp.ok) cache.put(req, resp.clone()).catch(() => {});
+    return resp;
+  }).catch(() => null);
+  // Sert le cache si dispo (rapide), sinon attend le réseau.
+  return cached || (await networkPromise) || Response.error();
+}

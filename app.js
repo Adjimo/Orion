@@ -2363,6 +2363,61 @@ function renderProfil(root) {
     saveCard.querySelector('#import-file').addEventListener('change', onImportFile);
   }, 0);
 
+  // À propos / maintenance
+  page.appendChild(el('h3', { class: 'mb-2' }, '🛠️ Maintenance'));
+  const mntCard = el('div', { class: 'card mb-4' });
+  mntCard.innerHTML = `
+    <div class="flex between mb-2">
+      <span class="dim text-sm">Version</span>
+      <span class="mono text-sm" id="sw-version">…</span>
+    </div>
+    <div class="flex between mb-3">
+      <span class="dim text-sm">Statut</span>
+      <span class="text-sm" id="sw-status">…</span>
+    </div>
+    <p class="dim text-xs mb-3">
+      Si l'app n'a pas l'air à jour après une mise en ligne, vide le cache pour forcer le téléchargement de la dernière version. Tes données ne sont pas effacées.
+    </p>
+    <button class="btn ghost full mb-2" id="btn-check-update">🔄 Vérifier la mise à jour</button>
+    <button class="btn ghost full" id="btn-clear-cache">🧹 Vider le cache et recharger</button>
+  `;
+  page.appendChild(mntCard);
+  setTimeout(async () => {
+    const versionEl = mntCard.querySelector('#sw-version');
+    const statusEl = mntCard.querySelector('#sw-status');
+    if (window.OrionSW) {
+      const v = await window.OrionSW.getVersion();
+      versionEl.textContent = v || '— (non installé)';
+      statusEl.innerHTML = navigator.serviceWorker?.controller
+        ? '<span style="color: var(--accent);">✓ actif</span>'
+        : '<span style="color: var(--text-mute);">aucun SW</span>';
+    } else {
+      versionEl.textContent = 'non supporté';
+      statusEl.textContent = '—';
+    }
+    mntCard.querySelector('#btn-check-update').addEventListener('click', async () => {
+      if (!window.OrionSW) {
+        showToast({ type: 'err', title: 'Indisponible', text: 'Service Worker non supporté' });
+        return;
+      }
+      showToast({ type: 'xp', title: 'Vérification…', text: 'Recherche d\'une mise à jour' });
+      await window.OrionSW.forceCheckUpdate();
+      // Si une nouvelle version est trouvée, le SW va activer et postMessage déclenchera un reload.
+      // Sinon on signale qu'on est à jour.
+      setTimeout(() => {
+        showToast({ type: 'xp', title: 'À jour', text: 'Aucune nouvelle version disponible' });
+      }, 2000);
+    });
+    mntCard.querySelector('#btn-clear-cache').addEventListener('click', async () => {
+      if (!confirm('Vider le cache et recharger l\'app ? Tes données restent intactes.')) return;
+      if (window.OrionSW) {
+        await window.OrionSW.clearCacheAndReload();
+      } else {
+        location.reload();
+      }
+    });
+  }, 0);
+
   // Reset
   page.appendChild(el('h3', { class: 'mb-2' }, '⚠️ Zone dangereuse'));
   const dangerCard = el('div', { class: 'card mb-4' });

@@ -1803,10 +1803,10 @@ function renderStats(root) {
     </div>
   `}));
 
-  // Graph: heures par jour (21 derniers jours)
+  // Heatmap calendaire — visualise la régularité sur 12 semaines
   page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '⏱️ Heures travaillées · 21 derniers jours'),
-    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-work-days' })])
+    el('div', { class: 'chart-title' }, '🗓️ Régularité · 12 dernières semaines'),
+    el('div', { class: 'work-heatmap', id: 'work-heatmap' })
   ]));
 
   // Graph: répartition matières (30 derniers jours)
@@ -1838,16 +1838,16 @@ function renderStats(root) {
     </div>
   `}));
 
-  // Graph: distance par semaine
+  // Volume hebdo : aire distance + ligne allure moyenne
   page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '📏 Distance · 12 dernières semaines'),
-    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-weeks' })])
+    el('div', { class: 'chart-title' }, '📊 Volume & allure · 12 dernières semaines'),
+    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-volume' })])
   ]));
 
-  // Graph: D+ cumulé sortie après sortie
+  // Pace progression : ligne allure des 20 dernières sorties
   page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '⛰️ D+ cumulé · progression'),
-    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-elev' })])
+    el('div', { class: 'chart-title' }, '⚡ Allure moyenne · dernières sorties'),
+    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-pace' })])
   ]));
 
   page.appendChild(el('h3', { class: 'mb-2' }, 'Records personnels'));
@@ -1915,187 +1915,368 @@ function chartCommonOptions() {
 }
 
 function renderStatsCharts(logs, acts) {
-  if (!window.Chart) return;
   // Détruit les anciennes instances pour permettre un re-render propre.
-  for (const [id, inst] of Object.entries(State.charts || {})) {
+  for (const inst of Object.values(State.charts || {})) {
     try { inst?.destroy(); } catch {}
   }
   State.charts = {};
 
-  // ── Graph 1 : heures par jour (21 derniers jours) ─────────────────────────
-  {
-    const ctx = document.getElementById('chart-work-days');
-    if (ctx) {
-      const days = [];
-      const today = new Date(); today.setHours(0,0,0,0);
-      for (let i = 20; i >= 0; i--) {
-        const d = new Date(today); d.setDate(d.getDate() - i);
-        days.push({ key: todayKey(d), label: d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) });
-      }
-      const data = days.map(d => {
-        const log = logs.find(l => l.date === d.key);
-        return ((log?.totalMinutes || 0) / 60);
-      });
-      const ctxC = ctx.getContext('2d');
-      const grad = ctxC.createLinearGradient(0, 0, 0, 220);
-      grad.addColorStop(0, CHART_COLORS.gold);
-      grad.addColorStop(1, CHART_COLORS.goldFade);
-      State.charts.workDays = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: days.map(d => d.label),
-          datasets: [{
-            label: 'Heures',
-            data,
-            backgroundColor: grad,
-            borderColor: CHART_COLORS.gold,
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          ...chartCommonOptions(),
-          plugins: { ...chartCommonOptions().plugins, legend: { display: false } }
-        }
-      });
+  // ── 1. Heatmap calendaire travail (12 semaines × 7 jours) ─────────────────
+  renderWorkHeatmap(logs);
+
+  if (!window.Chart) return;
+
+  // ── 2. Donut matières (30 derniers jours) ─────────────────────────────────
+  renderSubjectsDonut(logs);
+
+  // ── 3. Volume hebdo : aire distance + ligne allure (12 semaines) ──────────
+  renderSportVolume(acts);
+
+  // ── 4. Pace progression : 20 dernières sorties ────────────────────────────
+  renderSportPace(acts);
+}
+
+// Heatmap style GitHub : 12 semaines × 7 jours, intensité selon heures travaillées.
+function renderWorkHeatmap(logs) {
+  const root = document.getElementById('work-heatmap');
+  if (!root) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  // Trouve le lundi de la semaine actuelle, recule de 11 semaines → début de grille.
+  const day = today.getDay();
+  const diffToMonday = (day === 0 ? -6 : 1) - day;
+  const thisMonday = new Date(today); thisMonday.setDate(thisMonday.getDate() + diffToMonday);
+  const startMonday = new Date(thisMonday); startMonday.setDate(startMonday.getDate() - 11 * 7);
+
+  // Échelle d'intensité : 0, <2h, 2-4h, 4-6h, ≥6h.
+  const bucket = (h) => {
+    if (h <= 0) return 0;
+    if (h < 2) return 1;
+    if (h < 4) return 2;
+    if (h < 6) return 3;
+    return 4;
+  };
+
+  const cells = [];
+  const monthLabels = [];
+  let lastMonth = -1;
+  for (let w = 0; w < 12; w++) {
+    const colDays = [];
+    for (let d = 0; d < 7; d++) {
+      const date = new Date(startMonday);
+      date.setDate(date.getDate() + w * 7 + d);
+      const k = todayKey(date);
+      const log = logs.find(l => l.date === k);
+      const hours = (log?.totalMinutes || 0) / 60;
+      const isFuture = date > today;
+      colDays.push({ date, k, hours, level: bucket(hours), future: isFuture });
+    }
+    cells.push(colDays);
+    // Label mois sur la première semaine où il change
+    const firstOfWeek = colDays[0].date;
+    const m = firstOfWeek.getMonth();
+    if (m !== lastMonth) {
+      monthLabels.push({ col: w, label: firstOfWeek.toLocaleDateString('fr-FR', { month: 'short' }) });
+      lastMonth = m;
+    } else {
+      monthLabels.push(null);
     }
   }
 
-  // ── Graph 2 : répartition matières (30 derniers jours) ────────────────────
-  {
-    const ctx = document.getElementById('chart-work-subjects');
-    if (ctx) {
-      const today = new Date(); today.setHours(0,0,0,0);
-      const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - 30);
-      const cutoffK = todayKey(cutoff);
-      const totals = {};
-      for (const l of logs) {
-        if (l.date < cutoffK) continue;
-        for (const [subj, mins] of Object.entries(l.bySubject || {})) {
-          totals[subj] = (totals[subj] || 0) + mins;
-        }
-      }
-      const entries = Object.entries(totals).filter(([_, m]) => m > 0);
-      if (entries.length === 0) {
-        ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de données</div>';
-      } else {
-        const palette = {
-          maths: CHART_COLORS.violet,
-          physique: '#a78bfa',
-          si: CHART_COLORS.pink,
-          langues: CHART_COLORS.cool,
-          francais: CHART_COLORS.gold,
-          autre: '#5e6480'
-        };
-        State.charts.subjects = new Chart(ctx, {
-          type: 'doughnut',
-          data: {
-            labels: entries.map(([s]) => SUBJECTS[s]?.label || s),
-            datasets: [{
-              data: entries.map(([_, m]) => Math.round(m / 60 * 10) / 10),
-              backgroundColor: entries.map(([s]) => palette[s] || '#999'),
-              borderColor: CHART_COLORS.bg,
-              borderWidth: 2,
-              hoverOffset: 8
-            }]
-          },
-          options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: '62%',
-            plugins: {
-              legend: { position: 'right', labels: { color: CHART_COLORS.text, font: { size: 11 }, boxWidth: 12, padding: 8 } },
-              tooltip: {
-                ...chartCommonOptions().plugins.tooltip,
-                callbacks: { label: (c) => `${c.label}: ${c.parsed} h` }
-              }
+  const dayLabels = ['L', '', 'M', '', 'V', '', 'D'];
+  let html = '<div class="heatmap-grid">';
+  // Ligne des labels de mois
+  html += '<div class="heatmap-months">';
+  html += '<div class="heatmap-corner"></div>';
+  for (const m of monthLabels) {
+    html += `<div class="heatmap-month">${m ? m.label : ''}</div>`;
+  }
+  html += '</div>';
+  // Lignes : une par jour de la semaine
+  for (let d = 0; d < 7; d++) {
+    html += '<div class="heatmap-row">';
+    html += `<div class="heatmap-daylabel">${dayLabels[d]}</div>`;
+    for (let w = 0; w < 12; w++) {
+      const cell = cells[w][d];
+      const cls = cell.future ? 'future' : `lvl-${cell.level}`;
+      const tip = cell.future
+        ? ''
+        : `${cell.date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${cell.hours.toFixed(1)} h`;
+      html += `<div class="heatmap-cell ${cls}" title="${tip}"></div>`;
+    }
+    html += '</div>';
+  }
+  html += '</div>';
+  // Légende
+  html += `<div class="heatmap-legend">
+    <span>moins</span>
+    <div class="heatmap-cell lvl-0"></div>
+    <div class="heatmap-cell lvl-1"></div>
+    <div class="heatmap-cell lvl-2"></div>
+    <div class="heatmap-cell lvl-3"></div>
+    <div class="heatmap-cell lvl-4"></div>
+    <span>plus</span>
+  </div>`;
+  root.innerHTML = html;
+}
+
+function renderSubjectsDonut(logs) {
+  const ctx = document.getElementById('chart-work-subjects');
+  if (!ctx) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - 30);
+  const cutoffK = todayKey(cutoff);
+  const totals = {};
+  for (const l of logs) {
+    if (l.date < cutoffK) continue;
+    for (const [subj, mins] of Object.entries(l.bySubject || {})) {
+      totals[subj] = (totals[subj] || 0) + mins;
+    }
+  }
+  const entries = Object.entries(totals).filter(([_, m]) => m > 0);
+  if (entries.length === 0) {
+    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de données</div>';
+    return;
+  }
+  const palette = {
+    maths: CHART_COLORS.violet,
+    physique: '#a78bfa',
+    si: CHART_COLORS.pink,
+    langues: CHART_COLORS.cool,
+    francais: CHART_COLORS.gold,
+    autre: '#5e6480'
+  };
+  const totalH = entries.reduce((s, [_, m]) => s + m, 0) / 60;
+  State.charts.subjects = new Chart(ctx, {
+    type: 'doughnut',
+    data: {
+      labels: entries.map(([s]) => SUBJECTS[s]?.label || s),
+      datasets: [{
+        data: entries.map(([_, m]) => Math.round(m / 60 * 10) / 10),
+        backgroundColor: entries.map(([s]) => palette[s] || '#999'),
+        borderColor: CHART_COLORS.bg,
+        borderWidth: 3,
+        hoverOffset: 10,
+        hoverBorderColor: CHART_COLORS.bg
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      cutout: '68%',
+      plugins: {
+        legend: { position: 'right', labels: { color: CHART_COLORS.text, font: { size: 11 }, boxWidth: 10, padding: 10, usePointStyle: true, pointStyle: 'circle' } },
+        tooltip: {
+          ...chartCommonOptions().plugins.tooltip,
+          callbacks: {
+            label: (c) => {
+              const pct = totalH > 0 ? Math.round(c.parsed / totalH * 100) : 0;
+              return `${c.label} · ${c.parsed} h (${pct}%)`;
             }
           }
-        });
-      }
-    }
-  }
-
-  // ── Graph 3 : distance par semaine (12 dernières) ─────────────────────────
-  {
-    const ctx = document.getElementById('chart-sport-weeks');
-    if (ctx) {
-      const weeks = [];
-      const monday = startOfWeek();
-      for (let i = 11; i >= 0; i--) {
-        const m = new Date(monday); m.setDate(m.getDate() - i * 7);
-        weeks.push({ start: m, end: new Date(m.getTime() + 7 * 86400000), label: m.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) });
-      }
-      const data = weeks.map(w => {
-        return acts
-          .filter(a => { const d = new Date(a.date); return d >= w.start && d < w.end; })
-          .reduce((s, a) => s + (a.distanceKm || 0), 0);
-      });
-      const ctxC = ctx.getContext('2d');
-      const grad = ctxC.createLinearGradient(0, 0, 0, 220);
-      grad.addColorStop(0, CHART_COLORS.warm);
-      grad.addColorStop(1, 'rgba(255, 106, 61, 0.15)');
-      State.charts.sportWeeks = new Chart(ctx, {
-        type: 'bar',
-        data: {
-          labels: weeks.map(w => w.label),
-          datasets: [{
-            label: 'km',
-            data,
-            backgroundColor: grad,
-            borderColor: CHART_COLORS.warm,
-            borderWidth: 1,
-            borderRadius: 4
-          }]
-        },
-        options: {
-          ...chartCommonOptions(),
-          plugins: { ...chartCommonOptions().plugins, legend: { display: false } }
         }
-      });
-    }
-  }
-
-  // ── Graph 4 : D+ cumulé activité après activité ────────────────────────────
-  {
-    const ctx = document.getElementById('chart-sport-elev');
-    if (ctx) {
-      const sorted = [...acts].sort((a, b) => a.date.localeCompare(b.date));
-      let cum = 0;
-      const data = sorted.map(a => { cum += (a.elevGain || 0); return cum; });
-      const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
-      if (sorted.length === 0) {
-        ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de sorties</div>';
-      } else {
-        const ctxC = ctx.getContext('2d');
-        const grad = ctxC.createLinearGradient(0, 0, 0, 220);
-        grad.addColorStop(0, 'rgba(255, 181, 71, 0.4)');
-        grad.addColorStop(1, 'rgba(255, 181, 71, 0)');
-        State.charts.sportElev = new Chart(ctx, {
-          type: 'line',
-          data: {
-            labels,
-            datasets: [{
-              label: 'D+ cumulé (m)',
-              data,
-              borderColor: '#ffb547',
-              backgroundColor: grad,
-              borderWidth: 2,
-              tension: 0.3,
-              pointRadius: 3,
-              pointBackgroundColor: '#ffd86b',
-              pointBorderColor: '#0a0e1a',
-              fill: true
-            }]
-          },
-          options: {
-            ...chartCommonOptions(),
-            plugins: { ...chartCommonOptions().plugins, legend: { display: false } }
-          }
-        });
       }
     }
+  });
+}
+
+function renderSportVolume(acts) {
+  const ctx = document.getElementById('chart-sport-volume');
+  if (!ctx) return;
+  const monday = startOfWeek();
+  const weeks = [];
+  for (let i = 11; i >= 0; i--) {
+    const m = new Date(monday); m.setDate(m.getDate() - i * 7);
+    weeks.push({ start: m, end: new Date(m.getTime() + 7 * 86400000), label: m.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) });
   }
+  const distances = [];
+  const paces = [];
+  for (const w of weeks) {
+    const wActs = acts.filter(a => { const d = new Date(a.date); return d >= w.start && d < w.end; });
+    const km = wActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
+    distances.push(Number(km.toFixed(1)));
+    // Allure moyenne pondérée par distance, en min/km
+    let totalSec = 0, totalKm = 0;
+    for (const a of wActs) {
+      if (a.duration && a.distanceKm) {
+        totalSec += a.duration;
+        totalKm += a.distanceKm;
+      }
+    }
+    paces.push(totalKm > 0 ? Number((totalSec / totalKm / 60).toFixed(2)) : null);
+  }
+  // Si jamais aucune sortie : message vide.
+  if (distances.every(d => d === 0)) {
+    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de sorties</div>';
+    return;
+  }
+
+  const ctxC = ctx.getContext('2d');
+  const gradFill = ctxC.createLinearGradient(0, 0, 0, 220);
+  gradFill.addColorStop(0, 'rgba(255, 106, 61, 0.55)');
+  gradFill.addColorStop(1, 'rgba(255, 106, 61, 0.04)');
+
+  State.charts.sportVolume = new Chart(ctx, {
+    data: {
+      labels: weeks.map(w => w.label),
+      datasets: [
+        {
+          type: 'line',
+          label: 'Distance (km)',
+          data: distances,
+          yAxisID: 'y',
+          borderColor: CHART_COLORS.warm,
+          backgroundColor: gradFill,
+          borderWidth: 2.5,
+          tension: 0.35,
+          pointRadius: 4,
+          pointHoverRadius: 6,
+          pointBackgroundColor: '#ffd86b',
+          pointBorderColor: CHART_COLORS.warm,
+          pointBorderWidth: 1.5,
+          fill: true,
+          order: 2
+        },
+        {
+          type: 'line',
+          label: 'Allure (min/km)',
+          data: paces,
+          yAxisID: 'y1',
+          borderColor: CHART_COLORS.cool,
+          backgroundColor: 'transparent',
+          borderWidth: 2,
+          borderDash: [4, 4],
+          tension: 0.3,
+          pointRadius: 3,
+          pointBackgroundColor: CHART_COLORS.cool,
+          pointBorderColor: CHART_COLORS.bg,
+          pointBorderWidth: 1.5,
+          spanGaps: true,
+          fill: false,
+          order: 1
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: CHART_COLORS.text, font: { size: 11 }, usePointStyle: true, padding: 14 } },
+        tooltip: chartCommonOptions().plugins.tooltip
+      },
+      scales: {
+        x: {
+          ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 },
+          grid: { display: false }
+        },
+        y: {
+          position: 'left',
+          beginAtZero: true,
+          ticks: { color: CHART_COLORS.warm, font: { size: 10 }, callback: (v) => v + ' km' },
+          grid: { color: CHART_COLORS.grid, drawBorder: false }
+        },
+        y1: {
+          position: 'right',
+          reverse: true, // allure plus rapide = plus haut visuellement
+          ticks: { color: CHART_COLORS.cool, font: { size: 10 }, callback: (v) => {
+            const m = Math.floor(v); const s = Math.round((v - m) * 60);
+            return `${m}:${String(s).padStart(2, '0')}`;
+          }},
+          grid: { display: false }
+        }
+      }
+    }
+  });
+}
+
+function renderSportPace(acts) {
+  const ctx = document.getElementById('chart-sport-pace');
+  if (!ctx) return;
+  const sorted = [...acts]
+    .filter(a => a.duration > 0 && a.distanceKm > 0)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-20);
+  if (sorted.length < 2) {
+    ctx.parentElement.innerHTML = '<div class="chart-empty">Au moins 2 sorties chronométrées pour voir la progression</div>';
+    return;
+  }
+  // Allure en min/km
+  const paces = sorted.map(a => a.duration / a.distanceKm / 60);
+  const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+  // Couleur par sortie selon le type
+  const pointColors = sorted.map(a =>
+    a.type === 'trail' ? '#ffb547' :
+    a.type === 'rando' ? '#5cc8ff' :
+    '#ffd86b'
+  );
+
+  const best = Math.min(...paces);
+  const worst = Math.max(...paces);
+
+  const ctxC = ctx.getContext('2d');
+  const grad = ctxC.createLinearGradient(0, 0, 0, 220);
+  grad.addColorStop(0, 'rgba(255, 216, 107, 0.35)');
+  grad.addColorStop(1, 'rgba(255, 216, 107, 0)');
+
+  State.charts.sportPace = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Allure',
+          data: paces.map(p => Number(p.toFixed(2))),
+          borderColor: CHART_COLORS.gold,
+          backgroundColor: grad,
+          borderWidth: 2.5,
+          tension: 0.35,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+          pointBackgroundColor: pointColors,
+          pointBorderColor: CHART_COLORS.bg,
+          pointBorderWidth: 2,
+          fill: true
+        }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...chartCommonOptions().plugins.tooltip,
+          callbacks: {
+            label: (c) => {
+              const a = sorted[c.dataIndex];
+              const m = Math.floor(c.parsed.y);
+              const s = Math.round((c.parsed.y - m) * 60);
+              const pace = `${m}:${String(s).padStart(2, '0')}/km`;
+              return [`${pace}`, `${a.distanceKm} km · ${formatDuration(a.duration)}`];
+            },
+            title: (items) => sorted[items[0].dataIndex].name || items[0].label
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 },
+          grid: { display: false }
+        },
+        y: {
+          reverse: true,
+          ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, callback: (v) => {
+            const m = Math.floor(v); const s = Math.round((v - m) * 60);
+            return `${m}:${String(s).padStart(2, '0')}`;
+          }},
+          grid: { color: CHART_COLORS.grid, drawBorder: false },
+          // Étend un peu pour donner de l'air visuel
+          suggestedMin: best - 0.3,
+          suggestedMax: worst + 0.3
+        }
+      }
+    }
+  });
 }
 
 // ============================================================================

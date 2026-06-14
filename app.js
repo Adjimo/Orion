@@ -156,10 +156,10 @@ function dayKeyFromDate(d = new Date()) {
 // ============================================================================
 
 function xpForLevelUp(level) {
-  // Calibrée pour atterrir rang Géant→Fils de Poséidon (40-60) aux concours
-  // avec un usage régulier depuis septembre, sans plafonner trop vite.
-  // L10 ≈ 1.5k cumul, L30 ≈ 15k, L50 ≈ 55k, L75 ≈ 160k.
-  return Math.round(60 + (level - 1) * 16 + Math.pow(level - 1, 2) * 0.8);
+  // Calibrée pour atteindre niveau 100 aux concours (avril 2027) avec ~40 semaines
+  // d'usage régulier depuis septembre 2026 + un peu d'XP cet été.
+  // L10 ≈ 1k cumul, L50 ≈ 27k, L100 ≈ 153k.
+  return Math.round(50 + (level - 1) * 10 + Math.pow(level - 1, 2) * 0.3);
 }
 
 function deriveLevel(totalXp) {
@@ -311,7 +311,8 @@ const SUBJECTS = {
 };
 
 function baseXpForGoal(goalHours) {
-  return Math.round(20 + goalHours * 15);
+  // Calibré pour atteindre L100 aux concours avec ~30h travail/semaine + sport.
+  return Math.round(80 + goalHours * 60);
 }
 
 function computeWorkXp(actualMinutes, goalHours) {
@@ -426,7 +427,7 @@ const SEED_WEEKLY_QUESTS = [
 
 function computeCountXp(actualCount, goalCount) {
   if (!goalCount) return { xp: 0, ratio: 0 };
-  const base = 20 + goalCount * 12;
+  const base = 60 + goalCount * 36;
   const ratio = actualCount / goalCount;
   let xp;
   if (ratio <= 1) xp = Math.round(ratio * base);
@@ -625,48 +626,36 @@ function questFullXp(quest) {
   return computeCountXp(quest.goalCount, quest.goalCount).xp;
 }
 
-// Calcule le malus (XP négatif et skills associés) pour une quête principale ratée.
-function malusForQuest(quest, ratio) {
-  const factor = malusFactorFromRatio(ratio);
-  if (factor === 0) return null;
-  const fullXp = questFullXp(quest);
-  const malusXp = Math.round(fullXp * factor);
-  const skills = {};
-  if (quest.skill) skills[quest.skill] = Math.round(malusXp * 0.7);
-  skills.discipline = (skills.discipline || 0) + Math.round(malusXp * 0.2);
-  return { xp: malusXp, skills, factor };
+// XP gagné un jour donné (l'unique source quotidienne suivie est le travail).
+async function xpEarnedOnDay(dateKey) {
+  const log = await dbGet('workLog', dateKey);
+  return log?.lastXpAwarded || 0;
 }
 
-// Calcule le bonus pour une quête secondaire dépassée.
-function bonusForQuest(quest, ratio) {
-  const factor = bonusFactorFromRatio(ratio);
-  if (factor === 0) return null;
-  const fullXp = questFullXp(quest);
-  const bonusXp = Math.round(fullXp * factor);
-  const skills = {};
-  if (quest.skill) skills[quest.skill] = Math.round(bonusXp * 0.7);
-  skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.2);
-  return { xp: bonusXp, skills, factor };
-}
-
-// Idem pour la quête quotidienne de travail (dérivée du schedule).
-function malusForDailyWork(actualMinutes, goalHours) {
-  if (!goalHours || goalHours <= 0) return null;
-  const ratio = actualMinutes / (goalHours * 60);
-  const factor = malusFactorFromRatio(ratio);
-  if (factor === 0) return null;
-  const fullXp = baseXpForGoal(goalHours);
-  const malusXp = Math.round(fullXp * factor);
-  return {
-    xp: malusXp,
-    skills: { discipline: Math.round(malusXp * 0.5) },
-    factor
-  };
+// XP gagné dans une semaine ISO donnée : workLogs + completions hebdo + activités.
+async function xpEarnedInWeek(wk) {
+  const logs = await dbAll('workLog');
+  const completions = await dbAll('completions');
+  const acts = await dbAll('activities');
+  let total = 0;
+  for (const l of logs) {
+    if (weekKey(new Date(l.date + 'T00:00:00')) === wk) total += l.lastXpAwarded || 0;
+  }
+  for (const c of completions) {
+    if (c.weekKey === wk) total += c.lastXp || 0;
+  }
+  for (const a of acts) {
+    if (a.date && weekKey(new Date(a.date)) === wk) total += a.xpAwarded || 0;
+  }
+  return total;
 }
 
 // Tick : à chaque chargement de l'app, on regarde si on a passé une frontière
 // jour/semaine et on applique malus + bonus pour les périodes terminées.
 // Les ID de période traités sont stockés dans `meta` pour idempotence.
+// Le malus principal est en POURCENTAGE du XP gagné dans la période — pas un
+// montant fixe : c'est plus lisible et plus juste (semaine peu productive →
+// malus petit en absolu, semaine intense → malus proportionnel).
 // Note : éditer le workLog d'un jour déjà finalisé NE re-déclenche PAS le malus —
 // l'évaluation est définitive au passage de minuit.
 async function applyPendingPenalties() {
@@ -676,10 +665,9 @@ async function applyPendingPenalties() {
   const startK = PENALTIES_START;
   const applied = [];
 
-  // ── Malus quotidien sur le travail ────────────────────────────────────────
+  // ── Malus quotidien sur le travail (% du XP gagné ce jour-là) ────────────
   const lastDailyMeta = await dbGet('meta', 'lastDailyPenalty');
-  const lastDaily = lastDailyMeta?.value || startK; // commence le jour de la rentrée
-  // Pour chaque jour entre lastDaily (exclu) et today (exclu) : finaliser.
+  const lastDaily = lastDailyMeta?.value || startK;
   let cursor = new Date(lastDaily + 'T00:00:00');
   cursor.setDate(cursor.getDate() + 1);
   while (cursor < new Date(todayK + 'T00:00:00')) {
@@ -689,12 +677,19 @@ async function applyPendingPenalties() {
       const dayK = ['sun','mon','tue','wed','thu','fri','sat'][cursor.getDay()];
       const plan = sched.find(s => s.id === dayK);
       const goalHours = plan?.workHours || 0;
-      const log = await dbGet('workLog', dk);
-      const actualMin = log?.totalMinutes || 0;
-      const malus = malusForDailyWork(actualMin, goalHours);
-      if (malus) {
-        await removeXp(malus.xp, malus.skills);
-        applied.push({ kind: 'daily-work', date: dk, ...malus });
+      if (goalHours > 0) {
+        const log = await dbGet('workLog', dk);
+        const actualMin = log?.totalMinutes || 0;
+        const ratio = actualMin / (goalHours * 60);
+        const factor = malusFactorFromRatio(ratio);
+        if (factor > 0) {
+          const dayXp = log?.lastXpAwarded || 0;
+          const malusXp = Math.round(dayXp * factor);
+          if (malusXp > 0) {
+            await removeXp(malusXp, { discipline: Math.round(malusXp * 0.5) });
+            applied.push({ kind: 'daily-work', date: dk, xp: malusXp, percent: factor, ratio });
+          }
+        }
       }
     }
     await dbPut('meta', { key: 'lastDailyPenalty', value: dk });
@@ -703,31 +698,48 @@ async function applyPendingPenalties() {
 
   // ── Malus + bonus hebdo ──────────────────────────────────────────────────
   const lastWeeklyMeta = await dbGet('meta', 'lastWeeklyPenalty');
-  // weekKey du lundi de la rentrée comme borne basse.
   const startWk = weekKey(new Date(startK + 'T00:00:00'));
   const lastWeekly = lastWeeklyMeta?.value || prevWeekKey(startWk);
   const currentWk = weekKey(today);
-  // Pour chaque semaine strictement entre lastWeekly et currentWk : finaliser.
   let wk = nextWeekKey(lastWeekly);
   while (wk < currentWk) {
     if (wk >= startWk) {
       const completions = await dbAll('completions');
       const quests = await dbAll('quests');
-      for (const q of quests) {
+      const weekXp = await xpEarnedInWeek(wk);
+
+      // Cumule les facteurs des principales ratées, capé à 80%.
+      let totalMalusFactor = 0;
+      const malusDetails = [];
+      for (const q of quests.filter(x => x.category === 'main')) {
         const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
         const ratio = c?.ratio || 0;
-        if (q.category === 'main') {
-          const m = malusForQuest(q, ratio);
-          if (m) {
-            await removeXp(m.xp, m.skills);
-            applied.push({ kind: 'weekly-malus', questId: q.id, week: wk, ...m });
-          }
-        } else if (q.category === 'secondary') {
-          const b = bonusForQuest(q, ratio);
-          if (b) {
-            await awardXp(b.xp, b.skills);
-            applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, ...b });
-          }
+        const f = malusFactorFromRatio(ratio);
+        if (f > 0) {
+          totalMalusFactor += f;
+          malusDetails.push({ questId: q.id, factor: f, ratio });
+        }
+      }
+      totalMalusFactor = Math.min(0.8, totalMalusFactor);
+      if (totalMalusFactor > 0 && weekXp > 0) {
+        const malusXp = Math.round(weekXp * totalMalusFactor);
+        await removeXp(malusXp, { discipline: Math.round(malusXp * 0.5) });
+        applied.push({ kind: 'weekly-malus', week: wk, xp: malusXp, percent: totalMalusFactor, weekXp, details: malusDetails });
+      }
+
+      // Bonus secondaires : un par quête, sur le XP de référence de la quête.
+      for (const q of quests.filter(x => x.category === 'secondary')) {
+        const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
+        const ratio = c?.ratio || 0;
+        const f = bonusFactorFromRatio(ratio);
+        if (f > 0) {
+          const fullXp = questFullXp(q);
+          const bonusXp = Math.round(fullXp * f);
+          const skills = {};
+          if (q.skill) skills[q.skill] = Math.round(bonusXp * 0.7);
+          skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.2);
+          await awardXp(bonusXp, skills);
+          applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, xp: bonusXp, percent: f, ratio });
         }
       }
     }
@@ -856,15 +868,15 @@ function formatPace(secondsPerKm) {
 }
 
 function activityXp(parsed) {
-  // Montagne fortement boostée pour compenser le faible volume de D+ vs heures de travail.
-  // Endurance idem : moins de minutes que les matières, alors plus d'XP par km.
-  const xp = Math.round(parsed.distanceKm * 7 + parsed.elevGain * 0.4);
+  // Calibré pour 3 sorties/semaine moyenne (10 km, 200 m D+) ≈ 1800 XP/sem sport.
+  // Montagne fortement boostée pour compenser le faible volume de D+.
+  const xp = Math.round(parsed.distanceKm * 28 + parsed.elevGain * 1.6);
   return {
     xp,
     skills: {
-      endurance: Math.round(parsed.distanceKm * 5),
-      montagne: Math.round(parsed.elevGain * 0.45),
-      discipline: 8
+      endurance: Math.round(parsed.distanceKm * 20),
+      montagne: Math.round(parsed.elevGain * 1.8),
+      discipline: 30
     }
   };
 }
@@ -1372,15 +1384,21 @@ async function renderWeeklyQuests(root, category = null) {
     const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
     const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres;
 
-    // Aperçu du malus / bonus prévisible (informationnel)
+    // Aperçu malus/bonus, uniquement à partir de la rentrée.
     let forecast = '';
-    if (arePenaltiesActive() || true /* on l'affiche aussi avant pour éducation */) {
+    if (arePenaltiesActive()) {
       if (q.category === 'main') {
-        const m = malusForQuest(q, ratio);
-        if (m) forecast = `<span class="hq-malus">−${m.xp} XP prévu</span>`;
+        const f = malusFactorFromRatio(ratio);
+        if (f > 0) {
+          forecast = `<span class="hq-malus">−${Math.round(f * 100)}% XP semaine prévu</span>`;
+        }
       } else if (q.category === 'secondary') {
-        const b = bonusForQuest(q, ratio);
-        if (b) forecast = `<span class="hq-bonus">+${b.xp} XP bonus</span>`;
+        const f = bonusFactorFromRatio(ratio);
+        if (f > 0) {
+          const fullXp = questFullXp(q);
+          const bonusXp = Math.round(fullXp * f);
+          forecast = `<span class="hq-bonus">+${bonusXp} XP bonus</span>`;
+        }
       }
     }
 
@@ -1559,28 +1577,88 @@ function renderSport(root) {
   setTimeout(() => renderMap(sel), 50);
 }
 
-function renderMap(activity) {
-  if (!activity || !window.L) return;
-  const mapEl = document.getElementById('sport-map');
-  if (!mapEl) return;
-  if (State.map) { State.map.remove(); State.map = null; }
-  State.map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
-  // Tile sombre minimaliste, palette compatible avec l'app (CartoDB Dark Matter).
+// Rend une carte Orion-stylée dans un conteneur DOM. Renvoie l'instance Leaflet.
+function renderMapInto(mapEl, activity) {
+  if (!activity || !window.L || !mapEl) return null;
+  const map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
   L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OSM · CartoDB',
     subdomains: 'abcd',
     maxZoom: 19
-  }).addTo(State.map);
+  }).addTo(map);
   const latlngs = activity.points.map(p => [p.lat, p.lon]);
-  // Tracé : halo doré autour, ligne principale en gradient gold/violet.
-  const halo = L.polyline(latlngs, { color: '#ffd86b', weight: 9, opacity: 0.18, lineJoin: 'round', lineCap: 'round' }).addTo(State.map);
-  State.mapTrack = L.polyline(latlngs, { color: '#ffb547', weight: 4, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(State.map);
+  L.polyline(latlngs, { color: '#ffd86b', weight: 9, opacity: 0.18, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+  const track = L.polyline(latlngs, { color: '#ffb547', weight: 4, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(map);
   if (latlngs.length > 0) {
-    L.circleMarker(latlngs[0], { radius: 7, color: '#ffd86b', weight: 2, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(State.map);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 7, color: '#7c5cff', weight: 2, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(State.map);
+    L.circleMarker(latlngs[0], { radius: 7, color: '#ffd86b', weight: 2, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);
+    L.circleMarker(latlngs[latlngs.length - 1], { radius: 7, color: '#7c5cff', weight: 2, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);
   }
-  State.map.fitBounds(State.mapTrack.getBounds(), { padding: [20, 20] });
-  setTimeout(() => State.map.invalidateSize(), 100);
+  map.fitBounds(track.getBounds(), { padding: [20, 20] });
+  setTimeout(() => map.invalidateSize(), 100);
+  return map;
+}
+
+function renderMap(activity) {
+  const mapEl = document.getElementById('sport-map');
+  if (!mapEl) return;
+  if (State.map) { State.map.remove(); State.map = null; }
+  State.map = renderMapInto(mapEl, activity);
+}
+
+// Preview modale : montre la carte + métriques + XP attendu, demande confirmation.
+// Résout à `true` si l'utilisateur confirme l'import, `false` sinon.
+function showGpxPreview(parsed, type, splits, xp) {
+  return new Promise((resolve) => {
+    const typeIcon = type === 'trail' ? '⛰️' : type === 'rando' ? '🥾' : '🏃';
+    const overlay = el('div', { class: 'gpx-preview-overlay' });
+    const modal = el('div', { class: 'gpx-preview-modal' });
+    modal.innerHTML = `
+      <div class="gpx-preview-head">
+        <div class="gpx-preview-title">
+          <span class="gpx-preview-icon">${typeIcon}</span>
+          <span>${escapeHtml(parsed.name)}</span>
+        </div>
+        <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+      </div>
+      <div class="gpx-preview-map" id="gpx-preview-map"></div>
+      <div class="gpx-preview-metrics">
+        <div class="metric"><div class="m-val grad-text">${parsed.distanceKm}</div><div class="m-lbl">km</div></div>
+        <div class="metric"><div class="m-val grad-text">${parsed.elevGain}</div><div class="m-lbl">m D+</div></div>
+        <div class="metric"><div class="m-val grad-text">${formatDuration(parsed.duration)}</div><div class="m-lbl">durée</div></div>
+        <div class="metric"><div class="m-val grad-text">${formatPace(parsed.avgPace)}</div><div class="m-lbl">allure</div></div>
+      </div>
+      ${splits.best5k || splits.best10k ? `
+        <div class="gpx-preview-splits">
+          ${splits.best5k ? `<span>⚡ 5K · ${formatDuration(Math.round(splits.best5k))}</span>` : ''}
+          ${splits.best10k ? `<span>🏃 10K · ${formatDuration(Math.round(splits.best10k))}</span>` : ''}
+        </div>
+      ` : ''}
+      <div class="gpx-preview-actions">
+        <button class="btn ghost" id="gpx-cancel">Annuler</button>
+        <button class="btn-gpx" id="gpx-confirm">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          Importer · +${xp} XP
+        </button>
+      </div>
+    `;
+    overlay.appendChild(modal);
+    document.body.appendChild(overlay);
+
+    let map;
+    setTimeout(() => {
+      map = renderMapInto(modal.querySelector('#gpx-preview-map'), { points: parsed.points });
+    }, 30);
+
+    const close = (ok) => {
+      if (map) map.remove();
+      overlay.remove();
+      resolve(ok);
+    };
+    modal.querySelector('.gpx-preview-close').addEventListener('click', () => close(false));
+    modal.querySelector('#gpx-cancel').addEventListener('click', () => close(false));
+    modal.querySelector('#gpx-confirm').addEventListener('click', () => close(true));
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(false); });
+  });
 }
 
 async function onGpxFile(e) {
@@ -1592,6 +1670,14 @@ async function onGpxFile(e) {
     const splits = computeSplits(parsed);
     const type = detectActivityType(parsed);
     const { xp, skills } = activityXp(parsed);
+
+    // Preview avant import : l'utilisateur peut annuler.
+    const confirmed = await showGpxPreview(parsed, type, splits, xp);
+    if (!confirmed) {
+      e.target.value = '';
+      return;
+    }
+
     // On stocke ce qui a été gagné pour permettre une suppression réversible.
     const activity = { id: 'act-' + Date.now(), type, ...parsed, ...splits, xpAwarded: xp, skillsAwarded: skills };
     await dbPut('activities', activity);
@@ -1713,6 +1799,18 @@ function renderStats(root) {
     </div>
   `}));
 
+  // Graph: heures par jour (21 derniers jours)
+  page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+    el('div', { class: 'chart-title' }, '⏱️ Heures travaillées · 21 derniers jours'),
+    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-work-days' })])
+  ]));
+
+  // Graph: répartition matières (30 derniers jours)
+  page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+    el('div', { class: 'chart-title' }, '🎯 Répartition des matières · 30 derniers jours'),
+    el('div', { class: 'chart-wrap chart-wrap-donut' }, [el('canvas', { id: 'chart-work-subjects' })])
+  ]));
+
   page.appendChild(el('h3', { class: 'mb-2' }, 'Records personnels'));
   page.appendChild(el('div', { class: 'card mb-5', html: `
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">📅</span><span class="rec-label">Plus grosse journée</span></div><div class="rec-value">${bestDayMin > 0 ? formatMinutes(bestDayMin) : '—'}</div></div>
@@ -1736,6 +1834,18 @@ function renderStats(root) {
     </div>
   `}));
 
+  // Graph: distance par semaine
+  page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+    el('div', { class: 'chart-title' }, '📏 Distance · 12 dernières semaines'),
+    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-weeks' })])
+  ]));
+
+  // Graph: D+ cumulé sortie après sortie
+  page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+    el('div', { class: 'chart-title' }, '⛰️ D+ cumulé · progression'),
+    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-elev' })])
+  ]));
+
   page.appendChild(el('h3', { class: 'mb-2' }, 'Records personnels'));
   let recsHtml = '';
   for (const t of RECORD_TYPES) {
@@ -1750,6 +1860,238 @@ function renderStats(root) {
   page.appendChild(el('div', { class: 'card mb-3', html: recsHtml }));
 
   root.appendChild(page);
+
+  // Render des graphes après que le DOM soit attaché.
+  setTimeout(() => renderStatsCharts(logs, acts), 30);
+}
+
+// Helpers de styling Chart.js cohérents avec la palette Orion.
+const CHART_COLORS = {
+  text: '#a0a4b8',
+  textMute: '#5e6480',
+  grid: 'rgba(31, 42, 68, 0.7)',
+  gold: '#ffd86b',
+  goldFade: 'rgba(255, 216, 107, 0.18)',
+  warm: '#ff6a3d',
+  cool: '#5cc8ff',
+  violet: '#7c5cff',
+  pink: '#f472b6',
+  bg: '#11172a'
+};
+
+function chartCommonOptions() {
+  return {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: CHART_COLORS.text, font: { family: 'system-ui, -apple-system, sans-serif', size: 11 } } },
+      tooltip: {
+        backgroundColor: 'rgba(10,14,26,0.95)',
+        titleColor: CHART_COLORS.gold,
+        bodyColor: '#f0eee6',
+        borderColor: 'rgba(255,216,107,0.2)',
+        borderWidth: 1,
+        padding: 10,
+        displayColors: true,
+        cornerRadius: 8
+      }
+    },
+    scales: {
+      x: {
+        ticks: { color: CHART_COLORS.textMute, font: { size: 10 } },
+        grid: { color: CHART_COLORS.grid, drawBorder: false }
+      },
+      y: {
+        ticks: { color: CHART_COLORS.textMute, font: { size: 10 } },
+        grid: { color: CHART_COLORS.grid, drawBorder: false },
+        beginAtZero: true
+      }
+    }
+  };
+}
+
+function renderStatsCharts(logs, acts) {
+  if (!window.Chart) return;
+  // Détruit les anciennes instances pour permettre un re-render propre.
+  for (const [id, inst] of Object.entries(State.charts || {})) {
+    try { inst?.destroy(); } catch {}
+  }
+  State.charts = {};
+
+  // ── Graph 1 : heures par jour (21 derniers jours) ─────────────────────────
+  {
+    const ctx = document.getElementById('chart-work-days');
+    if (ctx) {
+      const days = [];
+      const today = new Date(); today.setHours(0,0,0,0);
+      for (let i = 20; i >= 0; i--) {
+        const d = new Date(today); d.setDate(d.getDate() - i);
+        days.push({ key: todayKey(d), label: d.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) });
+      }
+      const data = days.map(d => {
+        const log = logs.find(l => l.date === d.key);
+        return ((log?.totalMinutes || 0) / 60);
+      });
+      const ctxC = ctx.getContext('2d');
+      const grad = ctxC.createLinearGradient(0, 0, 0, 220);
+      grad.addColorStop(0, CHART_COLORS.gold);
+      grad.addColorStop(1, CHART_COLORS.goldFade);
+      State.charts.workDays = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: days.map(d => d.label),
+          datasets: [{
+            label: 'Heures',
+            data,
+            backgroundColor: grad,
+            borderColor: CHART_COLORS.gold,
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          ...chartCommonOptions(),
+          plugins: { ...chartCommonOptions().plugins, legend: { display: false } }
+        }
+      });
+    }
+  }
+
+  // ── Graph 2 : répartition matières (30 derniers jours) ────────────────────
+  {
+    const ctx = document.getElementById('chart-work-subjects');
+    if (ctx) {
+      const today = new Date(); today.setHours(0,0,0,0);
+      const cutoff = new Date(today); cutoff.setDate(cutoff.getDate() - 30);
+      const cutoffK = todayKey(cutoff);
+      const totals = {};
+      for (const l of logs) {
+        if (l.date < cutoffK) continue;
+        for (const [subj, mins] of Object.entries(l.bySubject || {})) {
+          totals[subj] = (totals[subj] || 0) + mins;
+        }
+      }
+      const entries = Object.entries(totals).filter(([_, m]) => m > 0);
+      if (entries.length === 0) {
+        ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de données</div>';
+      } else {
+        const palette = {
+          maths: CHART_COLORS.violet,
+          physique: '#a78bfa',
+          si: CHART_COLORS.pink,
+          langues: CHART_COLORS.cool,
+          francais: CHART_COLORS.gold,
+          autre: '#5e6480'
+        };
+        State.charts.subjects = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: entries.map(([s]) => SUBJECTS[s]?.label || s),
+            datasets: [{
+              data: entries.map(([_, m]) => Math.round(m / 60 * 10) / 10),
+              backgroundColor: entries.map(([s]) => palette[s] || '#999'),
+              borderColor: CHART_COLORS.bg,
+              borderWidth: 2,
+              hoverOffset: 8
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: '62%',
+            plugins: {
+              legend: { position: 'right', labels: { color: CHART_COLORS.text, font: { size: 11 }, boxWidth: 12, padding: 8 } },
+              tooltip: {
+                ...chartCommonOptions().plugins.tooltip,
+                callbacks: { label: (c) => `${c.label}: ${c.parsed} h` }
+              }
+            }
+          }
+        });
+      }
+    }
+  }
+
+  // ── Graph 3 : distance par semaine (12 dernières) ─────────────────────────
+  {
+    const ctx = document.getElementById('chart-sport-weeks');
+    if (ctx) {
+      const weeks = [];
+      const monday = startOfWeek();
+      for (let i = 11; i >= 0; i--) {
+        const m = new Date(monday); m.setDate(m.getDate() - i * 7);
+        weeks.push({ start: m, end: new Date(m.getTime() + 7 * 86400000), label: m.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) });
+      }
+      const data = weeks.map(w => {
+        return acts
+          .filter(a => { const d = new Date(a.date); return d >= w.start && d < w.end; })
+          .reduce((s, a) => s + (a.distanceKm || 0), 0);
+      });
+      const ctxC = ctx.getContext('2d');
+      const grad = ctxC.createLinearGradient(0, 0, 0, 220);
+      grad.addColorStop(0, CHART_COLORS.warm);
+      grad.addColorStop(1, 'rgba(255, 106, 61, 0.15)');
+      State.charts.sportWeeks = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: weeks.map(w => w.label),
+          datasets: [{
+            label: 'km',
+            data,
+            backgroundColor: grad,
+            borderColor: CHART_COLORS.warm,
+            borderWidth: 1,
+            borderRadius: 4
+          }]
+        },
+        options: {
+          ...chartCommonOptions(),
+          plugins: { ...chartCommonOptions().plugins, legend: { display: false } }
+        }
+      });
+    }
+  }
+
+  // ── Graph 4 : D+ cumulé activité après activité ────────────────────────────
+  {
+    const ctx = document.getElementById('chart-sport-elev');
+    if (ctx) {
+      const sorted = [...acts].sort((a, b) => a.date.localeCompare(b.date));
+      let cum = 0;
+      const data = sorted.map(a => { cum += (a.elevGain || 0); return cum; });
+      const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+      if (sorted.length === 0) {
+        ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de sorties</div>';
+      } else {
+        const ctxC = ctx.getContext('2d');
+        const grad = ctxC.createLinearGradient(0, 0, 0, 220);
+        grad.addColorStop(0, 'rgba(255, 181, 71, 0.4)');
+        grad.addColorStop(1, 'rgba(255, 181, 71, 0)');
+        State.charts.sportElev = new Chart(ctx, {
+          type: 'line',
+          data: {
+            labels,
+            datasets: [{
+              label: 'D+ cumulé (m)',
+              data,
+              borderColor: '#ffb547',
+              backgroundColor: grad,
+              borderWidth: 2,
+              tension: 0.3,
+              pointRadius: 3,
+              pointBackgroundColor: '#ffd86b',
+              pointBorderColor: '#0a0e1a',
+              fill: true
+            }]
+          },
+          options: {
+            ...chartCommonOptions(),
+            plugins: { ...chartCommonOptions().plugins, legend: { display: false } }
+          }
+        });
+      }
+    }
+  }
 }
 
 // ============================================================================

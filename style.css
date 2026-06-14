@@ -112,6 +112,34 @@ h3 { font-size: 1.05rem; }
   box-shadow: var(--shadow-glow);
 }
 
+/* ===== Chart cards ===== */
+.chart-card {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  padding: var(--s-4) var(--s-3) var(--s-3);
+}
+.chart-title {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  margin-bottom: 10px;
+  padding-left: 4px;
+}
+.chart-wrap {
+  position: relative;
+  height: 200px;
+}
+.chart-wrap-donut {
+  height: 220px;
+}
+.chart-empty {
+  text-align: center;
+  padding: 40px 12px;
+  color: var(--text-mute);
+  font-size: 0.85rem;
+}
+
 /* ===== Buttons ===== */
 .btn {
   display: inline-flex;
@@ -151,27 +179,26 @@ h3 { font-size: 1.05rem; }
 .btn-gpx {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
+  gap: 6px;
   padding: 8px 14px;
   border-radius: 999px;
-  background: linear-gradient(135deg, rgba(255,181,71,0.18) 0%, rgba(124,92,255,0.18) 100%);
-  border: 1px solid rgba(255,216,107,0.4);
-  color: var(--gold);
-  font-family: 'Cinzel', serif;
-  font-weight: 500;
+  background: var(--grad-sun);
+  border: 1px solid transparent;
+  color: #0a0e1a;
+  font-family: var(--font);
+  font-weight: 600;
   font-size: 0.85rem;
-  letter-spacing: 0.08em;
   cursor: pointer;
-  transition: transform 0.08s, box-shadow 0.2s, border-color 0.2s;
-  box-shadow: 0 0 0 0 rgba(255,216,107,0);
+  transition: transform 0.08s, box-shadow 0.2s, filter 0.2s;
+  box-shadow: 0 2px 12px rgba(255, 181, 71, 0.3);
   user-select: none;
 }
 .btn-gpx:hover {
-  border-color: var(--gold);
-  box-shadow: 0 0 16px rgba(255,216,107,0.35);
+  filter: brightness(1.08);
+  box-shadow: 0 2px 18px rgba(255, 181, 71, 0.45);
 }
 .btn-gpx:active { transform: scale(0.96); }
-.btn-gpx svg { width: 16px; height: 16px; }
+.btn-gpx svg { width: 15px; height: 15px; stroke-width: 2.4; }
 
 /* ===== Inputs ===== */
 .input, .select {
@@ -337,6 +364,92 @@ h3 { font-size: 1.05rem; }
 .toast .icon { font-size: 1.6rem; }
 .toast .title { font-weight: 600; font-size: 0.95rem; }
 .toast .text { font-size: 0.8rem; color: var(--text-dim); margin-top: 2px; }
+
+/* ===== GPX preview modal ===== */
+.gpx-preview-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 8, 15, 0.82);
+  backdrop-filter: blur(6px);
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: fade-in 0.2s ease;
+}
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.gpx-preview-modal {
+  background: var(--bg-1);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,216,107,0.08);
+  animation: modal-rise 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes modal-rise {
+  from { opacity: 0; transform: translateY(12px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.gpx-preview-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.gpx-preview-title {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-weight: 600;
+  font-size: 1rem;
+}
+.gpx-preview-icon { font-size: 1.4rem; }
+.gpx-preview-close {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--bg-2);
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  transition: background 0.15s, color 0.15s;
+}
+.gpx-preview-close:hover { background: var(--bg-3); color: var(--text); }
+.gpx-preview-map {
+  height: 280px;
+  background: var(--bg-2);
+}
+.gpx-preview-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 14px 18px 6px;
+}
+.gpx-preview-splits {
+  display: flex;
+  gap: 14px;
+  padding: 6px 18px 0;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+}
+.gpx-preview-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+  padding: 14px 18px 18px;
+  margin-top: 6px;
+}
+.gpx-preview-actions .btn { padding: 9px 16px; font-size: 0.9rem; }
+.gpx-preview-actions .btn-gpx { padding: 9px 18px; font-size: 0.9rem; }
 
 /* ===== PR overlay ===== */
 .pr-overlay {

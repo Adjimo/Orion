@@ -5,38 +5,44 @@
       <stop offset="60%" stop-color="#0a0e1a"/>
       <stop offset="100%" stop-color="#06080f"/>
     </radialGradient>
-    <linearGradient id="svA-up" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#ffe999"/>
-      <stop offset="55%" stop-color="#ffd86b"/>
-      <stop offset="100%" stop-color="#ffb547"/>
-    </linearGradient>
-    <linearGradient id="svA-dn" x1="50%" y1="0%" x2="50%" y2="100%">
-      <stop offset="0%" stop-color="#ffb547"/>
-      <stop offset="100%" stop-color="#ff6a3d"/>
-    </linearGradient>
-    <linearGradient id="shA-l" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" stop-color="#7c5cff"/>
-      <stop offset="100%" stop-color="#a78bfa"/>
-    </linearGradient>
-    <linearGradient id="shA-r" x1="0%" y1="50%" x2="100%" y2="50%">
-      <stop offset="0%" stop-color="#a78bfa"/>
-      <stop offset="100%" stop-color="#ffb547"/>
+    <radialGradient id="halo" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#7c5cff" stop-opacity="0.7"/>
+      <stop offset="40%" stop-color="#7c5cff" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#7c5cff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="base" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#ffd86b" stop-opacity="0"/>
+      <stop offset="20%" stop-color="#ffd86b" stop-opacity="0.5"/>
+      <stop offset="50%" stop-color="#ffd86b" stop-opacity="1"/>
+      <stop offset="80%" stop-color="#ffd86b" stop-opacity="0.5"/>
+      <stop offset="100%" stop-color="#ffd86b" stop-opacity="0"/>
     </linearGradient>
   </defs>
 
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
 
-  <!-- Centre optique à y=33 (marges égales haut 6 / bas 11 pour conserver l'asymétrie A) -->
-  <!-- Demi-branche haute (longue, claire) : 27 px -->
-  <polygon points="32,6 35.5,33 28.5,33" fill="url(#svA-up)"/>
-  <!-- Demi-branche basse (courte, foncée) : 20 px -->
-  <polygon points="32,53 35.5,33 28.5,33" fill="url(#svA-dn)"/>
-  <!-- Demi-branche gauche (courte, violet) -->
-  <polygon points="11,33 32,30.5 32,35.5" fill="url(#shA-l)" opacity="0.9"/>
-  <!-- Demi-branche droite (un peu plus longue, violet→or) -->
-  <polygon points="56,33 32,30.5 32,35.5" fill="url(#shA-r)" opacity="0.9"/>
+  <!-- Arche dorée ouverte au sommet : le passage à franchir. -->
+  <path d="M 36 14 A 18 18 0 1 0 28 14"
+        fill="none"
+        stroke="#ffd86b"
+        stroke-width="2.4"
+        stroke-linecap="round"/>
 
-  <!-- Centre lumineux -->
-  <circle cx="32" cy="33" r="3" fill="#ffd86b"/>
-  <circle cx="32" cy="33" r="5.5" fill="#ffd86b" opacity="0.35"/>
+  <!-- Étoile dorée plus grosse, centrée à y=14 dans la brèche. -->
+  <polygon points="32,7 33.6,14 32,21 30.4,14" fill="#ffd86b"/>
+  <polygon points="25,14 32,12.5 39,14 32,15.5" fill="#ffd86b"/>
+  <circle cx="32" cy="14" r="2" fill="#ffe999"/>
+
+  <!-- Halo violet diffus autour du disque : matière dans la zone centrale
+       sans toucher à la pureté du disque. -->
+  <circle cx="32" cy="32" r="13" fill="url(#halo)"/>
+
+  <!-- Disque violet plat au centre : potentiel condensé. Inchangé. -->
+  <circle cx="32" cy="32" r="6" fill="#7c5cff"/>
+
+  <!-- Ligne de fondation : le sol, ce sur quoi le seuil repose. -->
+  <line x1="10" y1="48" x2="54" y2="48"
+        stroke="url(#base)"
+        stroke-width="1.6"
+        stroke-linecap="round"/>
 </svg>

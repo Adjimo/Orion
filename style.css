@@ -338,8 +338,8 @@ h3 { font-size: 1.05rem; }
 .splash-title {
   font-family: 'Cormorant Garamond', 'Cinzel', serif;
   font-weight: 600;
-  font-size: 3rem;
-  letter-spacing: 0.22em;
+  font-size: 3.4rem;
+  letter-spacing: 0.04em;
   background: linear-gradient(135deg, #7c5cff 0%, #ffd86b 45%, #ffb547 70%, #ff6a3d 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -949,12 +949,25 @@ h3 { font-size: 1.05rem; }
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.map { height: 280px; width: 100%; background: var(--bg-2); }
-.leaflet-container { background: #0c1530; font-family: var(--font); }
-/* Teinte bleutée sur les tiles dark CartoDB pour rester dans la palette Orion
-   sans tomber dans le noir pur. */
+.map { height: 280px; width: 100%; background: #1a2a5c; }
+.leaflet-container { background: #1a2a5c; font-family: var(--font); }
+/* Voyager (clair) inversé puis bleuté → fond bleu nuit avec différentiation
+   eau / terres / parcs lisible, palette Orion. Plus vivant que Dark Matter. */
 .leaflet-tile-pane {
-  filter: hue-rotate(-12deg) saturate(1.2) brightness(1.18) contrast(0.95);
+  filter:
+    invert(1)
+    hue-rotate(190deg)
+    saturate(0.85)
+    brightness(0.92)
+    contrast(0.92);
+}
+.leaflet-tile-pane::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(135deg, rgba(28, 50, 110, 0.18) 0%, rgba(60, 38, 110, 0.12) 100%);
+  mix-blend-mode: multiply;
 }
 .leaflet-control-attribution {
   background: rgba(10,14,26,0.78) !important;

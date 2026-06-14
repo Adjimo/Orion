@@ -1595,23 +1595,23 @@ function renderSport(root) {
 function renderMapInto(mapEl, activity) {
   if (!activity || !window.L || !mapEl) return null;
   const map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
-  // CartoDB Positron : palette claire mais sobre (gris très clair, eau bleu pâle,
-  // routes blanc cassé). Moins éclatant que Voyager — n'agresse pas l'œil dans
-  // l'app sombre tout en restant parfaitement lisible. CDN fiable sans clé.
+  // CartoDB Dark Matter : fond charbon profond, contours et routes subtils.
+  // Ne pas appliquer de filtre CSS — la palette native est déjà belle, c'est le
+  // tracé orange/doré qui apporte tout le contraste. CDN fiable, aucune clé.
   // Le SW ne touche pas à ces tiles (cf sw.js).
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OSM · CartoDB',
     subdomains: 'abcd',
     maxZoom: 19
   }).addTo(map);
   const latlngs = activity.points.map(p => [p.lat, p.lon]);
-  // Tracé multi-couches pour éclat sur fond clair :
-  // 1. Bordure foncée fine pour découper le tracé du fond beige
-  // 2. Halo doré généreux pour le glow
-  // 3. Ligne principale orange chaude (signature course)
-  L.polyline(latlngs, { color: '#0a0e1a', weight: 8, opacity: 0.35, lineJoin: 'round', lineCap: 'round' }).addTo(map);
-  L.polyline(latlngs, { color: '#ffd86b', weight: 12, opacity: 0.30, lineJoin: 'round', lineCap: 'round' }).addTo(map);
-  const track = L.polyline(latlngs, { color: '#ff6a3d', weight: 4, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+  // Tracé multi-couches optimisé pour fond sombre :
+  // 1. Halo doré généreux (le glow ressort très bien sur charbon)
+  // 2. Halo orange intermédiaire pour la chaleur
+  // 3. Ligne principale or vif en avant
+  L.polyline(latlngs, { color: '#ffd86b', weight: 13, opacity: 0.30, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+  L.polyline(latlngs, { color: '#ff6a3d', weight: 8, opacity: 0.55, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+  const track = L.polyline(latlngs, { color: '#ffd86b', weight: 3.5, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(map);
   if (latlngs.length > 0) {
     L.circleMarker(latlngs[0], { radius: 8, color: '#ffd86b', weight: 3, fillColor: '#ff6a3d', fillOpacity: 1 }).addTo(map);
     L.circleMarker(latlngs[latlngs.length - 1], { radius: 8, color: '#7c5cff', weight: 3, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);

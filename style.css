@@ -1023,10 +1023,10 @@ h3 { font-size: 1.05rem; }
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.map { height: 280px; width: 100%; background: #eaeaec; }
-.leaflet-container { background: #eaeaec; font-family: var(--font); }
-/* Tiles CartoDB Positron : sobre, gris très clair, on laisse les couleurs
-   natives. Le tracé orange/doré apporte le contraste de l'app par-dessus. */
+.map { height: 280px; width: 100%; background: #0e0f12; }
+.leaflet-container { background: #0e0f12; font-family: var(--font); }
+/* Tiles CartoDB Dark Matter : fond charbon natif. AUCUN filtre CSS — c'est
+   le tracé doré/orange qui apporte tout le contraste par-dessus. */
 .leaflet-control-attribution {
   background: rgba(10,14,26,0.78) !important;
   color: var(--text-mute) !important;

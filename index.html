@@ -125,27 +125,81 @@
           // API utilitaire pour la vue Profil.
           window.OrionSW = {
             registration: reg,
-            getVersion() {
-              return new Promise((resolve) => {
-                if (!navigator.serviceWorker.controller) return resolve(null);
-                const channel = new MessageChannel();
-                channel.port1.onmessage = (e) => resolve(e.data?.version || null);
-                navigator.serviceWorker.controller.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
-                setTimeout(() => resolve(null), 1000);
+            // Récupère la version du SW. Plusieurs sources possibles, on retourne
+            // la première qui répond. Strucutre : { version, source, state }.
+            async getInfo() {
+              const info = {
+                version: null,
+                source: null,
+                state: 'inconnu',
+                hasRegistration: !!reg,
+                hasController: !!navigator.serviceWorker.controller
+              };
+
+              // 1. Tenter la communication directe avec le SW actif via postMessage.
+              const askWorker = (worker) => new Promise((resolve) => {
+                if (!worker) return resolve(null);
+                try {
+                  const channel = new MessageChannel();
+                  let done = false;
+                  const timer = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 1500);
+                  channel.port1.onmessage = (e) => {
+                    if (done) return;
+                    done = true; clearTimeout(timer);
+                    resolve(e.data?.version || null);
+                  };
+                  worker.postMessage({ type: 'GET_VERSION' }, [channel.port2]);
+                } catch {
+                  resolve(null);
+                }
               });
+
+              // Essai sur controller, puis active, puis waiting, puis installing.
+              const candidates = [
+                ['controller', navigator.serviceWorker.controller],
+                ['active', reg?.active],
+                ['waiting', reg?.waiting],
+                ['installing', reg?.installing]
+              ];
+              for (const [src, worker] of candidates) {
+                const v = await askWorker(worker);
+                if (v) {
+                  info.version = v;
+                  info.source = src;
+                  info.state = worker.state;
+                  return info;
+                }
+              }
+
+              // 2. Fallback : si on a une registration mais aucun message ne passe,
+              // on extrait au moins la URL/state pour distinguer "non installé"
+              // d'un SW présent mais muet.
+              if (reg) {
+                const w = reg.active || reg.waiting || reg.installing;
+                if (w) {
+                  info.state = w.state;
+                  info.source = reg.active ? 'active' : (reg.waiting ? 'waiting' : 'installing');
+                  // Pas de version explicite mais on indique qu'un SW est présent.
+                  info.version = '(installé · version inconnue)';
+                  return info;
+                }
+              }
+
+              return info;
+            },
+            // Compat ancienne API (renvoie juste la string).
+            async getVersion() {
+              return (await this.getInfo()).version;
             },
             async clearCacheAndReload() {
               try {
-                // 1. Désinscrit tous les SW
                 const regs = await navigator.serviceWorker.getRegistrations();
                 await Promise.all(regs.map(r => r.unregister()));
-                // 2. Vide tous les caches
                 if ('caches' in window) {
                   const keys = await caches.keys();
                   await Promise.all(keys.map(k => caches.delete(k)));
                 }
               } catch {}
-              // 3. Recharge en hard reload (sans cache HTTP)
               location.reload();
             },
             async forceCheckUpdate() {

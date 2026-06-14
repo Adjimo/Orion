@@ -2386,11 +2386,24 @@ function renderProfil(root) {
     const versionEl = mntCard.querySelector('#sw-version');
     const statusEl = mntCard.querySelector('#sw-status');
     if (window.OrionSW) {
-      const v = await window.OrionSW.getVersion();
-      versionEl.textContent = v || '— (non installé)';
-      statusEl.innerHTML = navigator.serviceWorker?.controller
-        ? '<span style="color: var(--accent);">✓ actif</span>'
-        : '<span style="color: var(--text-mute);">aucun SW</span>';
+      const info = await window.OrionSW.getInfo();
+      if (info.version) {
+        versionEl.textContent = info.version;
+      } else if (info.hasRegistration) {
+        versionEl.textContent = '(installé · ancienne version)';
+      } else {
+        versionEl.textContent = 'non installé';
+      }
+      // Statut : actif / en attente / installation / aucun
+      let statusHtml;
+      if (info.hasController) {
+        statusHtml = '<span style="color: var(--accent);">✓ actif</span>';
+      } else if (info.hasRegistration) {
+        statusHtml = '<span style="color: var(--accent-cool);">⏳ ' + (info.state || 'en cours') + '</span>';
+      } else {
+        statusHtml = '<span style="color: var(--text-mute);">aucun</span>';
+      }
+      statusEl.innerHTML = statusHtml;
     } else {
       versionEl.textContent = 'non supporté';
       statusEl.textContent = '—';

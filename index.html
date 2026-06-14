@@ -119,8 +119,24 @@
         try {
           const reg = await navigator.serviceWorker.register('sw.js');
           // Force un check de mise à jour à chaque chargement de la page.
-          // Le navigateur le fait spontanément ~24h, mais on accélère.
           reg.update().catch(() => {});
+
+          // Si un SW attend déjà (ancien tick a installé une nouvelle version
+          // mais l'ancien SW est encore aux commandes), force le passage.
+          if (reg.waiting) {
+            reg.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+          // Idem pour toute future installation : dès qu'un SW finit son install,
+          // on lui dit d'activer immédiatement.
+          reg.addEventListener('updatefound', () => {
+            const newWorker = reg.installing;
+            if (!newWorker) return;
+            newWorker.addEventListener('statechange', () => {
+              if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+                newWorker.postMessage({ type: 'SKIP_WAITING' });
+              }
+            });
+          });
 
           // API utilitaire pour la vue Profil.
           window.OrionSW = {

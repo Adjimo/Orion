@@ -1025,23 +1025,28 @@ h3 { font-size: 1.05rem; }
 }
 .map { height: 280px; width: 100%; background: #1a2a5c; }
 .leaflet-container { background: #1a2a5c; font-family: var(--font); }
-/* Voyager (clair) inversé puis bleuté → fond bleu nuit avec différentiation
-   eau / terres / parcs lisible, palette Orion. Plus vivant que Dark Matter. */
+/* Réchauffe légèrement Dark Matter pour se rapprocher de la palette Orion :
+   un poil plus de saturation, une nuance violette via brightness/contrast,
+   sans inverser quoi que ce soit. */
 .leaflet-tile-pane {
-  filter:
-    invert(1)
-    hue-rotate(190deg)
-    saturate(0.85)
-    brightness(0.92)
-    contrast(0.92);
+  filter: saturate(1.4) brightness(1.05) contrast(1.05);
 }
-.leaflet-tile-pane::after {
+/* Overlay coloré violet-bleu en mode soft-light : ajoute la teinte sans
+   noircir ni saturer, et préserve la lisibilité des routes/labels. */
+.map-wrap, .gpx-preview-map { position: relative; }
+.map-wrap::after, .gpx-preview-map::after {
   content: '';
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(135deg, rgba(28, 50, 110, 0.18) 0%, rgba(60, 38, 110, 0.12) 100%);
-  mix-blend-mode: multiply;
+  background: linear-gradient(
+    135deg,
+    rgba(124, 92, 255, 0.30) 0%,
+    rgba(28, 50, 110, 0.20) 45%,
+    rgba(255, 106, 61, 0.18) 100%
+  );
+  mix-blend-mode: soft-light;
+  z-index: 250;
 }
 .leaflet-control-attribution {
   background: rgba(10,14,26,0.78) !important;

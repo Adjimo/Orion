@@ -1583,9 +1583,9 @@ function renderSport(root) {
 function renderMapInto(mapEl, activity) {
   if (!activity || !window.L || !mapEl) return null;
   const map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
-  // Voyager : tiles colorées (eau bleue, parcs verts) qu'on transforme en
-  // carte de nuit Orion via filtre CSS. Plus vivant qu'un tile dark gris.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  // Dark Matter : base sombre cohérente. Pas de filtres CSS destructifs ;
+  // l'ambiance Orion vient d'un overlay teinté ajouté ci-dessous.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OSM · CartoDB',
     subdomains: 'abcd',
     maxZoom: 19

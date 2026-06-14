@@ -1591,40 +1591,147 @@ function renderSport(root) {
   setTimeout(() => renderMap(sel), 50);
 }
 
-// Rend une carte Orion-stylée dans un conteneur DOM. Renvoie l'instance Leaflet.
+// Style JSON MapLibre 100% custom Orion. Couleurs alignées sur la palette
+// de l'app (--bg-*, --accent-*) — fond charbon profond, eau bleu nuit, routes
+// violet pâle, parcs vert sombre. Source de tiles vectorielles : OpenFreeMap
+// (gratuit, sans clé, basé sur OpenMapTiles).
+const ORION_MAP_STYLE = {
+  version: 8,
+  name: 'Orion',
+  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+  sources: {
+    openmaptiles: {
+      type: 'vector',
+      url: 'https://tiles.openfreemap.org/planet'
+    }
+  },
+  layers: [
+    // Fond général (charbon profond — comme --bg-1)
+    { id: 'bg', type: 'background', paint: { 'background-color': '#0a0e1a' } },
+
+    // Eau (bleu nuit, légèrement plus clair que le fond)
+    { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
+      paint: { 'fill-color': '#1a2a4a', 'fill-opacity': 1 } },
+
+    // Zones boisées et parcs (vert sombre désaturé, palette froide)
+    { id: 'wood', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
+      filter: ['==', 'class', 'wood'],
+      paint: { 'fill-color': '#162420', 'fill-opacity': 0.7 } },
+    { id: 'grass', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
+      filter: ['in', 'class', 'grass', 'park'],
+      paint: { 'fill-color': '#142028', 'fill-opacity': 0.6 } },
+
+    // Bâti (très subtil, juste un nuance plus claire)
+    { id: 'buildings', type: 'fill', source: 'openmaptiles', 'source-layer': 'building',
+      minzoom: 13,
+      paint: { 'fill-color': '#1a2238', 'fill-outline-color': '#2a3458' } },
+
+    // Routes — hiérarchie en violets/gris pâle, plus claires aux gros niveaux
+    { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
+      filter: ['in', 'class', 'minor', 'service', 'track'],
+      minzoom: 12,
+      paint: { 'line-color': '#3a4060', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 18, 2] } },
+    { id: 'road-secondary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
+      filter: ['in', 'class', 'secondary', 'tertiary'],
+      paint: { 'line-color': '#4d5478', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 18, 3] } },
+    { id: 'road-primary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
+      filter: ['in', 'class', 'primary', 'trunk', 'motorway'],
+      paint: { 'line-color': '#7c5cff', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 18, 4], 'line-opacity': 0.6 } },
+
+    // Frontières administratives (violet pâle, fines)
+    { id: 'admin-bounds', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
+      filter: ['<=', 'admin_level', 4],
+      paint: { 'line-color': '#7c5cff', 'line-width': 0.6, 'line-opacity': 0.4, 'line-dasharray': [2, 2] } },
+
+    // Étiquettes des villes (or pâle, discret)
+    { id: 'place-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
+      filter: ['in', 'class', 'city', 'town', 'village'],
+      layout: {
+        'text-field': ['get', 'name:latin'],
+        'text-font': ['Noto Sans Regular'],
+        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 12, 14],
+        'text-anchor': 'center'
+      },
+      paint: {
+        'text-color': '#ffd86b',
+        'text-halo-color': '#0a0e1a',
+        'text-halo-width': 1.4,
+        'text-opacity': 0.85
+      } }
+  ]
+};
+
+// Rend une carte Orion-stylée dans un conteneur DOM. Renvoie l'instance MapLibre.
 function renderMapInto(mapEl, activity) {
-  if (!activity || !window.L || !mapEl) return null;
-  const map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
-  // CartoDB Dark Matter : fond charbon profond, contours et routes subtils.
-  // Ne pas appliquer de filtre CSS — la palette native est déjà belle, c'est le
-  // tracé orange/doré qui apporte tout le contraste. CDN fiable, aucune clé.
-  // Le SW ne touche pas à ces tiles (cf sw.js).
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-    attribution: '© OSM · CartoDB',
-    subdomains: 'abcd',
-    maxZoom: 19
-  }).addTo(map);
-  const latlngs = activity.points.map(p => [p.lat, p.lon]);
-  // Tracé multi-couches optimisé pour fond sombre :
-  // 1. Halo doré généreux (le glow ressort très bien sur charbon)
-  // 2. Halo orange intermédiaire pour la chaleur
-  // 3. Ligne principale or vif en avant
-  L.polyline(latlngs, { color: '#ffd86b', weight: 13, opacity: 0.30, lineJoin: 'round', lineCap: 'round' }).addTo(map);
-  L.polyline(latlngs, { color: '#ff6a3d', weight: 8, opacity: 0.55, lineJoin: 'round', lineCap: 'round' }).addTo(map);
-  const track = L.polyline(latlngs, { color: '#ffd86b', weight: 3.5, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(map);
-  if (latlngs.length > 0) {
-    L.circleMarker(latlngs[0], { radius: 8, color: '#ffd86b', weight: 3, fillColor: '#ff6a3d', fillOpacity: 1 }).addTo(map);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 8, color: '#7c5cff', weight: 3, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);
-  }
-  map.fitBounds(track.getBounds(), { padding: [20, 20] });
-  setTimeout(() => map.invalidateSize(), 100);
+  if (!activity || !window.maplibregl || !mapEl) return null;
+  const map = new maplibregl.Map({
+    container: mapEl,
+    style: ORION_MAP_STYLE,
+    center: [2.5, 46.5],
+    zoom: 5,
+    attributionControl: false
+  });
+
+  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+  map.addControl(new maplibregl.AttributionControl({
+    customAttribution: '© OSM · OpenMapTiles · OpenFreeMap',
+    compact: true
+  }), 'bottom-right');
+
+  const coords = activity.points.map(p => [p.lon, p.lat]);
+
+  map.on('load', () => {
+    // Source GeoJSON pour le tracé.
+    map.addSource('track', {
+      type: 'geojson',
+      data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
+    });
+
+    // Halo doré large (glow extérieur)
+    map.addLayer({
+      id: 'track-halo', type: 'line', source: 'track',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#ffd86b', 'line-width': 14, 'line-opacity': 0.30, 'line-blur': 4 }
+    });
+    // Halo orange intermédiaire
+    map.addLayer({
+      id: 'track-glow', type: 'line', source: 'track',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#ff6a3d', 'line-width': 8, 'line-opacity': 0.5 }
+    });
+    // Trait principal or vif
+    map.addLayer({
+      id: 'track-main', type: 'line', source: 'track',
+      layout: { 'line-cap': 'round', 'line-join': 'round' },
+      paint: { 'line-color': '#ffd86b', 'line-width': 3 }
+    });
+
+    // Markers départ (or sur orange) et arrivée (violet)
+    if (coords.length > 0) {
+      const startEl = document.createElement('div');
+      startEl.className = 'orion-marker orion-marker-start';
+      new maplibregl.Marker({ element: startEl }).setLngLat(coords[0]).addTo(map);
+      const endEl = document.createElement('div');
+      endEl.className = 'orion-marker orion-marker-end';
+      new maplibregl.Marker({ element: endEl }).setLngLat(coords[coords.length - 1]).addTo(map);
+    }
+
+    // Cadrer sur le tracé
+    if (coords.length >= 2) {
+      const lons = coords.map(c => c[0]);
+      const lats = coords.map(c => c[1]);
+      map.fitBounds([[Math.min(...lons), Math.min(...lats)], [Math.max(...lons), Math.max(...lats)]],
+                    { padding: 30, duration: 600 });
+    }
+  });
+
   return map;
 }
 
 function renderMap(activity) {
   const mapEl = document.getElementById('sport-map');
   if (!mapEl) return;
-  if (State.map) { State.map.remove(); State.map = null; }
+  if (State.map) { try { State.map.remove(); } catch {} State.map = null; }
   State.map = renderMapInto(mapEl, activity);
 }
 

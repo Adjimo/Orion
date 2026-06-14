@@ -1023,24 +1023,60 @@ h3 { font-size: 1.05rem; }
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.map { height: 280px; width: 100%; background: #0e0f12; }
-.leaflet-container { background: #0e0f12; font-family: var(--font); }
-/* Tiles CartoDB Dark Matter : fond charbon natif. AUCUN filtre CSS — c'est
-   le tracé doré/orange qui apporte tout le contraste par-dessus. */
-.leaflet-control-attribution {
-  background: rgba(10,14,26,0.78) !important;
+.map { height: 280px; width: 100%; background: #0a0e1a; }
+
+/* MapLibre GL : palette Orion native définie dans le style JSON côté JS,
+   on n'a donc pas à appliquer de filtre CSS. On ne reste qu'à styliser les
+   contrôles et les markers pour qu'ils soient cohérents avec l'app. */
+.maplibregl-map { background: #0a0e1a; font-family: var(--font); }
+.maplibregl-ctrl-attrib {
+  background: rgba(10,14,26,0.82) !important;
   color: var(--text-mute) !important;
   font-size: 10px !important;
   padding: 2px 6px !important;
   backdrop-filter: blur(4px);
 }
-.leaflet-control-attribution a { color: var(--text-dim) !important; }
-.leaflet-control-zoom a {
-  background: rgba(10,14,26,0.85) !important;
-  color: var(--text) !important;
-  border: 1px solid var(--border-strong) !important;
+.maplibregl-ctrl-attrib a, .maplibregl-ctrl-attrib-inner a {
+  color: var(--text-dim) !important;
 }
-.leaflet-control-zoom a:hover { background: var(--bg-3) !important; color: var(--accent) !important; }
+.maplibregl-ctrl-attrib-button {
+  background-color: rgba(10,14,26,0.6) !important;
+  filter: invert(0.9) hue-rotate(180deg);
+}
+.maplibregl-ctrl-group {
+  background: rgba(10,14,26,0.85) !important;
+  border: 1px solid var(--border-strong) !important;
+  box-shadow: none !important;
+}
+.maplibregl-ctrl button {
+  background-color: transparent !important;
+}
+.maplibregl-ctrl button .maplibregl-ctrl-icon {
+  filter: invert(0.85);
+}
+.maplibregl-ctrl button:hover {
+  background-color: var(--bg-3) !important;
+}
+
+/* Markers Orion (HTMLElement) : cercles avec halo subtil */
+.orion-marker {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 3px solid;
+  background: #0a0e1a;
+  box-sizing: border-box;
+}
+.orion-marker-start {
+  border-color: #ffd86b;
+  background: #ff6a3d;
+  box-shadow: 0 0 12px rgba(255, 216, 107, 0.6), 0 0 4px rgba(255, 106, 61, 0.5);
+}
+.orion-marker-end {
+  border-color: #7c5cff;
+  background: #0a0e1a;
+  box-shadow: 0 0 10px rgba(124, 92, 255, 0.5);
+}
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

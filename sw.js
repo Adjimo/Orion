@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v18';
+const VERSION = 'orion-v19';
 const ASSETS = [
   './',
   './index.html',
@@ -71,7 +71,8 @@ self.addEventListener('fetch', (e) => {
   // Le navigateur les fait passer directement au réseau comme d'habitude.
   if (url.hostname.endsWith('basemaps.cartocdn.com') ||
       url.hostname.endsWith('tile.openstreetmap.org') ||
-      url.hostname.endsWith('maps.wikimedia.org')) {
+      url.hostname.endsWith('maps.wikimedia.org') ||
+      url.hostname.endsWith('tiles.openfreemap.org')) {
     return;
   }
 

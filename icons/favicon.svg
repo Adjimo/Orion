@@ -1,19 +1,47 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="14" fill="#0a0e1a"/>
-  <g stroke="#ffd86b" stroke-width="0.8" fill="none" opacity="0.6">
-    <line x1="20" y1="22" x2="42" y2="24"/>
-    <line x1="20" y1="22" x2="24" y2="34"/>
-    <line x1="42" y1="24" x2="40" y2="36"/>
-    <line x1="24" y1="34" x2="32" y2="35"/>
-    <line x1="32" y1="35" x2="40" y2="36"/>
-    <line x1="24" y1="34" x2="22" y2="48"/>
-    <line x1="40" y1="36" x2="44" y2="50"/>
-  </g>
-  <circle cx="20" cy="22" r="2.2" fill="#ff8a5c"/>
-  <circle cx="42" cy="24" r="1.8" fill="#ffffff"/>
-  <circle cx="24" cy="34" r="1.6" fill="#ffd86b"/>
-  <circle cx="32" cy="35" r="1.8" fill="#ffd86b"/>
-  <circle cx="40" cy="36" r="1.6" fill="#ffd86b"/>
-  <circle cx="22" cy="48" r="1.6" fill="#ffffff"/>
-  <circle cx="44" cy="50" r="2.4" fill="#7dd3fc"/>
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="48%" r="60%">
+      <stop offset="0%" stop-color="#1a2238"/>
+      <stop offset="60%" stop-color="#0a0e1a"/>
+      <stop offset="100%" stop-color="#06080f"/>
+    </radialGradient>
+    <linearGradient id="svA-up" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffe999"/>
+      <stop offset="55%" stop-color="#ffd86b"/>
+      <stop offset="100%" stop-color="#ffb547"/>
+    </linearGradient>
+    <linearGradient id="svA-dn" x1="50%" y1="0%" x2="50%" y2="100%">
+      <stop offset="0%" stop-color="#ffb547"/>
+      <stop offset="100%" stop-color="#ff6a3d"/>
+    </linearGradient>
+    <linearGradient id="shA-l" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#7c5cff"/>
+      <stop offset="100%" stop-color="#a78bfa"/>
+    </linearGradient>
+    <linearGradient id="shA-r" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#a78bfa"/>
+      <stop offset="100%" stop-color="#ffb547"/>
+    </linearGradient>
+  </defs>
+
+  <rect width="64" height="64" rx="14" fill="url(#bg)"/>
+
+  <!-- Centre optique abaissé à y=35 pour équilibrer les marges (haut 8 / bas 9) -->
+  <!-- Demi-branche haute (longue, claire) — y=8 → 35 = 27 px -->
+  <polygon points="32,8 35.5,35 28.5,35" fill="url(#svA-up)"/>
+  <!-- Demi-branche basse (courte, foncée) — y=55 → 35 = 20 px -->
+  <polygon points="32,55 35.5,35 28.5,35" fill="url(#svA-dn)"/>
+  <!-- Demi-branche gauche (courte, violet) -->
+  <polygon points="11,35 32,32.5 32,37.5" fill="url(#shA-l)" opacity="0.9"/>
+  <!-- Demi-branche droite (un peu plus longue, violet→or) -->
+  <polygon points="56,35 32,32.5 32,37.5" fill="url(#shA-r)" opacity="0.9"/>
+
+  <!-- Centre lumineux -->
+  <circle cx="32" cy="35" r="3" fill="#ffd86b"/>
+  <circle cx="32" cy="35" r="5.5" fill="#ffd86b" opacity="0.35"/>
+
+  <!-- Étoile satellite tout en haut (signal "Nord") -->
+  <circle cx="32" cy="4" r="0.8" fill="#ffd86b">
+    <animate attributeName="opacity" values="0.5;1;0.5" dur="2.6s" repeatCount="indefinite"/>
+  </circle>
 </svg>

@@ -1583,22 +1583,26 @@ function renderSport(root) {
 function renderMapInto(mapEl, activity) {
   if (!activity || !window.L || !mapEl) return null;
   const map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
-  // Wikimedia Maps : tile vectoriel rendu, palette nuit naturelle (bleu nuit /
-  // beige crème / cyan eau), pas de filtres CSS destructifs nécessaires.
-  // CC BY-SA 3.0 · OSM contributors · Wikimedia Foundation.
-  L.tileLayer('https://maps.wikimedia.org/osm-intl/{z}/{x}/{y}{r}.png', {
-    attribution: '© OSM · Wikimedia',
-    maxZoom: 18
+  // CartoDB Voyager : palette claire (beige terre, bleu pâle eau, blanc routes),
+  // CDN fiable, aucune clé requise. Couleurs natives belles, on n'applique
+  // aucun filtre CSS — c'est le tracé orange/doré qui apporte la touche Orion.
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    attribution: '© OSM · CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 19,
+    crossOrigin: true
   }).addTo(map);
   const latlngs = activity.points.map(p => [p.lat, p.lon]);
-  // Tracé : halo doré + ligne ambre éclatante. Bordure foncée subtile pour
-  // découper proprement le tracé du fond plus clair de cette tile.
-  L.polyline(latlngs, { color: '#0a0e1a', weight: 7, opacity: 0.5, lineJoin: 'round', lineCap: 'round' }).addTo(map);
-  L.polyline(latlngs, { color: '#ffd86b', weight: 11, opacity: 0.20, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+  // Tracé multi-couches pour éclat sur fond clair :
+  // 1. Bordure foncée fine pour découper le tracé du fond beige
+  // 2. Halo doré généreux pour le glow
+  // 3. Ligne principale orange chaude (signature course)
+  L.polyline(latlngs, { color: '#0a0e1a', weight: 8, opacity: 0.35, lineJoin: 'round', lineCap: 'round' }).addTo(map);
+  L.polyline(latlngs, { color: '#ffd86b', weight: 12, opacity: 0.30, lineJoin: 'round', lineCap: 'round' }).addTo(map);
   const track = L.polyline(latlngs, { color: '#ff6a3d', weight: 4, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(map);
   if (latlngs.length > 0) {
-    L.circleMarker(latlngs[0], { radius: 7, color: '#ffd86b', weight: 2.5, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 7, color: '#7c5cff', weight: 2.5, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);
+    L.circleMarker(latlngs[0], { radius: 8, color: '#ffd86b', weight: 3, fillColor: '#ff6a3d', fillOpacity: 1 }).addTo(map);
+    L.circleMarker(latlngs[latlngs.length - 1], { radius: 8, color: '#7c5cff', weight: 3, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(map);
   }
   map.fitBounds(track.getBounds(), { padding: [20, 20] });
   setTimeout(() => map.invalidateSize(), 100);

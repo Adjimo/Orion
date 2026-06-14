@@ -1023,10 +1023,11 @@ h3 { font-size: 1.05rem; }
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.map { height: 280px; width: 100%; background: #1c2440; }
-.leaflet-container { background: #1c2440; font-family: var(--font); }
-/* Pas de filtre sur les tiles : on laisse les couleurs natives Wikimedia
-   (bleu nuit / beige crème / cyan eau) intactes — elles sont déjà belles. */
+.map { height: 280px; width: 100%; background: #f5ebd9; }
+.leaflet-container { background: #f5ebd9; font-family: var(--font); }
+/* Tiles CartoDB Voyager : couleurs natives belles (beige terre, cyan eau,
+   blanc routes), aucun filtre. C'est le tracé orange/doré qui apporte la
+   touche Orion par contraste sur ce fond clair. */
 .leaflet-control-attribution {
   background: rgba(10,14,26,0.78) !important;
   color: var(--text-mute) !important;
@@ -1036,9 +1037,9 @@ h3 { font-size: 1.05rem; }
 }
 .leaflet-control-attribution a { color: var(--text-dim) !important; }
 .leaflet-control-zoom a {
-  background: rgba(17,23,42,0.85) !important;
+  background: rgba(10,14,26,0.85) !important;
   color: var(--text) !important;
-  border: 1px solid var(--border) !important;
+  border: 1px solid var(--border-strong) !important;
 }
 .leaflet-control-zoom a:hover { background: var(--bg-3) !important; color: var(--accent) !important; }
 .metrics {

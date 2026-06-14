@@ -181,7 +181,7 @@ const SKILL_META = {
   maths:      { label: 'Maths',      icon: '🧮', color: '#7c5cff', desc: 'DM, exos, démos.' },
   physique:   { label: 'Physique',   icon: '⚛️', color: '#a78bfa', desc: 'Mécanique, thermo, ondes.' },
   si:         { label: 'SI / Info',  icon: '🔬', color: '#f472b6', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Langues',    icon: '🌍', color: '#5cc8ff', desc: 'LV1, LV2, oraux.' },
+  langues:    { label: 'Anglais',    icon: '🌍', color: '#5cc8ff', desc: 'Anglais.' },
   lettres:    { label: 'Lettres',    icon: '✒️', color: '#ffd86b', desc: 'Français, philo.' },
   discipline: { label: 'Discipline', icon: '🧘', color: '#ff6a3d', desc: 'Régularité, focus.' }
 };
@@ -307,7 +307,7 @@ const SUBJECTS = {
   maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 0.55 },
   physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 0.65 },
   si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 1.40 },
-  langues:  { label: 'Langues',   icon: '🌍', skill: 'langues',    skillMult: 0.90 },
+  langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 0.90 },
   francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 0.90 },
   autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.50 }
 };
@@ -423,7 +423,7 @@ const SEED_WEEKLY_QUESTS = [
   { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 30, skill: 'discipline', icon: '⏱️', color: '#ffb547', autoFromWorkLog: true, category: 'main' },
   { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#5cc8ff', category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
-  { id: 'wq-langues', title: 'Langues', type: 'weekly-hours', goalHours: 3, skill: 'langues', icon: '🌍', color: '#5cc8ff', autoFromLangues: true, category: 'secondary' },
+  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#5cc8ff', autoFromLangues: true, category: 'secondary' },
   { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#ffd86b', autoFromLettres: true, category: 'secondary' }
 ];
 
@@ -997,14 +997,26 @@ async function migrateData() {
     await dbPut('profile', profile);
   }
 
-  // Quêtes : backfill `category` sur seeds existants.
+  // Quêtes : resynchronise les champs déclaratifs (title, goal*, category, flags auto*)
+  // depuis SEED_WEEKLY_QUESTS à chaque démarrage. La completion (XP gagné, ratio, etc.)
+  // n'est PAS touchée — elle vit dans le store `completions`. Cela permet de modifier
+  // un objectif (ex: anglais 3h → 2h) sans laisser des incohérences en base.
   const quests = await dbAll('quests');
+  const seedFields = ['title', 'type', 'goalHours', 'goalCount', 'unit', 'skill', 'icon', 'color',
+                      'autoFromActivities', 'autoFromWorkLog', 'autoFromLangues', 'autoFromLettres', 'category'];
   for (const q of quests) {
     const seed = SEED_WEEKLY_QUESTS.find(s => s.id === q.id);
-    if (seed && !q.category) {
-      Object.assign(q, seed); // on remet aussi flags auto*, skill, etc. à jour
-      await dbPut('quests', q);
+    if (!seed) continue;
+    let dirty = false;
+    for (const f of seedFields) {
+      if (q[f] !== seed[f]) {
+        // On normalise les undefined : ne pas re-puter si les deux sont absents.
+        if (q[f] === undefined && seed[f] === undefined) continue;
+        q[f] = seed[f];
+        dirty = true;
+      }
     }
+    if (dirty) await dbPut('quests', q);
   }
 
   // Activités : backfill xpAwarded/skillsAwarded pour permettre la suppression réversible.
@@ -1583,11 +1595,11 @@ function renderSport(root) {
 function renderMapInto(mapEl, activity) {
   if (!activity || !window.L || !mapEl) return null;
   const map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
-  // CartoDB Voyager : palette claire (beige terre, bleu pâle eau, blanc routes),
-  // CDN fiable, aucune clé requise. Couleurs natives belles, on n'applique
-  // aucun filtre CSS — c'est le tracé orange/doré qui apporte la touche Orion.
-  // Le SW ne touche pas à ces tiles (cf sw.js) pour éviter tout problème CORS.
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+  // CartoDB Positron : palette claire mais sobre (gris très clair, eau bleu pâle,
+  // routes blanc cassé). Moins éclatant que Voyager — n'agresse pas l'œil dans
+  // l'app sombre tout en restant parfaitement lisible. CDN fiable sans clé.
+  // Le SW ne touche pas à ces tiles (cf sw.js).
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
     attribution: '© OSM · CartoDB',
     subdomains: 'abcd',
     maxZoom: 19
@@ -2438,21 +2450,7 @@ function renderProfil(root) {
     });
   }, 0);
 
-  // Reset
-  page.appendChild(el('h3', { class: 'mb-2' }, '⚠️ Zone dangereuse'));
-  const dangerCard = el('div', { class: 'card mb-4' });
-  dangerCard.innerHTML = `
-    <p class="dim text-sm mb-3">Effacer toutes les données.</p>
-    <button class="btn danger full" id="btn-reset">🗑️ Tout effacer</button>
-  `;
-  page.appendChild(dangerCard);
-  setTimeout(() => {
-    dangerCard.querySelector('#btn-reset').addEventListener('click', async () => {
-      if (!confirm('⚠️ Effacer TOUTES tes données ? Irréversible.')) return;
-      if (!confirm('Vraiment sûr ? Pense à exporter avant.')) return;
-      await fullReset();
-    });
-  }, 0);
+  // (Zone dangereuse supprimée : reset disponible uniquement via DevTools / réinstall PWA.)
 
   root.appendChild(page);
 }

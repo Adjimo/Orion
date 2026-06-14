@@ -170,7 +170,6 @@
                 }
               });
 
-              // Essai sur controller, puis active, puis waiting, puis installing.
               const candidates = [
                 ['controller', navigator.serviceWorker.controller],
                 ['active', reg?.active],
@@ -187,15 +186,33 @@
                 }
               }
 
-              // 2. Fallback : si on a une registration mais aucun message ne passe,
-              // on extrait au moins la URL/state pour distinguer "non installé"
-              // d'un SW présent mais muet.
+              // 2. Fallback robuste : on lit directement le fichier sw.js sur
+              // le serveur et on en extrait la constante VERSION par regex.
+              // Cela fonctionne même si le SW est muet, en attente, ou bugué.
+              try {
+                const resp = await fetch('sw.js?_=' + Date.now(), { cache: 'no-store' });
+                if (resp.ok) {
+                  const text = await resp.text();
+                  const m = text.match(/VERSION\s*=\s*['"]([^'"]+)['"]/);
+                  if (m) {
+                    info.version = m[1];
+                    info.source = 'fetched';
+                    if (reg) {
+                      const w = reg.active || reg.waiting || reg.installing;
+                      info.state = w?.state || 'inconnu';
+                    }
+                    return info;
+                  }
+                }
+              } catch {}
+
+              // 3. Dernier recours : on a une registration mais aucune source
+              // exploitable.
               if (reg) {
                 const w = reg.active || reg.waiting || reg.installing;
                 if (w) {
                   info.state = w.state;
                   info.source = reg.active ? 'active' : (reg.waiting ? 'waiting' : 'installing');
-                  // Pas de version explicite mais on indique qu'un SW est présent.
                   info.version = '(installé · version inconnue)';
                   return info;
                 }

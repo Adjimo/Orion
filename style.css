@@ -1023,11 +1023,10 @@ h3 { font-size: 1.05rem; }
   overflow: hidden;
   border: 1px solid var(--border);
 }
-.map { height: 280px; width: 100%; background: #f5ebd9; }
-.leaflet-container { background: #f5ebd9; font-family: var(--font); }
-/* Tiles CartoDB Voyager : couleurs natives belles (beige terre, cyan eau,
-   blanc routes), aucun filtre. C'est le tracé orange/doré qui apporte la
-   touche Orion par contraste sur ce fond clair. */
+.map { height: 280px; width: 100%; background: #eaeaec; }
+.leaflet-container { background: #eaeaec; font-family: var(--font); }
+/* Tiles CartoDB Positron : sobre, gris très clair, on laisse les couleurs
+   natives. Le tracé orange/doré apporte le contraste de l'app par-dessus. */
 .leaflet-control-attribution {
   background: rgba(10,14,26,0.78) !important;
   color: var(--text-mute) !important;

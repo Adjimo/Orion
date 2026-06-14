@@ -175,30 +175,44 @@ h3 { font-size: 1.05rem; }
 .btn.full { width: 100%; }
 .btn.sm { padding: 8px 12px; font-size: 0.85rem; }
 
-/* Bouton import GPX — variante stylisée Orion */
+/* Bouton import GPX — sombre, dans la palette de l'app, accent violet/orange discret */
 .btn-gpx {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--grad-sun);
-  border: 1px solid transparent;
-  color: #0a0e1a;
+  border-radius: var(--r-md);
+  background: var(--bg-3);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
   font-family: var(--font);
-  font-weight: 600;
+  font-weight: 500;
   font-size: 0.85rem;
   cursor: pointer;
-  transition: transform 0.08s, box-shadow 0.2s, filter 0.2s;
-  box-shadow: 0 2px 12px rgba(255, 181, 71, 0.3);
+  transition: transform 0.08s, background 0.2s, border-color 0.2s, color 0.2s;
   user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+.btn-gpx::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, rgba(124,92,255,0.0) 0%, rgba(255,106,61,0.0) 100%);
+  transition: background 0.25s;
+  pointer-events: none;
 }
 .btn-gpx:hover {
-  filter: brightness(1.08);
-  box-shadow: 0 2px 18px rgba(255, 181, 71, 0.45);
+  border-color: var(--accent-2);
+  color: var(--gold);
+}
+.btn-gpx:hover::before {
+  background: linear-gradient(135deg, rgba(124,92,255,0.18) 0%, rgba(255,106,61,0.12) 100%);
 }
 .btn-gpx:active { transform: scale(0.96); }
-.btn-gpx svg { width: 15px; height: 15px; stroke-width: 2.4; }
+.btn-gpx svg { width: 15px; height: 15px; stroke-width: 2.2; color: var(--accent-2); transition: color 0.2s; }
+.btn-gpx:hover svg { color: var(--gold); }
+.btn-gpx > * { position: relative; z-index: 1; }
 
 /* ===== Inputs ===== */
 .input, .select {
@@ -322,10 +336,10 @@ h3 { font-size: 1.05rem; }
   100% { opacity: 1; transform: scale(1) translateY(0); }
 }
 .splash-title {
-  font-family: 'Cinzel', serif;
+  font-family: 'Cormorant Garamond', 'Cinzel', serif;
   font-weight: 600;
-  font-size: 2.6rem;
-  letter-spacing: 0.32em;
+  font-size: 3rem;
+  letter-spacing: 0.22em;
   background: linear-gradient(135deg, #7c5cff 0%, #ffd86b 45%, #ffb547 70%, #ff6a3d 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -936,7 +950,12 @@ h3 { font-size: 1.05rem; }
   border: 1px solid var(--border);
 }
 .map { height: 280px; width: 100%; background: var(--bg-2); }
-.leaflet-container { background: #06080f; font-family: var(--font); }
+.leaflet-container { background: #0c1530; font-family: var(--font); }
+/* Teinte bleutée sur les tiles dark CartoDB pour rester dans la palette Orion
+   sans tomber dans le noir pur. */
+.leaflet-tile-pane {
+  filter: hue-rotate(-12deg) saturate(1.2) brightness(1.18) contrast(0.95);
+}
 .leaflet-control-attribution {
   background: rgba(10,14,26,0.78) !important;
   color: var(--text-mute) !important;

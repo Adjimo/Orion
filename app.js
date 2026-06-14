@@ -156,10 +156,12 @@ function dayKeyFromDate(d = new Date()) {
 // ============================================================================
 
 function xpForLevelUp(level) {
-  // Calibrée pour atteindre niveau 100 aux concours (avril 2027) avec ~40 semaines
-  // d'usage régulier depuis septembre 2026 + un peu d'XP cet été.
-  // L10 ≈ 1k cumul, L50 ≈ 27k, L100 ≈ 153k.
-  return Math.round(50 + (level - 1) * 10 + Math.pow(level - 1, 2) * 0.3);
+  // Courbe quasi-linéaire : chaque niveau coûte ~1200 XP, +5 par level.
+  // L1 = 1200, L100 = 1695, cumul L100 ≈ 145k.
+  // Calibrée pour atteindre L100 aux concours avec 25-30h travail/sem
+  // + 3 sorties/sem depuis sept 2026. Évite les level-ups instantanés en début
+  // tout en restant tendu vers la fin (pas de plateau).
+  return Math.round(1200 + (level - 1) * 5);
 }
 
 function deriveLevel(totalXp) {

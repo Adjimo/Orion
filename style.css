@@ -147,6 +147,32 @@ h3 { font-size: 1.05rem; }
 .btn.full { width: 100%; }
 .btn.sm { padding: 8px 12px; font-size: 0.85rem; }
 
+/* Bouton import GPX — variante stylisée Orion */
+.btn-gpx {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(255,181,71,0.18) 0%, rgba(124,92,255,0.18) 100%);
+  border: 1px solid rgba(255,216,107,0.4);
+  color: var(--gold);
+  font-family: 'Cinzel', serif;
+  font-weight: 500;
+  font-size: 0.85rem;
+  letter-spacing: 0.08em;
+  cursor: pointer;
+  transition: transform 0.08s, box-shadow 0.2s, border-color 0.2s;
+  box-shadow: 0 0 0 0 rgba(255,216,107,0);
+  user-select: none;
+}
+.btn-gpx:hover {
+  border-color: var(--gold);
+  box-shadow: 0 0 16px rgba(255,216,107,0.35);
+}
+.btn-gpx:active { transform: scale(0.96); }
+.btn-gpx svg { width: 16px; height: 16px; }
+
 /* ===== Inputs ===== */
 .input, .select {
   width: 100%;
@@ -255,21 +281,19 @@ h3 { font-size: 1.05rem; }
   opacity: 1;
   transform: translateY(0);
 }
-.belt {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 22px;
+.splash-icon {
+  width: 96px;
+  height: 96px;
+  margin: 0 auto 22px;
+  display: block;
+  filter: drop-shadow(0 0 28px rgba(255, 216, 107, 0.45)) drop-shadow(0 0 48px rgba(124, 92, 255, 0.25));
+  animation: icon-rise 1.4s ease-out;
 }
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+@keyframes icon-rise {
+  0%   { opacity: 0; transform: scale(0.7) translateY(8px); filter: drop-shadow(0 0 0 rgba(255,216,107,0)); }
+  60%  { opacity: 1; transform: scale(1.05) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
-.dot.violet  { background: #7c5cff; box-shadow: 0 0 12px rgba(124, 92, 255, 0.8); }
-.dot.gold    { background: #ffd86b; box-shadow: 0 0 16px rgba(255, 216, 107, 0.95); width: 9px; height: 9px; }
-.dot.orange  { background: #ff6a3d; box-shadow: 0 0 12px rgba(255, 106, 61, 0.8); }
 .splash-title {
   font-family: 'Cinzel', serif;
   font-weight: 600;
@@ -746,6 +770,16 @@ h3 { font-size: 1.05rem; }
   margin-bottom: 8px;
 }
 .hq-xp { color: var(--accent); font-size: 0.78rem; font-weight: 600; }
+.hq-malus { color: var(--danger); font-size: 0.78rem; font-weight: 600; }
+.hq-bonus { color: var(--gold); font-size: 0.78rem; font-weight: 600; }
+.hq-forecast {
+  margin-top: 4px;
+  padding-top: 6px;
+  border-top: 1px dashed var(--border);
+  font-size: 0.75rem;
+  display: flex;
+  justify-content: flex-end;
+}
 .hq-input-row { display: flex; gap: 6px; }
 .hq-input-row .input { flex: 1; padding: 8px 10px; font-size: 0.85rem; }
 .hq-count-row {
@@ -789,7 +823,21 @@ h3 { font-size: 1.05rem; }
   border: 1px solid var(--border);
 }
 .map { height: 280px; width: 100%; background: var(--bg-2); }
-.leaflet-container { background: #0a0e1a; font-family: var(--font); }
+.leaflet-container { background: #06080f; font-family: var(--font); }
+.leaflet-control-attribution {
+  background: rgba(10,14,26,0.78) !important;
+  color: var(--text-mute) !important;
+  font-size: 10px !important;
+  padding: 2px 6px !important;
+  backdrop-filter: blur(4px);
+}
+.leaflet-control-attribution a { color: var(--text-dim) !important; }
+.leaflet-control-zoom a {
+  background: rgba(17,23,42,0.85) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+.leaflet-control-zoom a:hover { background: var(--bg-3) !important; color: var(--accent) !important; }
 .metrics {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

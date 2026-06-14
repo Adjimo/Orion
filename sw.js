@@ -3,7 +3,7 @@
 // Cache l'app pour qu'elle marche hors-ligne et se charge instantanément.
 // ============================================================================
 
-const VERSION = 'orion-v1';
+const VERSION = 'orion-v2';
 const ASSETS = [
   './',
   './index.html',

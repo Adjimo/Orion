@@ -30,7 +30,7 @@ const State = {
 // ============================================================================
 
 const DB_NAME = 'orion';
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 let _db;
 
 function openDB() {
@@ -49,6 +49,8 @@ function openDB() {
       if (!db.objectStoreNames.contains('schedule'))    db.createObjectStore('schedule', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('records'))     db.createObjectStore('records', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('meta'))        db.createObjectStore('meta', { keyPath: 'key' });
+      // v2 : pas de nouveau store, juste un nouveau skill `lettres` + champs sur quêtes/activités.
+      // La migration des données est gérée hors-onupgradeneeded dans migrateData().
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
   });
@@ -154,7 +156,10 @@ function dayKeyFromDate(d = new Date()) {
 // ============================================================================
 
 function xpForLevelUp(level) {
-  return 100 + (level - 1) * 40 + Math.pow(level - 1, 2) * 5;
+  // Calibrée pour atterrir rang Géant→Fils de Poséidon (40-60) aux concours
+  // avec un usage régulier depuis septembre, sans plafonner trop vite.
+  // L10 ≈ 1.5k cumul, L30 ≈ 15k, L50 ≈ 55k, L75 ≈ 160k.
+  return Math.round(60 + (level - 1) * 16 + Math.pow(level - 1, 2) * 0.8);
 }
 
 function deriveLevel(totalXp) {
@@ -174,7 +179,8 @@ const SKILL_META = {
   maths:      { label: 'Maths',      icon: '🧮', color: '#7c5cff', desc: 'DM, exos, démos.' },
   physique:   { label: 'Physique',   icon: '⚛️', color: '#a78bfa', desc: 'Mécanique, thermo, ondes.' },
   si:         { label: 'SI / Info',  icon: '🔬', color: '#f472b6', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Lettres',    icon: '📚', color: '#ffd86b', desc: 'Langues, français, philo.' },
+  langues:    { label: 'Langues',    icon: '🌍', color: '#5cc8ff', desc: 'LV1, LV2, oraux.' },
+  lettres:    { label: 'Lettres',    icon: '✒️', color: '#ffd86b', desc: 'Français, philo.' },
   discipline: { label: 'Discipline', icon: '🧘', color: '#ff6a3d', desc: 'Régularité, focus.' }
 };
 
@@ -213,6 +219,7 @@ const DEFAULT_PROFILE = {
     physique:   { xp: 0, level: 1 },
     si:         { xp: 0, level: 1 },
     langues:    { xp: 0, level: 1 },
+    lettres:    { xp: 0, level: 1 },
     discipline: { xp: 0, level: 1 }
   },
   streak: 0,
@@ -295,12 +302,12 @@ async function getTodayPlan() {
 // ============================================================================
 
 const SUBJECTS = {
-  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths' },
-  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique' },
-  si:       { label: 'SI / Info', icon: '🔬', skill: 'si' },
-  langues:  { label: 'Langues',   icon: '🌍', skill: 'langues' },
-  francais: { label: 'Français',  icon: '✒️', skill: 'langues' },
-  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline' }
+  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 0.55 },
+  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 0.65 },
+  si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 1.40 },
+  langues:  { label: 'Langues',   icon: '🌍', skill: 'langues',    skillMult: 0.90 },
+  francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 0.90 },
+  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.50 }
 };
 
 function baseXpForGoal(goalHours) {
@@ -364,10 +371,11 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
       const meta = SUBJECTS[subj];
       if (!meta) continue;
       const portion = mins / totalMinutes;
-      newSkillsXp[meta.skill] = (newSkillsXp[meta.skill] || 0) + Math.round(newXp * portion * 0.6);
+      const mult = meta.skillMult ?? 0.6;
+      newSkillsXp[meta.skill] = (newSkillsXp[meta.skill] || 0) + Math.round(newXp * portion * mult);
     }
   }
-  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.2);
+  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.25);
 
   const xpDelta = newXp - lastXp;
   const skillsDelta = {};
@@ -407,10 +415,13 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
 // ============================================================================
 
 const SEED_WEEKLY_QUESTS = [
-  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#ff6a3d', autoFromActivities: true },
-  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 30, skill: 'discipline', icon: '⏱️', color: '#ffb547', autoFromWorkLog: true },
-  { id: 'wq-langues', title: 'Langues', type: 'weekly-hours', goalHours: 3, skill: 'langues', icon: '🌍', color: '#ffd86b', autoFromLangues: true },
-  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#5cc8ff' }
+  // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
+  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#ff6a3d', autoFromActivities: true, category: 'main' },
+  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 30, skill: 'discipline', icon: '⏱️', color: '#ffb547', autoFromWorkLog: true, category: 'main' },
+  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#5cc8ff', category: 'main' },
+  // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
+  { id: 'wq-langues', title: 'Langues', type: 'weekly-hours', goalHours: 3, skill: 'langues', icon: '🌍', color: '#5cc8ff', autoFromLangues: true, category: 'secondary' },
+  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#ffd86b', autoFromLettres: true, category: 'secondary' }
 ];
 
 function computeCountXp(actualCount, goalCount) {
@@ -512,9 +523,19 @@ async function recomputeAutoQuests() {
     let langMin = 0;
     for (const l of weekLogs) {
       const bs = l.bySubject || {};
-      langMin += (bs.langues || 0) + (bs.francais || 0);
+      langMin += (bs.langues || 0);
     }
     await setQuestValue(langQ, langMin);
+  }
+  const lettresQ = quests.find(q => q.id === 'wq-lettres');
+  if (lettresQ) {
+    const weekLogs = logs.filter(l => l.date >= weekStart);
+    let lettresMin = 0;
+    for (const l of weekLogs) {
+      const bs = l.bySubject || {};
+      lettresMin += (bs.francais || 0);
+    }
+    await setQuestValue(lettresQ, lettresMin);
   }
 }
 
@@ -565,6 +586,184 @@ function computeYearProgress(firstExamDateStr) {
   const total = examDate - candidateSept;
   const elapsed = today - candidateSept;
   return total > 0 ? elapsed / total : 0;
+}
+
+// ============================================================================
+// 8.b BONUS / MALUS (à partir de la rentrée 2026-09-07)
+// ============================================================================
+
+// Date à partir de laquelle bonus et malus s'activent.
+// Premier lundi de septembre 2026.
+const PENALTIES_START = '2026-09-07';
+
+function arePenaltiesActive(refDate = new Date()) {
+  const start = new Date(PENALTIES_START + 'T00:00:00');
+  return refDate >= start;
+}
+
+// Paliers de malus appliqués sur le XP qu'aurait rapporté la quête à 100%.
+// Plus tu es loin de l'objectif, plus tu perds.
+function malusFactorFromRatio(ratio) {
+  if (ratio >= 1)    return 0;
+  if (ratio >= 0.8)  return 0.10;
+  if (ratio >= 0.5)  return 0.20;
+  if (ratio >= 0.25) return 0.40;
+  if (ratio > 0)     return 0.60;
+  return 0.80;
+}
+
+// Bonus pour les quêtes secondaires : récompense le dépassement,
+// proportionnel à (ratio - 1) × XP plafond × 0.5, capé à +50%.
+function bonusFactorFromRatio(ratio) {
+  if (ratio <= 1) return 0;
+  return Math.min(0.5, (ratio - 1) * 0.5);
+}
+
+// Calcule le XP de référence (ce qu'une quête rapporterait à 100%).
+function questFullXp(quest) {
+  if (quest.type === 'weekly-hours') return computeHoursXp(quest.goalHours * 60, quest.goalHours).xp;
+  return computeCountXp(quest.goalCount, quest.goalCount).xp;
+}
+
+// Calcule le malus (XP négatif et skills associés) pour une quête principale ratée.
+function malusForQuest(quest, ratio) {
+  const factor = malusFactorFromRatio(ratio);
+  if (factor === 0) return null;
+  const fullXp = questFullXp(quest);
+  const malusXp = Math.round(fullXp * factor);
+  const skills = {};
+  if (quest.skill) skills[quest.skill] = Math.round(malusXp * 0.7);
+  skills.discipline = (skills.discipline || 0) + Math.round(malusXp * 0.2);
+  return { xp: malusXp, skills, factor };
+}
+
+// Calcule le bonus pour une quête secondaire dépassée.
+function bonusForQuest(quest, ratio) {
+  const factor = bonusFactorFromRatio(ratio);
+  if (factor === 0) return null;
+  const fullXp = questFullXp(quest);
+  const bonusXp = Math.round(fullXp * factor);
+  const skills = {};
+  if (quest.skill) skills[quest.skill] = Math.round(bonusXp * 0.7);
+  skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.2);
+  return { xp: bonusXp, skills, factor };
+}
+
+// Idem pour la quête quotidienne de travail (dérivée du schedule).
+function malusForDailyWork(actualMinutes, goalHours) {
+  if (!goalHours || goalHours <= 0) return null;
+  const ratio = actualMinutes / (goalHours * 60);
+  const factor = malusFactorFromRatio(ratio);
+  if (factor === 0) return null;
+  const fullXp = baseXpForGoal(goalHours);
+  const malusXp = Math.round(fullXp * factor);
+  return {
+    xp: malusXp,
+    skills: { discipline: Math.round(malusXp * 0.5) },
+    factor
+  };
+}
+
+// Tick : à chaque chargement de l'app, on regarde si on a passé une frontière
+// jour/semaine et on applique malus + bonus pour les périodes terminées.
+// Les ID de période traités sont stockés dans `meta` pour idempotence.
+// Note : éditer le workLog d'un jour déjà finalisé NE re-déclenche PAS le malus —
+// l'évaluation est définitive au passage de minuit.
+async function applyPendingPenalties() {
+  if (!arePenaltiesActive()) return { applied: [], skipped: 'Avant le ' + PENALTIES_START };
+  const today = new Date();
+  const todayK = todayKey(today);
+  const startK = PENALTIES_START;
+  const applied = [];
+
+  // ── Malus quotidien sur le travail ────────────────────────────────────────
+  const lastDailyMeta = await dbGet('meta', 'lastDailyPenalty');
+  const lastDaily = lastDailyMeta?.value || startK; // commence le jour de la rentrée
+  // Pour chaque jour entre lastDaily (exclu) et today (exclu) : finaliser.
+  let cursor = new Date(lastDaily + 'T00:00:00');
+  cursor.setDate(cursor.getDate() + 1);
+  while (cursor < new Date(todayK + 'T00:00:00')) {
+    const dk = todayKey(cursor);
+    if (dk >= startK) {
+      const sched = await dbAll('schedule');
+      const dayK = ['sun','mon','tue','wed','thu','fri','sat'][cursor.getDay()];
+      const plan = sched.find(s => s.id === dayK);
+      const goalHours = plan?.workHours || 0;
+      const log = await dbGet('workLog', dk);
+      const actualMin = log?.totalMinutes || 0;
+      const malus = malusForDailyWork(actualMin, goalHours);
+      if (malus) {
+        await removeXp(malus.xp, malus.skills);
+        applied.push({ kind: 'daily-work', date: dk, ...malus });
+      }
+    }
+    await dbPut('meta', { key: 'lastDailyPenalty', value: dk });
+    cursor.setDate(cursor.getDate() + 1);
+  }
+
+  // ── Malus + bonus hebdo ──────────────────────────────────────────────────
+  const lastWeeklyMeta = await dbGet('meta', 'lastWeeklyPenalty');
+  // weekKey du lundi de la rentrée comme borne basse.
+  const startWk = weekKey(new Date(startK + 'T00:00:00'));
+  const lastWeekly = lastWeeklyMeta?.value || prevWeekKey(startWk);
+  const currentWk = weekKey(today);
+  // Pour chaque semaine strictement entre lastWeekly et currentWk : finaliser.
+  let wk = nextWeekKey(lastWeekly);
+  while (wk < currentWk) {
+    if (wk >= startWk) {
+      const completions = await dbAll('completions');
+      const quests = await dbAll('quests');
+      for (const q of quests) {
+        const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
+        const ratio = c?.ratio || 0;
+        if (q.category === 'main') {
+          const m = malusForQuest(q, ratio);
+          if (m) {
+            await removeXp(m.xp, m.skills);
+            applied.push({ kind: 'weekly-malus', questId: q.id, week: wk, ...m });
+          }
+        } else if (q.category === 'secondary') {
+          const b = bonusForQuest(q, ratio);
+          if (b) {
+            await awardXp(b.xp, b.skills);
+            applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, ...b });
+          }
+        }
+      }
+    }
+    await dbPut('meta', { key: 'lastWeeklyPenalty', value: wk });
+    wk = nextWeekKey(wk);
+  }
+
+  return { applied };
+}
+
+// Helpers semaine ISO : passer à la suivante / précédente sur format `YYYY-Www`.
+function nextWeekKey(wk) {
+  const m = wk.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return wk;
+  const year = parseInt(m[1]);
+  const week = parseInt(m[2]);
+  // Repère un jeudi de la semaine donnée → +7j → re-format.
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  const targetMon = new Date(week1Mon);
+  targetMon.setUTCDate(week1Mon.getUTCDate() + (week - 1) * 7 + 7);
+  return weekKey(targetMon);
+}
+
+function prevWeekKey(wk) {
+  const m = wk.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return wk;
+  const year = parseInt(m[1]);
+  const week = parseInt(m[2]);
+  const jan4 = new Date(Date.UTC(year, 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const week1Mon = new Date(jan4); week1Mon.setUTCDate(jan4.getUTCDate() - (jan4Day - 1));
+  const targetMon = new Date(week1Mon);
+  targetMon.setUTCDate(week1Mon.getUTCDate() + (week - 1) * 7 - 7);
+  return weekKey(targetMon);
 }
 
 // ============================================================================
@@ -657,13 +856,15 @@ function formatPace(secondsPerKm) {
 }
 
 function activityXp(parsed) {
-  const xp = Math.round(parsed.distanceKm * 5 + parsed.elevGain * 0.1);
+  // Montagne fortement boostée pour compenser le faible volume de D+ vs heures de travail.
+  // Endurance idem : moins de minutes que les matières, alors plus d'XP par km.
+  const xp = Math.round(parsed.distanceKm * 7 + parsed.elevGain * 0.4);
   return {
     xp,
     skills: {
-      endurance: Math.round(parsed.distanceKm * 3),
-      montagne: Math.round(parsed.elevGain * 0.08),
-      discipline: 5
+      endurance: Math.round(parsed.distanceKm * 5),
+      montagne: Math.round(parsed.elevGain * 0.45),
+      discipline: 8
     }
   };
 }
@@ -766,6 +967,41 @@ async function initSeed() {
   for (const q of SEED_WEEKLY_QUESTS) {
     const existing = await dbGet('quests', q.id);
     if (!existing) await dbPut('quests', q);
+  }
+  await migrateData();
+}
+
+// ============================================================================
+// 11.b MIGRATION DES DONNÉES (idempotent, exécuté à chaque démarrage)
+// ============================================================================
+
+async function migrateData() {
+  // Profil : ajoute le skill `lettres` si absent.
+  const profile = await dbGet('profile', 'me');
+  if (profile && !profile.skills.lettres) {
+    profile.skills.lettres = { xp: 0, level: 1 };
+    await dbPut('profile', profile);
+  }
+
+  // Quêtes : backfill `category` sur seeds existants.
+  const quests = await dbAll('quests');
+  for (const q of quests) {
+    const seed = SEED_WEEKLY_QUESTS.find(s => s.id === q.id);
+    if (seed && !q.category) {
+      Object.assign(q, seed); // on remet aussi flags auto*, skill, etc. à jour
+      await dbPut('quests', q);
+    }
+  }
+
+  // Activités : backfill xpAwarded/skillsAwarded pour permettre la suppression réversible.
+  const acts = await dbAll('activities');
+  for (const a of acts) {
+    if (a.xpAwarded == null) {
+      const { xp, skills } = activityXp(a);
+      a.xpAwarded = xp;
+      a.skillsAwarded = skills;
+      await dbPut('activities', a);
+    }
   }
 }
 
@@ -991,23 +1227,37 @@ function renderHome(root) {
 
 function renderQuetes(root) {
   const page = el('div', { class: 'page' });
-  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Quêtes')]));
+  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Objectifs')]));
 
   // Aujourd'hui (sport + travail)
   page.appendChild(el('h3', { class: 'mb-2' }, '📆 Aujourd\'hui'));
   const dashWrap = el('div', { class: 'mb-5' });
   page.appendChild(dashWrap);
 
-  // Cette semaine
-  page.appendChild(el('h3', { class: 'mb-2' }, '🎯 Cette semaine'));
-  const weeklyWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(weeklyWrap);
+  // Principales — donnent des malus si pas faites
+  page.appendChild(el('h3', { class: 'mb-1' }, '🎯 Principales'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2' },
+    arePenaltiesActive()
+      ? 'Malus appliqué la semaine prochaine si non atteintes.'
+      : `À partir du ${formatDate(PENALTIES_START)}, malus si non atteintes.`));
+  const mainWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(mainWrap);
+
+  // Secondaires — donnent des bonus si dépassées
+  page.appendChild(el('h3', { class: 'mb-1' }, '✨ Secondaires'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2' },
+    arePenaltiesActive()
+      ? 'Bonus de XP si dépassées.'
+      : `À partir du ${formatDate(PENALTIES_START)}, bonus si dépassées.`));
+  const secWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(secWrap);
 
   root.appendChild(page);
 
   // Render async
   renderDayDashboard(dashWrap);
-  renderWeeklyQuests(weeklyWrap);
+  renderWeeklyQuests(mainWrap, 'main');
+  renderWeeklyQuests(secWrap, 'secondary');
 }
 
 async function renderDayDashboard(root) {
@@ -1094,8 +1344,8 @@ async function renderDayDashboard(root) {
         await setSubjectMinutes(dateKey, key, newMin, goalHours);
         await recomputeAutoQuests();
         await loadAll();
-        renderDayDashboard(root);
-        renderWeeklyQuests(document.querySelector('.page > .flex.col.gap-2'));
+        // Re-render entier de la vue : maintient header + sections principales/secondaires.
+        render();
         showToast({ type: 'xp', title: 'Mis à jour', text: `${meta.label}: ${formatMinutes(newMin)}` });
       });
       input.addEventListener('keydown', (e) => { if (e.key === 'Enter') input.blur(); });
@@ -1105,8 +1355,11 @@ async function renderDayDashboard(root) {
   }
 }
 
-async function renderWeeklyQuests(root) {
-  const wks = State.quests.filter(q => q.type === 'weekly-hours' || q.type === 'weekly-count');
+async function renderWeeklyQuests(root, category = null) {
+  const wks = State.quests.filter(q =>
+    (q.type === 'weekly-hours' || q.type === 'weekly-count') &&
+    (category == null || q.category === category)
+  );
   root.innerHTML = '';
   for (const q of wks) {
     const c = await getCurrentCompletion(q);
@@ -1117,7 +1370,19 @@ async function renderWeeklyQuests(root) {
     const goal = isHours ? q.goalHours : q.goalCount;
     const unit = isHours ? 'h' : (q.unit || 'fois');
     const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
-    const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues;
+    const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres;
+
+    // Aperçu du malus / bonus prévisible (informationnel)
+    let forecast = '';
+    if (arePenaltiesActive() || true /* on l'affiche aussi avant pour éducation */) {
+      if (q.category === 'main') {
+        const m = malusForQuest(q, ratio);
+        if (m) forecast = `<span class="hq-malus">−${m.xp} XP prévu</span>`;
+      } else if (q.category === 'secondary') {
+        const b = bonusForQuest(q, ratio);
+        if (b) forecast = `<span class="hq-bonus">+${b.xp} XP bonus</span>`;
+      }
+    }
 
     const div = el('div', {
       class: 'hq' + (ratio >= 1 ? ' done' : ''),
@@ -1141,6 +1406,7 @@ async function renderWeeklyQuests(root) {
           : `<span class="dim text-xs">${actual} / ${goal} ${unit}</span>`}
         ${xp > 0 ? `<span class="hq-xp">+${xp} XP</span>` : '<span></span>'}
       </div>
+      ${forecast ? `<div class="hq-forecast">${forecast}</div>` : ''}
     `;
 
     if (!isAuto) {
@@ -1156,7 +1422,7 @@ async function renderWeeklyQuests(root) {
           const min = parseTimeInput(input.value);
           await setQuestValue(q, min);
           await loadAll();
-          renderWeeklyQuests(root);
+          renderWeeklyQuests(root, category);
           showToast({ type: 'xp', title: 'Mis à jour', text: q.title });
         };
         btn.addEventListener('click', save);
@@ -1174,7 +1440,7 @@ async function renderWeeklyQuests(root) {
           const nv = Math.max(0, actual + delta);
           await setQuestValue(q, nv);
           await loadAll();
-          renderWeeklyQuests(root);
+          renderWeeklyQuests(root, category);
         };
         minus.addEventListener('click', () => change(-1));
         plus.addEventListener('click', () => change(+1));
@@ -1196,7 +1462,18 @@ async function renderWeeklyQuests(root) {
 function renderSport(root) {
   const page = el('div', { class: 'page' });
   const title = el('div', { class: 'page-title' }, [el('h1', {}, 'Sport')]);
-  const importLabel = el('label', { class: 'btn primary sm' }, '+ GPX');
+  const importLabel = el('label', {
+    class: 'btn-gpx',
+    title: 'Importer un fichier GPX'
+  });
+  importLabel.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+      <polyline points="17 8 12 3 7 8"/>
+      <line x1="12" y1="3" x2="12" y2="15"/>
+    </svg>
+    <span>GPX</span>
+  `;
   const fileInput = el('input', { type: 'file', accept: '.gpx', hidden: 'true' });
   fileInput.addEventListener('change', onGpxFile);
   importLabel.appendChild(fileInput);
@@ -1245,9 +1522,10 @@ function renderSport(root) {
     setTimeout(() => {
       card.querySelector('#del-act').addEventListener('click', async () => {
         if (!confirm(`Supprimer "${sel.name}" ?`)) return;
-        await dbDelete('activities', sel.id);
-        await loadAll();
+        const ok = await deleteActivity(sel);
+        if (!ok) return;
         State.currentActivity = State.activities[0] || null;
+        showToast({ type: 'xp', title: 'Sortie supprimée', text: `−${sel.xpAwarded || 0} XP rendus` });
         render();
       });
     }, 0);
@@ -1286,13 +1564,20 @@ function renderMap(activity) {
   const mapEl = document.getElementById('sport-map');
   if (!mapEl) return;
   if (State.map) { State.map.remove(); State.map = null; }
-  State.map = L.map(mapEl, { zoomControl: true, attributionControl: false }).setView([46.5, 2.5], 6);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18 }).addTo(State.map);
+  State.map = L.map(mapEl, { zoomControl: true, attributionControl: true }).setView([46.5, 2.5], 6);
+  // Tile sombre minimaliste, palette compatible avec l'app (CartoDB Dark Matter).
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OSM · CartoDB',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(State.map);
   const latlngs = activity.points.map(p => [p.lat, p.lon]);
-  State.mapTrack = L.polyline(latlngs, { color: '#39ff88', weight: 4, opacity: 0.9 }).addTo(State.map);
+  // Tracé : halo doré autour, ligne principale en gradient gold/violet.
+  const halo = L.polyline(latlngs, { color: '#ffd86b', weight: 9, opacity: 0.18, lineJoin: 'round', lineCap: 'round' }).addTo(State.map);
+  State.mapTrack = L.polyline(latlngs, { color: '#ffb547', weight: 4, opacity: 1, lineJoin: 'round', lineCap: 'round' }).addTo(State.map);
   if (latlngs.length > 0) {
-    L.circleMarker(latlngs[0], { radius: 6, color: '#39ff88', fillColor: '#39ff88', fillOpacity: 1 }).addTo(State.mapTrack);
-    L.circleMarker(latlngs[latlngs.length - 1], { radius: 6, color: '#a855f7', fillColor: '#a855f7', fillOpacity: 1 }).addTo(State.mapTrack);
+    L.circleMarker(latlngs[0], { radius: 7, color: '#ffd86b', weight: 2, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(State.map);
+    L.circleMarker(latlngs[latlngs.length - 1], { radius: 7, color: '#7c5cff', weight: 2, fillColor: '#0a0e1a', fillOpacity: 1 }).addTo(State.map);
   }
   State.map.fitBounds(State.mapTrack.getBounds(), { padding: [20, 20] });
   setTimeout(() => State.map.invalidateSize(), 100);
@@ -1306,9 +1591,10 @@ async function onGpxFile(e) {
     const parsed = parseGpx(text);
     const splits = computeSplits(parsed);
     const type = detectActivityType(parsed);
-    const activity = { id: 'act-' + Date.now(), type, ...parsed, ...splits };
-    await dbPut('activities', activity);
     const { xp, skills } = activityXp(parsed);
+    // On stocke ce qui a été gagné pour permettre une suppression réversible.
+    const activity = { id: 'act-' + Date.now(), type, ...parsed, ...splits, xpAwarded: xp, skillsAwarded: skills };
+    await dbPut('activities', activity);
     const result = await awardXp(xp, skills);
     const broken = await checkAndUpdateRecords(activity);
     await recomputeAutoQuests();
@@ -1342,6 +1628,46 @@ function showPRCelebration(records) {
   overlay.classList.remove('hidden');
   overlay.onclick = () => overlay.classList.add('hidden');
   setTimeout(() => overlay.classList.add('hidden'), 5500);
+}
+
+async function recomputeAllRecords() {
+  // Re-scanne toutes les activités et reconstruit le store records (utile après une suppression).
+  const acts = await dbAll('activities');
+  await dbClear('records');
+  for (const t of RECORD_TYPES) {
+    let best = null;
+    for (const a of acts) {
+      const v = a[t.metric];
+      if (v == null || v === 0) continue;
+      if (!best
+        || (t.mode === 'max' && v > best.value)
+        || (t.mode === 'min' && v < best.value)) {
+        best = { id: t.id, value: v, activityId: a.id, date: a.date, previousValue: null };
+      }
+    }
+    if (best) await dbPut('records', best);
+  }
+}
+
+async function deleteActivity(activity) {
+  // Avant de retirer l'XP, anticipe la perte de niveau pour confirmer.
+  const profile = State.profile;
+  const before = deriveLevel(profile.totalXp).level;
+  const xpAwarded = activity.xpAwarded ?? 0;
+  const skillsAwarded = activity.skillsAwarded ?? {};
+  const projectedXp = Math.max(0, profile.totalXp - xpAwarded);
+  const after = deriveLevel(projectedXp).level;
+  if (after < before) {
+    if (!confirm(`⚠️ Supprimer cette sortie te fera perdre ${before - after} niveau${before - after > 1 ? 'x' : ''} (du ${before} au ${after}). Continuer ?`)) {
+      return false;
+    }
+  }
+  await dbDelete('activities', activity.id);
+  if (xpAwarded > 0) await removeXp(xpAwarded, skillsAwarded);
+  await recomputeAllRecords();
+  await recomputeAutoQuests();
+  await loadAll();
+  return true;
 }
 
 // ============================================================================
@@ -1599,6 +1925,9 @@ async function init() {
   await initSeed();
   await loadAll();
   await recomputeAutoQuests();
+
+  // Applique les malus/bonus pour les jours/semaines déjà passés depuis la rentrée.
+  const tick = await applyPendingPenalties();
   await loadAll();
 
   document.getElementById('app').classList.remove('hidden');
@@ -1609,6 +1938,21 @@ async function init() {
   });
 
   navigate('home');
+
+  // Si des malus/bonus viennent d'être appliqués, le signaler.
+  if (tick?.applied?.length) {
+    const totalMalus = tick.applied.filter(a => a.kind !== 'weekly-bonus').reduce((s, a) => s + a.xp, 0);
+    const totalBonus = tick.applied.filter(a => a.kind === 'weekly-bonus').reduce((s, a) => s + a.xp, 0);
+    setTimeout(() => {
+      showToast({
+        type: 'xp',
+        title: 'Bilan période',
+        text: (totalBonus > 0 ? `+${totalBonus} XP bonus` : '') +
+              (totalBonus > 0 && totalMalus > 0 ? ' · ' : '') +
+              (totalMalus > 0 ? `−${totalMalus} XP malus` : '')
+      }, 4500);
+    }, 1500);
+  }
 }
 
 document.addEventListener('DOMContentLoaded', init);

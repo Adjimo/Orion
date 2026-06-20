@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '1.03';
+const APP_VERSION = '1.05';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -322,7 +322,7 @@ const SUBJECTS = {
   si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 4.00 },
   langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 4.00 },
   francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 4.00 },
-  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.40 }
+  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.20 }
 };
 
 function baseXpForGoal(goalHours) {
@@ -393,7 +393,7 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
   }
   // Discipline : juste un nudge (10%), pour ne pas qu'elle monte plus vite
   // que les matières avec une vraie charge horaire.
-  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.10);
+  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.04);
 
   const xpDelta = newXp - lastXp;
   const skillsDelta = {};
@@ -480,7 +480,7 @@ async function setQuestValue(quest, newValue) {
 
   const newSkillsXp = {};
   if (quest.skill) newSkillsXp[quest.skill] = Math.round(newXp * 0.7);
-  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.08);
+  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.03);
 
   const xpDelta = newXp - lastXp;
   const skillsDelta = {};
@@ -771,7 +771,7 @@ async function applyPendingPenalties() {
           const bonusXp = Math.round(fullXp * f);
           const skills = {};
           if (q.skill) skills[q.skill] = Math.round(bonusXp * 0.7);
-          skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.08);
+          skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.03);
           await awardXp(bonusXp, skills);
           applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, xp: bonusXp, percent: f, ratio });
         }
@@ -1021,9 +1021,10 @@ function analyseIntervals(points) {
 
 function formatDuration(seconds) {
   if (!seconds) return '—';
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = seconds % 60;
+  const total = Math.round(seconds);
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const s = total % 60;
   if (h > 0) return `${h}h${String(m).padStart(2, '0')}`;
   return `${m}:${String(s).padStart(2, '0')}`;
 }
@@ -1086,7 +1087,7 @@ function activityXp(parsed, category) {
     allureXp = Math.round(allureXp * 1.3);
   } else if (cat === 'renforcement') {
     // Forfait : pas de GPX généralement, on retourne un petit montant fixe.
-    return { xp: 80, skills: { discipline: 50 } };
+    return { xp: 80, skills: { discipline: 25 } };
   }
 
   const totalXp = Math.max(0, enduranceXp + Math.max(0, allureXp) + categoryBonus);
@@ -1095,7 +1096,7 @@ function activityXp(parsed, category) {
     skills: {
       endurance: enduranceXp,
       allure: Math.max(0, allureXp),
-      discipline: 20
+      discipline: 8
     }
   };
 }
@@ -1244,6 +1245,209 @@ function currentVO2max(activities) {
   return best;
 }
 
+// VDOT calibré (Jack Daniels). Mixe deux signaux pour la fiabilité :
+//   - Splits PR récents (5K/10K/semi sur 90j) → VDOT "course"
+//   - Allure moyenne d'effort en fractionné récent (30j) → VDOT "VMA"
+// La moyenne pondérée (60% course, 40% VMA) corrige les biais : si tu as un
+// vieux 10K mais des fractios récents qui montent, ton VDOT remonte.
+//
+// Renvoie { vdot, paceVdot, intervalVdot, source, confidence } ou null.
+// confidence ∈ ['high','medium','low'] : combien on doit faire confiance au chiffre.
+function currentVDOT(activities) {
+  if (!activities || activities.length === 0) return null;
+  const cutoffPerf = Date.now() - 90 * 86400000;   // splits PR : 90j
+  const cutoffSpeed = Date.now() - 30 * 86400000;  // fractios : 30j
+
+  // 1) VDOT depuis splits récents
+  let bestPerf = null; // { vdot, distance, time, date }
+  for (const a of activities) {
+    if (new Date(a.date).getTime() < cutoffPerf) continue;
+    const candidates = [
+      { d: 5000, t: a.best5k },
+      { d: 10000, t: a.best10k },
+      { d: 21097, t: a.bestSemi }
+    ];
+    for (const c of candidates) {
+      if (!c.t) continue;
+      const v = estimateVO2max(c.d, c.t);
+      if (v != null && (bestPerf == null || v > bestPerf.vdot)) {
+        bestPerf = { vdot: v, distance: c.d, time: c.t, date: a.date };
+      }
+    }
+  }
+
+  // 2) VDOT depuis fractionnés récents : VMA approchée via allure d'effort.
+  //    On considère que l'allure d'effort soutenue ~6 min équivaut à 95% VO2max.
+  const fractios = activities.filter(a =>
+    a.type === 'fractionne' &&
+    new Date(a.date).getTime() >= cutoffSpeed &&
+    Array.isArray(a.intervals) && a.intervals.length > 0
+  );
+  let intervalVdot = null;
+  if (fractios.length > 0) {
+    const efforts = [];
+    for (const f of fractios) {
+      for (const i of f.intervals) {
+        if (i.kind === 'effort' && i.duration >= 30 && i.distance >= 100) {
+          efforts.push(i);
+        }
+      }
+    }
+    if (efforts.length > 0) {
+      // Allure d'effort moyenne pondérée par durée
+      const totalDur = efforts.reduce((s, e) => s + e.duration, 0);
+      const totalDist = efforts.reduce((s, e) => s + e.distance, 0);
+      // Estime un VDOT comme si l'effort total était une course continue
+      // (correction Daniels intègre déjà la durée).
+      if (totalDur >= 60 && totalDist >= 200) {
+        intervalVdot = estimateVO2max(totalDist, totalDur);
+      }
+    }
+  }
+
+  // 3) Combinaison
+  let vdot, source, confidence;
+  if (bestPerf && intervalVdot != null) {
+    vdot = bestPerf.vdot * 0.6 + intervalVdot * 0.4;
+    source = `${bestPerf.distance / 1000}K en ${formatDuration(bestPerf.time)} + ${fractios.length} fractionné${fractios.length > 1 ? 's' : ''}`;
+    confidence = 'high';
+  } else if (bestPerf) {
+    vdot = bestPerf.vdot;
+    source = `${bestPerf.distance / 1000}K en ${formatDuration(bestPerf.time)}`;
+    confidence = 'medium';
+  } else if (intervalVdot != null) {
+    vdot = intervalVdot;
+    source = `${fractios.length} fractionné${fractios.length > 1 ? 's' : ''} récent${fractios.length > 1 ? 's' : ''}`;
+    confidence = 'low';
+  } else {
+    return null;
+  }
+
+  return {
+    vdot: Math.round(vdot * 10) / 10,
+    paceVdot: bestPerf ? Math.round(bestPerf.vdot * 10) / 10 : null,
+    intervalVdot: intervalVdot ? Math.round(intervalVdot * 10) / 10 : null,
+    source,
+    confidence
+  };
+}
+
+// Le VDOT correspondant à un chrono cible sur une distance (= ce qu'il faut
+// pour réaliser ce chrono). Utilisé pour calculer les allures d'entraînement
+// d'un objectif que l'utilisateur n'a pas encore atteint.
+function daniels_solveVDOTfromTime(distanceM, timeS) {
+  return estimateVO2max(distanceM, timeS);
+}
+
+// Parse un chrono d'objectif. Accepte "45:00", "45min", "1h30", "1h30:00", "1:30:00", "90".
+function parseGoalTimeInput(str) {
+  if (!str) return null;
+  const s = String(str).trim().toLowerCase();
+  // 1h30 ou 1h30:00 ou 1h30m
+  let m = s.match(/^(\d+)\s*h\s*(\d+)?(?::(\d+))?/);
+  if (m) {
+    const h = parseInt(m[1]);
+    const min = m[2] ? parseInt(m[2]) : 0;
+    const sec = m[3] ? parseInt(m[3]) : 0;
+    return h * 3600 + min * 60 + sec;
+  }
+  // 1:30:00
+  m = s.match(/^(\d+):(\d+):(\d+)$/);
+  if (m) return parseInt(m[1]) * 3600 + parseInt(m[2]) * 60 + parseInt(m[3]);
+  // 45:00
+  m = s.match(/^(\d+):(\d+)$/);
+  if (m) return parseInt(m[1]) * 60 + parseInt(m[2]);
+  // 45min
+  m = s.match(/^(\d+)\s*min$/);
+  if (m) return parseInt(m[1]) * 60;
+  // Nombre brut → minutes
+  const n = parseFloat(s);
+  if (!isNaN(n)) return Math.round(n * 60);
+  return null;
+}
+
+// Rendu HTML des allures cibles pour un objectif de course.
+function renderGoalPacesHtml(goal, goalPaces, currentPaces) {
+  const distLabel = ({ 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' })[goal.distance] || (goal.distance / 1000 + ' km');
+  const goalPace = Math.round(goal.timeS / (goal.distance / 1000));
+  const diff = (key) => {
+    if (!currentPaces || !currentPaces[key]) return '';
+    const d = goalPaces[key] - currentPaces[key];
+    if (Math.abs(d) < 5) return '<span class="goal-diff dim">≈ allure actuelle</span>';
+    if (d < 0) return `<span class="goal-diff faster">${Math.abs(Math.round(d))} s/km plus rapide</span>`;
+    return `<span class="goal-diff slower">${Math.round(d)} s/km plus lent</span>`;
+  };
+  return `
+    <div class="goal-output-head">
+      <strong>${distLabel} en ${formatDuration(goal.timeS)}</strong>
+      <span class="dim text-xs">allure cible : ${formatPace(goalPace)}</span>
+    </div>
+    <div class="paces-grid">
+      <div class="pace-cell"><div class="pace-key">E</div><div class="pace-val mono">${formatPace(goalPaces.E)}</div><div class="pace-desc">Footing</div>${diff('E')}</div>
+      <div class="pace-cell"><div class="pace-key">M</div><div class="pace-val mono">${formatPace(goalPaces.M)}</div><div class="pace-desc">Marathon</div>${diff('M')}</div>
+      <div class="pace-cell"><div class="pace-key">T</div><div class="pace-val mono">${formatPace(goalPaces.T)}</div><div class="pace-desc">Seuil</div>${diff('T')}</div>
+      <div class="pace-cell"><div class="pace-key">I</div><div class="pace-val mono">${formatPace(goalPaces.I)}</div><div class="pace-desc">VMA</div>${diff('I')}</div>
+      <div class="pace-cell"><div class="pace-key">R</div><div class="pace-val mono">${formatPace(goalPaces.R)}</div><div class="pace-desc">Sprint</div>${diff('R')}</div>
+    </div>
+  `;
+}
+
+// Allures d'entraînement Daniels (E/M/T/I/R) à partir du VDOT.
+// Renvoie chaque zone en s/km. Calcul empirique calibré sur la table Daniels.
+function trainingPaces(vdot) {
+  if (!vdot) return null;
+  // Vitesse à 100% VDOT (m/min) en utilisant l'inverse Daniels sur ~6 min d'effort.
+  // On approxime : à 6 min d'effort, %max ≈ 0.95, donc VO2(6min) ≈ vdot × 0.95.
+  // Et VO2 = -4.6 + 0.182258·v + 0.000104·v². On résout en v.
+  const targetVO2 = vdot;
+  // Résoudre 0.000104·v² + 0.182258·v - (targetVO2 + 4.6) = 0
+  const a = 0.000104, b = 0.182258, c = -(targetVO2 + 4.6);
+  const v100 = (-b + Math.sqrt(b * b - 4 * a * c)) / (2 * a); // m/min à 100% VDOT
+  if (!isFinite(v100) || v100 <= 0) return null;
+
+  // Coefficients Daniels (approximations consensus) :
+  //   E  : 65% v100 (plage 59-74%, on prend le milieu)
+  //   M  : 80% v100
+  //   T  : 88% v100
+  //   I  : 100% v100
+  //   R  : 110% v100
+  const speedToPace = (v) => Math.round(60 / (v / 1000)); // m/min → s/km
+  return {
+    E: speedToPace(v100 * 0.65),
+    M: speedToPace(v100 * 0.80),
+    T: speedToPace(v100 * 0.88),
+    I: speedToPace(v100 * 1.00),
+    R: speedToPace(v100 * 1.10)
+  };
+}
+
+// Inverse Daniels : pour un VDOT donné, prédit le temps sur une distance D (m).
+// Recherche dichotomique sur T (1 min → 5 h).
+function predictTime(vdot, distanceM) {
+  if (!vdot || !distanceM) return null;
+  let lo = 60, hi = 5 * 3600;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    const v = estimateVO2max(distanceM, mid);
+    if (v == null) return null;
+    if (v > vdot) lo = mid; // T trop court → on rallonge
+    else hi = mid;
+  }
+  return Math.round((lo + hi) / 2);
+}
+
+// Prédictions complètes (5K, 10K, 15K, semi, marathon) à partir du VDOT.
+function predictRaceTimes(vdot) {
+  if (!vdot) return null;
+  return {
+    '5K':       { distance: 5000,  time: predictTime(vdot, 5000) },
+    '10K':      { distance: 10000, time: predictTime(vdot, 10000) },
+    '15K':      { distance: 15000, time: predictTime(vdot, 15000) },
+    'Semi':     { distance: 21097, time: predictTime(vdot, 21097) },
+    'Marathon': { distance: 42195, time: predictTime(vdot, 42195) }
+  };
+}
+
 // Pour la courbe d'évolution : pour chaque activité chronométrée, retourne
 // le meilleur VO2max obtenable depuis ses propres splits (5K/10K/semi/1K).
 function activityVO2maxPoints(activities) {
@@ -1318,6 +1522,8 @@ function analyseWeekRunning(activities, ws) {
 function generateWeekPlan(activities) {
   const now = new Date();
   const thisMonday = startOfWeek(now);
+  // Semaine en cours
+  const wCurrent = analyseWeekRunning(activities, thisMonday);
   // Trois dernières semaines complètes.
   const w1 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 7 * 86400000));
   const w2 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 14 * 86400000));
@@ -1328,30 +1534,41 @@ function generateWeekPlan(activities) {
     ? validPast.reduce((s, w) => s + w.totalKm, 0) / validPast.length
     : 0;
 
+  // Référence pour calculer la cible suivante : on prend la semaine en cours
+  // SI elle a déjà ≥ 3 sorties (l'utilisateur l'a "remplie"), sinon la sem
+  // dernière complète.
+  const useCurrent = wCurrent.runs >= 3;
+  const refWeek = useCurrent ? wCurrent : w1;
+  const refLabel = useCurrent ? 'semaine en cours' : 'semaine dernière';
+
   const load = trainingLoadStats(activities, now);
 
   // Cible volume
   let targetKm;
   let progressNote;
-  if (avgKm3w < 5) {
+  if (avgKm3w < 5 && refWeek.totalKm < 5) {
     // Démarrage : on ne pousse pas
     targetKm = Math.max(15, avgKm3w + 5);
     progressNote = 'Démarrage progressif. Vise 3-4 sorties courtes pour construire ta base.';
-  } else if (load.tsb < -15) {
-    targetKm = Math.round(avgKm3w * 0.85 * 10) / 10;
-    progressNote = 'Charge récente élevée. Cette semaine doit être plus légère pour récupérer.';
-  } else if (load.tsb > 5) {
-    targetKm = Math.round(avgKm3w * 1.10 * 10) / 10;
-    progressNote = 'Tu es frais : on peut pousser un peu (+10% volume).';
+  } else if (load.tsb < -25) {
+    targetKm = Math.round(refWeek.totalKm * 0.85 * 10) / 10;
+    progressNote = `Charge récente élevée vs ${refLabel} (${refWeek.totalKm} km). Cette semaine peut être plus légère.`;
+  } else if (load.tsb > 10) {
+    targetKm = Math.round(refWeek.totalKm * 1.10 * 10) / 10;
+    progressNote = `Tu es frais : on peut pousser un peu (+10% sur les ${refWeek.totalKm} km de la ${refLabel}).`;
   } else {
-    targetKm = Math.round(avgKm3w * 1.05 * 10) / 10;
-    progressNote = 'Progression douce, +5% sur le volume hebdo.';
+    targetKm = Math.round(refWeek.totalKm * 1.05 * 10) / 10;
+    progressNote = `Progression douce : +5% sur les ${refWeek.totalKm} km de la ${refLabel}.`;
   }
 
-  // Détection des manqués : si 0 fractionné depuis 2 sem
-  const recentFractio = w1.byType.fractionne || 0;
-  const prevFractio = w2.byType.fractionne || 0;
-  const missingSpeed = recentFractio === 0 && prevFractio === 0;
+  // Si la cible est inférieure à un seuil minimum (10 km), on borne pour ne pas
+  // proposer un plan vide.
+  if (targetKm < 10) targetKm = Math.max(10, avgKm3w * 1.05);
+
+  // Détection des manqués : si 0 fractionné cette sem ou depuis 2 sem
+  const fractioRefCount = refWeek.byType.fractionne || 0;
+  const prevFractio = (useCurrent ? w1.byType.fractionne : w2.byType.fractionne) || 0;
+  const missingSpeed = fractioRefCount === 0 && prevFractio === 0;
 
   // Construction des 4-5 séances. On pré-définit la répartition typique du
   // volume entre les sorties pour qu'elles se complètent.
@@ -1387,6 +1604,10 @@ function generateWeekPlan(activities) {
 
   return {
     pastWeeks: { w1, w2, w3 },
+    currentWeek: wCurrent,
+    refWeek,
+    refLabel,
+    useCurrent,
     avgKm3w: Math.round(avgKm3w * 10) / 10,
     targetKm,
     progressNote,
@@ -1535,18 +1756,32 @@ function detectRoutes(activities) {
 // Charge d'entraînement style TSS (Training Stress Score). Pour chaque sortie,
 // on calcule un score basé sur la durée pondérée par l'intensité d'allure.
 // IF (Intensity Factor) ≈ allure_seuil / allure_actuelle (plus tu vas vite, plus c'est élevé).
-// On considère un seuil personnel par défaut à 4:30/km (270 s/km), ajustable.
-const THRESHOLD_PACE_S = 270;
+// Le seuil personnel est calibré dynamiquement sur l'historique de l'utilisateur :
+// on prend l'allure médiane des sorties chronométrées (= allure typique). Sans
+// historique suffisant, fallback à 5:30/km (= rythme footing courant).
+const THRESHOLD_PACE_FALLBACK_S = 330; // 5:30/km
 
-function activityLoad(activity) {
+function thresholdPaceFor(activities) {
+  const paces = (activities || [])
+    .filter(a => a.duration > 0 && a.distanceKm > 0)
+    .map(a => a.duration / a.distanceKm);
+  if (paces.length < 5) return THRESHOLD_PACE_FALLBACK_S;
+  paces.sort((a, b) => a - b);
+  // Médiane (= allure typique de l'utilisateur). On l'utilise comme seuil pour
+  // que ses sorties habituelles soient ~1.0 d'intensité, pas 1.3.
+  return paces[Math.floor(paces.length / 2)];
+}
+
+function activityLoad(activity, thresholdS) {
   if (!activity || !activity.duration || !activity.distanceKm) return 0;
   const pace = activity.duration / activity.distanceKm; // s/km
   if (pace <= 0) return 0;
-  let intensity = THRESHOLD_PACE_S / pace; // > 1 si plus rapide, < 1 si plus lent
-  intensity = Math.max(0.5, Math.min(1.3, intensity)); // borne raisonnable
+  const ref = thresholdS || THRESHOLD_PACE_FALLBACK_S;
+  let intensity = ref / pace; // > 1 si plus rapide que le seuil perso
+  intensity = Math.max(0.5, Math.min(1.3, intensity));
   // Bonus D+ : 100m de D+ ≈ 30 s d'effort supplémentaire en pénibilité.
   const dPlusBonus = (activity.elevGain || 0) / 100 * 30;
-  const effectiveDur = activity.duration + dPlusBonus; // s
+  const effectiveDur = activity.duration + dPlusBonus;
   // TSS = (durée × IF²) / 36 → un effort 1h au seuil = 100 points
   return Math.round((effectiveDur * intensity * intensity) / 36);
 }
@@ -1557,28 +1792,33 @@ function trainingLoadStats(activities, refDate = new Date()) {
   const ref = refDate.getTime();
   const ctlCutoff = ref - 28 * 86400000;
   const atlCutoff = ref - 7 * 86400000;
+  // Seuil personnalisé sur les 60 derniers jours pour suivre la progression.
+  const recent60 = activities.filter(a => new Date(a.date).getTime() >= ref - 60 * 86400000);
+  const thresholdS = thresholdPaceFor(recent60);
   let ctlSum = 0, atlSum = 0;
   for (const a of activities) {
     const t = new Date(a.date).getTime();
     if (t > ref) continue;
-    const load = activityLoad(a);
+    const load = activityLoad(a, thresholdS);
     if (t >= ctlCutoff) ctlSum += load;
     if (t >= atlCutoff) atlSum += load;
   }
   const ctl = ctlSum / 28;
   const atl = atlSum / 7;
   const tsb = ctl - atl;
-  // Recommandation textuelle selon TSB :
+  // Recommandation textuelle selon TSB. Seuils plus tolérants — la fatigue
+  // ne devrait être signalée qu'avec un déséquilibre vraiment marqué.
   let advice;
-  if (atl < 5) advice = { tone: 'cool', text: 'Volume très bas — relance progressivement.' };
-  else if (tsb < -15) advice = { tone: 'warm', text: 'Charge récente très élevée. Pense à une journée de récup.' };
-  else if (tsb < -5) advice = { tone: 'gold', text: 'Bon stimulus. Tu progresses, surveille la récup.' };
-  else if (tsb < 5) advice = { tone: 'gold', text: 'Équilibre bien tenu, continue.' };
-  else advice = { tone: 'cool', text: 'Tu es frais. Tu peux pousser sur la prochaine séance.' };
+  if (atl < 3) advice = { tone: 'cool', text: 'Tu n\'as pas encore couru régulièrement cette semaine. Relance progressivement.' };
+  else if (tsb < -25) advice = { tone: 'warm', text: 'Tu as beaucoup couru récemment vs ton volume habituel. Si tu te sens bien, ne change rien — sinon glisse une séance facile.' };
+  else if (tsb < -10) advice = { tone: 'gold', text: 'Bonne charge cette semaine. Tu construis ta forme.' };
+  else if (tsb < 10) advice = { tone: 'gold', text: 'Charge équilibrée par rapport à ton habitude. Continue à ce rythme.' };
+  else advice = { tone: 'cool', text: 'Volume récent en baisse. Si tu veux progresser, c\'est le moment d\'enchaîner.' };
   return {
     ctl: Math.round(ctl * 10) / 10,
     atl: Math.round(atl * 10) / 10,
     tsb: Math.round(tsb * 10) / 10,
+    thresholdS,
     advice
   };
 }
@@ -1599,6 +1839,136 @@ function getRollingRecords(activities, windowDays) {
     out[f] = best;
   }
   return out;
+}
+
+// Dispatch du rendu détaillé d'une sortie selon sa catégorie. Footings et
+// sorties week-end → splits km par km. Fractionné → tableau des intervalles
+// (effort / repos). Trail → profil de dénivelé.
+function renderActivityDetailHtml(activity) {
+  if (!activity) return '';
+  const type = activity.type || 'footing';
+  if (type === 'fractionne') {
+    return renderFractionneIntervalsHtml(activity);
+  }
+  if (type === 'trail') {
+    return renderTrailElevHtml(activity);
+  }
+  // footing, sortie-we, course (legacy), renforcement avec splits si dispo
+  if (activity.kmSplits && activity.kmSplits.length > 0) {
+    return renderKmSplitsHtml(activity.kmSplits);
+  }
+  return '';
+}
+
+// Tableau des intervalles d'un fractionné (issues de analyseIntervals stockées
+// dans activity.intervals à l'import). Effort en orange, repos en violet.
+function renderFractionneIntervalsHtml(activity) {
+  let intervals = activity.intervals;
+  // Fallback : si l'activité a été importée avant que l'analyse soit faite,
+  // on essaie de la calculer maintenant à partir des points si dispos.
+  if ((!intervals || intervals.length === 0) && activity.points) {
+    intervals = analyseIntervals(activity.points);
+  }
+  if (!intervals || intervals.length === 0) {
+    return `<div class="km-splits"><div class="km-splits-title">Tours d'effort</div>
+      <div class="dim text-xs" style="padding: 12px 0;">Pas d'intervalles détectés sur cette sortie.</div>
+    </div>`;
+  }
+  const efforts = intervals.filter(i => i.kind === 'effort');
+  const totalEffort = efforts.reduce((s, i) => s + i.duration, 0);
+  const totalRepos = intervals.filter(i => i.kind === 'repos').reduce((s, i) => s + i.duration, 0);
+  const avgEffortPace = efforts.length > 0
+    ? Math.round(efforts.reduce((s, i) => s + i.avgPace, 0) / efforts.length)
+    : 0;
+
+  let lapNum = 0;
+  const rows = intervals.map(it => {
+    const isEffort = it.kind === 'effort';
+    if (isEffort) lapNum++;
+    return `
+      <div class="interval-row ${isEffort ? 'effort' : 'repos'}">
+        <div class="interval-label">${isEffort ? '⚡ Tour ' + lapNum : '😮‍💨 Récup'}</div>
+        <div class="interval-meta">${formatDuration(it.duration)} · ${(it.distance / 1000).toFixed(2)} km · ${formatPace(it.avgPace)}</div>
+      </div>
+    `;
+  }).join('');
+
+  return `
+    <div class="km-splits">
+      <div class="km-splits-title">Tours d'effort · ${efforts.length} série${efforts.length > 1 ? 's' : ''}</div>
+      <div class="totals" style="margin-bottom: 10px;">
+        <div><div class="t-val grad-text">${formatDuration(totalEffort)}</div><div class="t-lbl">effort total</div></div>
+        <div><div class="t-val grad-text">${formatDuration(totalRepos)}</div><div class="t-lbl">repos total</div></div>
+        <div><div class="t-val grad-text">${formatPace(avgEffortPace)}</div><div class="t-lbl">allure effort</div></div>
+      </div>
+      <div class="intervals-list">${rows}</div>
+    </div>
+  `;
+}
+
+// Profil de dénivelé pour un trail : pour chaque km on affiche la barre de D+
+// (positive vers le haut). Couleur ambre. Inclut un résumé montée totale,
+// km le plus pentu, descente totale (depuis la trace).
+function renderTrailElevHtml(activity) {
+  const splits = activity.kmSplits || [];
+  if (splits.length === 0) {
+    return '';
+  }
+  const dPlusBars = splits.map(s => s.elevGain || 0);
+  const maxBar = Math.max(1, ...dPlusBars);
+  const totalDplus = activity.elevGain || 0;
+  // Calcule descente totale depuis les points si possible.
+  let descent = 0;
+  if (activity.points && activity.points.length > 1) {
+    let lastEle = activity.points[0].ele;
+    for (let i = 1; i < activity.points.length; i++) {
+      const e = activity.points[i].ele;
+      if (e == null || lastEle == null) continue;
+      const d = e - lastEle;
+      if (Math.abs(d) >= 1.5) {
+        if (d < 0) descent += -d;
+        lastEle = e;
+      } else if (e !== null) {
+        // skip (noise)
+      }
+    }
+  }
+  // km le plus pentu
+  const steepestKm = splits.reduce((max, s) => (s.elevGain || 0) > (max?.elevGain || 0) ? s : max, null);
+
+  let html = '<div class="km-splits">';
+  html += '<div class="km-splits-title">Profil dénivelé · km par km</div>';
+  html += `
+    <div class="totals" style="margin-bottom: 10px;">
+      <div><div class="t-val grad-text">+${Math.round(totalDplus)}</div><div class="t-lbl">m D+</div></div>
+      <div><div class="t-val grad-text">−${Math.round(descent)}</div><div class="t-lbl">m D−</div></div>
+      <div><div class="t-val grad-text">${steepestKm ? '+' + steepestKm.elevGain : '—'}</div><div class="t-lbl">km le + raide (km ${steepestKm ? steepestKm.km : '—'})</div></div>
+    </div>
+  `;
+  for (const s of splits) {
+    const dPlus = s.elevGain || 0;
+    const widthPct = 30 + (dPlus / maxBar) * 70;
+    html += `
+      <div class="km-split">
+        <div class="km-split-label">km ${s.km}</div>
+        <div class="km-split-bar-wrap">
+          <div class="km-split-bar trail" style="width: ${dPlus > 0 ? widthPct : 0}%"></div>
+        </div>
+        <div class="km-split-pace mono">+${dPlus} m</div>
+        <div class="km-split-elev dim mono">${formatPaceShort(s.pace)}/km</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  return html;
+}
+
+// Helper : format "M:SS" pour une allure en s/km.
+function formatPaceShort(seconds) {
+  if (!seconds) return '—';
+  const m = Math.floor(seconds / 60);
+  const s = Math.round(seconds % 60);
+  return `${m}:${String(s).padStart(2, '0')}`;
 }
 
 // Rendu HTML des splits km par km : barre horizontale par km, longueur
@@ -1803,6 +2173,9 @@ async function loadAll() {
   const recs = await dbAll('records');
   State.records = {};
   for (const r of recs) State.records[r.id] = r;
+  // Objectif de course personnel (course cible).
+  const goalRace = await dbGet('meta', 'goalRace');
+  State._goalRace = goalRace?.value || null;
 }
 
 // ============================================================================
@@ -2321,7 +2694,7 @@ function renderSport(root) {
         <div class="metric"><div class="m-val grad-text">${formatDuration(sel.duration)}</div><div class="m-lbl">durée</div></div>
         <div class="metric"><div class="m-val grad-text">${formatPace(sel.avgPace)}</div><div class="m-lbl">allure</div></div>
       </div>
-      ${sel.kmSplits && sel.kmSplits.length > 0 ? renderKmSplitsHtml(sel.kmSplits) : ''}
+      ${renderActivityDetailHtml(sel)}
     `});
     page.appendChild(card);
     setTimeout(() => {
@@ -2726,7 +3099,7 @@ async function recomputeAllXp() {
       const mult = meta.skillMult ?? 0.6;
       newSkillsXp[meta.skill] = (newSkillsXp[meta.skill] || 0) + Math.round(newXp * portion * mult);
     }
-    newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.10);
+    newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.04);
     l.lastXpAwarded = newXp;
     l.lastSkillsAwarded = newSkillsXp;
     await dbPut('workLog', l);
@@ -2756,7 +3129,7 @@ async function recomputeAllXp() {
     }
     const skillsXp = {};
     if (q.skill) skillsXp[q.skill] = Math.round(xp * 0.7);
-    skillsXp.discipline = (skillsXp.discipline || 0) + Math.round(xp * 0.08);
+    skillsXp.discipline = (skillsXp.discipline || 0) + Math.round(xp * 0.03);
     // Met à jour la completion en base avec les nouvelles valeurs.
     c.lastXp = xp;
     c.lastSkillsXp = skillsXp;
@@ -2962,47 +3335,178 @@ function renderStats(root) {
   const tsbColor = load.advice.tone === 'cool' ? 'var(--accent-cool)'
                  : load.advice.tone === 'warm' ? 'var(--accent-warm)'
                  : 'var(--gold)';
+  // Allure-seuil personnalisée (formatée pour l'explication)
+  const thrM = Math.floor(load.thresholdS / 60);
+  const thrS = Math.round(load.thresholdS % 60);
+  const thrLabel = `${thrM}:${String(thrS).padStart(2, '0')}/km`;
+
   page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🔋 Forme actuelle'));
-  page.appendChild(el('div', { class: 'card mb-3', html: `
+  const loadCard = el('div', { class: 'card mb-3' });
+  loadCard.innerHTML = `
+    <div class="flex between mb-2">
+      <div class="dim text-xs">Volume d'entraînement récent</div>
+      <button class="info-btn" id="load-info-toggle" title="Plus d'infos">ℹ️</button>
+    </div>
     <div class="load-grid">
       <div class="load-card">
         <div class="load-val" style="color: var(--gold)">${load.ctl}</div>
-        <div class="load-lbl">CTL · forme</div>
-        <div class="load-hint">moyenne 28 j</div>
+        <div class="load-lbl">Forme</div>
+        <div class="load-hint">28 derniers jours</div>
       </div>
       <div class="load-card">
         <div class="load-val" style="color: var(--accent-warm)">${load.atl}</div>
-        <div class="load-lbl">ATL · fatigue</div>
-        <div class="load-hint">moyenne 7 j</div>
+        <div class="load-lbl">Charge récente</div>
+        <div class="load-hint">7 derniers jours</div>
       </div>
       <div class="load-card">
         <div class="load-val" style="color: ${tsbColor}">${load.tsb >= 0 ? '+' : ''}${load.tsb}</div>
-        <div class="load-lbl">TSB · fraîcheur</div>
-        <div class="load-hint">CTL − ATL</div>
+        <div class="load-lbl">Équilibre</div>
+        <div class="load-hint">forme − charge</div>
       </div>
     </div>
     <div class="load-advice" style="border-left-color: ${tsbColor}">${escapeHtml(load.advice.text)}</div>
-  `}));
+    <div class="load-explainer hidden" id="load-explainer">
+      <p><strong>Comment ça marche</strong></p>
+      <p>On évalue chaque sortie selon sa durée et son intensité (allure × dénivelé), puis on cumule.</p>
+      <ul>
+        <li><strong>Forme</strong> : ta moyenne de charge sur 28 jours. Plus c'est élevé, plus tu encaisses du volume sans souci.</li>
+        <li><strong>Charge récente</strong> : les 7 derniers jours. Si elle dépasse beaucoup ta forme, tu pousses fort.</li>
+        <li><strong>Équilibre</strong> : positif = tu es frais et peux pousser ; négatif = tu travailles dur ; très négatif = tu pourrais avoir besoin de récup. <em>Si tu te sens bien, fie-toi à ton ressenti — l'indicateur est une référence, pas une vérité.</em></li>
+      </ul>
+      <p class="dim text-xs">Allure de référence calibrée sur ton historique : <span class="mono">${thrLabel}</span>.</p>
+    </div>
+  `;
+  page.appendChild(loadCard);
+  setTimeout(() => {
+    const toggle = loadCard.querySelector('#load-info-toggle');
+    const explainer = loadCard.querySelector('#load-explainer');
+    toggle.addEventListener('click', () => {
+      explainer.classList.toggle('hidden');
+    });
+  }, 0);
 
-  // ── VO2max estimé ──────────────────────────────────────────────────────
-  const vo2 = currentVO2max(acts);
+  // ── Performance (VDOT + prédictions de chronos + allures cibles) ───────
+  const vdot = currentVDOT(acts);
   const vo2Points = activityVO2maxPoints(acts);
-  if (vo2 || vo2Points.length > 0) {
-    const vo2Val = vo2 ? Math.round(vo2.value * 10) / 10 : '—';
-    const vo2Source = vo2
-      ? `Estimé depuis meilleur ${vo2.distance / 1000}K récent (${formatDuration(vo2.time)})`
-      : 'Pas assez de données récentes';
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🫁 VO₂ max estimé'));
-    page.appendChild(el('div', { class: 'card mb-3', html: `
+  if (vdot || vo2Points.length > 0) {
+    const vdotVal = vdot ? vdot.vdot.toFixed(1) : '—';
+    const confLabel = vdot ? ({ high: 'Haute', medium: 'Moyenne', low: 'Faible' }[vdot.confidence]) : '—';
+    const confColor = vdot ? ({ high: 'var(--accent)', medium: 'var(--gold)', low: 'var(--accent-warm)' }[vdot.confidence]) : 'var(--text-mute)';
+    const races = vdot ? predictRaceTimes(vdot.vdot) : null;
+    const paces = vdot ? trainingPaces(vdot.vdot) : null;
+
+    // Objectif personnalisé (stocké dans meta)
+    const goalMeta = State._goalRace || null;
+    const goalPaces = goalMeta && goalMeta.distance && goalMeta.timeS
+      ? trainingPaces(daniels_solveVDOTfromTime(goalMeta.distance, goalMeta.timeS))
+      : null;
+
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🎯 Performance'));
+    const perfCard = el('div', { class: 'card mb-3' });
+    const racesHtml = races ? Object.entries(races).map(([k, r]) => `
+      <div class="race-row">
+        <div class="race-dist">${k}</div>
+        <div class="race-time mono">${formatDuration(r.time)}</div>
+        <div class="race-pace dim mono">${formatPace(r.time / (r.distance / 1000))}</div>
+      </div>
+    `).join('') : '';
+    const pacesHtml = paces ? `
+      <div class="paces-grid">
+        <div class="pace-cell"><div class="pace-key">E</div><div class="pace-val mono">${formatPace(paces.E)}</div><div class="pace-desc">Footing facile</div></div>
+        <div class="pace-cell"><div class="pace-key">M</div><div class="pace-val mono">${formatPace(paces.M)}</div><div class="pace-desc">Allure marathon</div></div>
+        <div class="pace-cell"><div class="pace-key">T</div><div class="pace-val mono">${formatPace(paces.T)}</div><div class="pace-desc">Tempo / seuil</div></div>
+        <div class="pace-cell"><div class="pace-key">I</div><div class="pace-val mono">${formatPace(paces.I)}</div><div class="pace-desc">VMA / fractio</div></div>
+        <div class="pace-cell"><div class="pace-key">R</div><div class="pace-val mono">${formatPace(paces.R)}</div><div class="pace-desc">Sprint court</div></div>
+      </div>
+    ` : '';
+    perfCard.innerHTML = `
+      <div class="flex between mb-2">
+        <div class="dim text-xs">VDOT (Daniels) · indice de forme aérobie</div>
+        <button class="info-btn" id="perf-info-toggle" title="Plus d'infos">ℹ️</button>
+      </div>
       <div class="vo2-hero">
         <div>
-          <div class="vo2-val grad-text">${vo2Val}</div>
-          <div class="dim text-xs">ml/kg/min</div>
+          <div class="vo2-val grad-text">${vdotVal}</div>
+          <div class="dim text-xs">VDOT · confiance <span style="color: ${confColor}">${confLabel}</span></div>
         </div>
-        <div class="vo2-source dim text-xs">${vo2Source}</div>
+        <div class="vo2-source dim text-xs">${vdot ? escapeHtml(vdot.source) : 'Pas assez de données'}</div>
       </div>
-      ${vo2Points.length >= 2 ? '<div class="chart-wrap" style="height: 160px;"><canvas id="chart-vo2"></canvas></div>' : ''}
-    `}));
+      ${vo2Points.length >= 2 ? '<div class="chart-wrap" style="height: 140px; margin-bottom: 12px;"><canvas id="chart-vo2"></canvas></div>' : ''}
+      ${races ? `
+        <div class="perf-section-title">⏱ Chronos prédits</div>
+        <div class="races-list">${racesHtml}</div>
+      ` : ''}
+      ${paces ? `
+        <div class="perf-section-title">🎯 Tes allures actuelles</div>
+        ${pacesHtml}
+      ` : ''}
+      <div class="perf-explainer hidden" id="perf-explainer">
+        <p><strong>Comment ça marche</strong></p>
+        <p>Le <strong>VDOT</strong> est un indice de Jack Daniels qui résume ta forme aérobie en un seul nombre. Il est calculé depuis tes meilleurs temps récents (5K/10K/semi) et calibré avec tes fractionnés (allure d'effort). Plus tu progresses, plus il monte.</p>
+        <p>Les <strong>chronos prédits</strong> sont ce que tu peux courir <em>aujourd'hui</em> sur chaque distance. Plus la distance est longue, plus la prédiction dépend de ton endurance accumulée (kilométrage hebdo). Pour un marathon réaliste, vise au moins 50-60 km/sem.</p>
+        <p>Les <strong>allures d'entraînement</strong> guident tes séances :</p>
+        <ul>
+          <li><strong>E</strong> (Easy) : footings de récup, 80% du volume</li>
+          <li><strong>M</strong> (Marathon) : alllure marathon, sortie longue tempo</li>
+          <li><strong>T</strong> (Threshold) : seuil lactique, ~20-30 min en tempo</li>
+          <li><strong>I</strong> (Interval) : VMA, fractios 3-5 min</li>
+          <li><strong>R</strong> (Repetition) : sprint court, 200-400m récup complète</li>
+        </ul>
+        <p class="dim text-xs">Confiance <strong>haute</strong> = splits + fractios récents. <strong>Moyenne</strong> = splits seuls. <strong>Faible</strong> = fractios seuls (moins fiable pour les longues distances).</p>
+      </div>
+    `;
+    page.appendChild(perfCard);
+    setTimeout(() => {
+      perfCard.querySelector('#perf-info-toggle').addEventListener('click', () => {
+        perfCard.querySelector('#perf-explainer').classList.toggle('hidden');
+      });
+    }, 0);
+
+    // ── Mon objectif (formulaire course cible) ─────────────────────────
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🏁 Mon objectif'));
+    const goalCard = el('div', { class: 'card mb-3' });
+    goalCard.innerHTML = `
+      <p class="dim text-sm mb-3">Définis une course cible pour voir les allures d'entraînement adaptées à ton objectif.</p>
+      <div class="goal-form">
+        <select class="input" id="goal-distance">
+          <option value="">— Distance —</option>
+          <option value="5000" ${goalMeta && goalMeta.distance == 5000 ? 'selected' : ''}>5 km</option>
+          <option value="10000" ${goalMeta && goalMeta.distance == 10000 ? 'selected' : ''}>10 km</option>
+          <option value="15000" ${goalMeta && goalMeta.distance == 15000 ? 'selected' : ''}>15 km</option>
+          <option value="21097" ${goalMeta && goalMeta.distance == 21097 ? 'selected' : ''}>Semi-marathon</option>
+          <option value="42195" ${goalMeta && goalMeta.distance == 42195 ? 'selected' : ''}>Marathon</option>
+        </select>
+        <input class="input" id="goal-time" type="text" placeholder="Chrono (ex: 45:00, 1h30)" value="${goalMeta && goalMeta.timeS ? formatDuration(goalMeta.timeS) : ''}" />
+        <button class="btn-gpx" id="goal-save">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          <span>Définir</span>
+        </button>
+        ${goalMeta ? `<button class="btn ghost sm" id="goal-clear">Effacer</button>` : ''}
+      </div>
+      <div id="goal-output">${goalPaces && goalMeta ? renderGoalPacesHtml(goalMeta, goalPaces, paces) : ''}</div>
+    `;
+    page.appendChild(goalCard);
+    setTimeout(() => {
+      goalCard.querySelector('#goal-save').addEventListener('click', async () => {
+        const dist = parseInt(goalCard.querySelector('#goal-distance').value);
+        const timeStr = goalCard.querySelector('#goal-time').value.trim();
+        const timeS = parseGoalTimeInput(timeStr);
+        if (!dist || !timeS) {
+          showToast({ type: 'err', title: 'Incomplet', text: 'Choisis une distance et un chrono.' });
+          return;
+        }
+        await dbPut('meta', { key: 'goalRace', value: { distance: dist, timeS } });
+        State._goalRace = { distance: dist, timeS };
+        render();
+        showToast({ type: 'xp', title: 'Objectif défini', text: `${(dist/1000)}K en ${formatDuration(timeS)}` });
+      });
+      const clearBtn = goalCard.querySelector('#goal-clear');
+      if (clearBtn) clearBtn.addEventListener('click', async () => {
+        await dbDelete('meta', 'goalRace');
+        State._goalRace = null;
+        render();
+      });
+    }, 0);
   }
 
   // ── Records absolus / 30j / 90j ────────────────────────────────────────
@@ -3040,8 +3544,8 @@ function renderStats(root) {
   `).join('');
   page.appendChild(el('div', { class: 'card mb-3', html: `
     <div class="plan-summary">
-      <div><span class="dim text-xs">Sem dernière :</span> <strong>${plan.pastWeeks.w1.totalKm} km</strong> · ${plan.pastWeeks.w1.runs} sortie${plan.pastWeeks.w1.runs > 1 ? 's' : ''}</div>
-      <div><span class="dim text-xs">Cible :</span> <strong style="color: var(--gold)">${plan.targetKm} km</strong></div>
+      <div><span class="dim text-xs">${plan.refLabel.charAt(0).toUpperCase() + plan.refLabel.slice(1)} :</span> <strong>${plan.refWeek.totalKm} km</strong> · ${plan.refWeek.runs} sortie${plan.refWeek.runs > 1 ? 's' : ''}</div>
+      <div><span class="dim text-xs">Cible suivante :</span> <strong style="color: var(--gold)">${plan.targetKm} km</strong></div>
     </div>
     <p class="dim text-sm" style="margin: 10px 0;">${escapeHtml(plan.progressNote)}</p>
     <div class="plan-sessions">${sessionsHtml}</div>

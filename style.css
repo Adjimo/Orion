@@ -190,6 +190,32 @@ h3 { font-size: 1.05rem; }
   background: rgba(255, 255, 255, 0.02);
   border-radius: 0 var(--r-sm) var(--r-sm) 0;
 }
+.info-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-mute);
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.info-btn:hover { background: var(--bg-3); color: var(--gold); border-color: var(--gold); }
+.load-explainer {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.load-explainer p { margin: 0 0 6px; }
+.load-explainer p:first-child { color: var(--text); }
+.load-explainer ul { margin: 4px 0 8px; padding-left: 18px; }
+.load-explainer li { margin-bottom: 4px; }
+.load-explainer em { color: var(--gold); font-style: italic; }
+.load-explainer strong { color: var(--text); }
 
 /* ===== VO2max ===== */
 .vo2-hero {
@@ -205,6 +231,102 @@ h3 { font-size: 1.05rem; }
   line-height: 1;
 }
 .vo2-source { max-width: 60%; text-align: right; }
+
+/* ===== Performance (VDOT + chronos + allures) ===== */
+.perf-section-title {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  margin: 14px 0 6px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.races-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.race-row {
+  display: grid;
+  grid-template-columns: 80px 1fr 100px;
+  align-items: center;
+  padding: 6px 0;
+  font-size: 0.85rem;
+  border-bottom: 1px solid var(--border);
+}
+.race-row:last-child { border-bottom: 0; }
+.race-dist { color: var(--text-dim); font-weight: 500; }
+.race-time { color: var(--gold); font-weight: 600; }
+.race-pace { text-align: right; font-size: 0.78rem; color: var(--text-mute); }
+
+.paces-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 6px;
+}
+.pace-cell {
+  background: var(--bg-3);
+  border-radius: var(--r-sm);
+  padding: 8px 4px;
+  text-align: center;
+}
+.pace-key {
+  font-size: 0.7rem;
+  font-weight: 700;
+  color: var(--gold);
+  letter-spacing: 0.06em;
+}
+.pace-val {
+  font-size: 0.82rem;
+  font-weight: 600;
+  margin: 4px 0 2px;
+}
+.pace-desc {
+  font-size: 0.62rem;
+  color: var(--text-mute);
+  line-height: 1.2;
+}
+.goal-diff {
+  display: block;
+  font-size: 0.6rem;
+  margin-top: 3px;
+  font-style: italic;
+}
+.goal-diff.faster { color: var(--accent-warm); }
+.goal-diff.slower { color: var(--accent-cool); }
+
+.perf-explainer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.55;
+}
+.perf-explainer p { margin: 0 0 6px; }
+.perf-explainer p:first-child { color: var(--text); }
+.perf-explainer ul { margin: 4px 0 8px; padding-left: 18px; }
+.perf-explainer li { margin-bottom: 4px; }
+.perf-explainer em { color: var(--gold); }
+.perf-explainer strong { color: var(--text); }
+
+/* Formulaire objectif */
+.goal-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.goal-form .input { padding: 8px 12px; font-size: 0.9rem; }
+.goal-form .btn-gpx { padding: 8px 12px; }
+.goal-output-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin: 6px 0 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
 
 /* ===== Records glissants ===== */
 .rolling-table {
@@ -344,6 +466,9 @@ h3 { font-size: 1.05rem; }
   background: linear-gradient(90deg, rgba(255, 216, 107, 0.4), rgba(255, 181, 71, 0.7));
   border-radius: 999px;
   transition: width 0.4s ease;
+}
+.km-split-bar.trail {
+  background: linear-gradient(90deg, rgba(255, 181, 71, 0.5), rgba(255, 106, 61, 0.85));
 }
 .km-split.fastest .km-split-bar {
   background: linear-gradient(90deg, #ffd86b, #ffe999);

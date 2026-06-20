@@ -12,10 +12,11 @@
     </linearGradient>
   </defs>
   <rect width="64" height="64" rx="14" fill="url(#bg)"/>
-  <!-- Trait plus épais pour plus de présence -->
-  <path d="M 12 54 L 20 42 L 24 32 L 28 22 L 31 14 L 32 8 L 33 14 L 36 24 L 39 30 L 42 26 L 46 36 L 52 54"
+  <!-- Aiguille décalée légèrement vers le bas pour que l'étoile + halo
+       ne touchent plus le bord supérieur. Pointe : y=10 (au lieu de 8). -->
+  <path d="M 12 54 L 20 42 L 24 32 L 28 22 L 31 16 L 32 10 L 33 16 L 36 26 L 39 32 L 42 28 L 46 38 L 52 54"
         fill="none" stroke="url(#stk)" stroke-width="2.6"
         stroke-linejoin="round" stroke-linecap="round"/>
-  <circle cx="32" cy="6" r="1.6" fill="#ffe999"/>
-  <circle cx="32" cy="6" r="3.2" fill="#ffd86b" opacity="0.35"/>
+  <circle cx="32" cy="8" r="1.6" fill="#ffe999"/>
+  <circle cx="32" cy="8" r="3.2" fill="#ffd86b" opacity="0.35"/>
 </svg>

@@ -1,4 +1,4 @@
-/* ===== Orion — Thème global ===== */
+/* ===== Hélios — Thème global ===== */
 :root {
   --bg-0: #06080f;
   --bg-1: #0a0e1a;
@@ -327,6 +327,71 @@ h3 { font-size: 1.05rem; }
   padding-bottom: 8px;
   border-bottom: 1px solid var(--border);
 }
+.goal-progress {
+  font-size: 0.85rem;
+  margin-bottom: 10px;
+  color: var(--text);
+}
+.goal-progress strong { color: var(--gold); }
+.goal-feas {
+  font-size: 0.85rem;
+  padding: 10px 14px;
+  border-left: 3px solid;
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  margin-bottom: 14px;
+  line-height: 1.5;
+}
+.goal-section-title {
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  font-weight: 500;
+  margin: 12px 0 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.goal-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.goal-session {
+  display: flex;
+  gap: 12px;
+  padding: 10px 12px;
+  background: var(--bg-3);
+  border-radius: var(--r-md);
+  align-items: flex-start;
+}
+.goal-session-icon {
+  font-size: 1.4rem;
+  line-height: 1.1;
+  flex-shrink: 0;
+}
+.goal-session-body { flex: 1; min-width: 0; }
+.goal-session-title {
+  font-weight: 600;
+  font-size: 0.95rem;
+  margin-bottom: 2px;
+}
+.goal-session-detail {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  line-height: 1.45;
+}
+.goal-session-detail .mono {
+  color: var(--gold);
+  font-weight: 600;
+}
+.goal-tip {
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: rgba(255, 216, 107, 0.05);
+  border-left: 2px solid rgba(255, 216, 107, 0.4);
+  border-radius: 0 var(--r-sm) var(--r-sm) 0;
+  line-height: 1.5;
+}
+.goal-tip strong { color: var(--gold); }
 
 /* ===== Records glissants ===== */
 .rolling-table {
@@ -811,21 +876,20 @@ h3 { font-size: 1.05rem; }
   opacity: 1;
   transform: translateY(0);
 }
-.belt {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 22px;
+.splash-icon {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto 20px;
+  display: block;
+  filter: drop-shadow(0 0 24px rgba(255, 106, 61, 0.45)) drop-shadow(0 0 40px rgba(124, 92, 255, 0.25));
+  animation: phx-rise 1.4s ease-out;
+  border-radius: 22px;
 }
-.dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
+@keyframes phx-rise {
+  0%   { opacity: 0; transform: scale(0.8) translateY(8px); }
+  60%  { opacity: 1; transform: scale(1.04) translateY(0); }
+  100% { opacity: 1; transform: scale(1) translateY(0); }
 }
-.dot.violet  { background: #7c5cff; box-shadow: 0 0 12px rgba(124, 92, 255, 0.8); }
-.dot.gold    { background: #ffd86b; box-shadow: 0 0 16px rgba(255, 216, 107, 0.95); width: 9px; height: 9px; }
-.dot.orange  { background: #ff6a3d; box-shadow: 0 0 12px rgba(255, 106, 61, 0.8); }
 .splash-title {
   font-family: 'Cormorant Garamond', 'Cinzel', serif;
   font-weight: 600;
@@ -1447,7 +1511,7 @@ h3 { font-size: 1.05rem; }
 }
 .map { height: 280px; width: 100%; background: #0a0e1a; }
 
-/* MapLibre GL : palette Orion native définie dans le style JSON côté JS,
+/* MapLibre GL : palette Hélios native définie dans le style JSON côté JS,
    on n'a donc pas à appliquer de filtre CSS. On ne reste qu'à styliser les
    contrôles et les markers pour qu'ils soient cohérents avec l'app. */
 .maplibregl-map { background: #0a0e1a; font-family: var(--font); }
@@ -1480,7 +1544,7 @@ h3 { font-size: 1.05rem; }
   background-color: var(--bg-3) !important;
 }
 
-/* Markers Orion (HTMLElement) : cercles avec halo subtil */
+/* Markers Hélios (HTMLElement) : cercles avec halo subtil */
 .orion-marker {
   width: 16px;
   height: 16px;

@@ -1,10 +1,10 @@
 // ============================================================================
-// Orion — Service Worker
+// Hélios — Service Worker
 // Cache l'app pour qu'elle marche hors-ligne, se charge instantanément,
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v28';
+const VERSION = 'helios-v1';
 const ASSETS = [
   './',
   './index.html',

@@ -1,7 +1,7 @@
 {
-  "name": "Orion",
-  "short_name": "Orion",
-  "description": "Le chasseur — gamifie ta vie de prépa et de trail",
+  "name": "Hélios",
+  "short_name": "Hélios",
+  "description": "Le phénix — gamifie ta vie de prépa et de course",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

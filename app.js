@@ -1,12 +1,12 @@
 // ============================================================================
-// Orion - app.js (vanilla JS)
+// Hélios - app.js (vanilla JS)
 // Webapp PWA pour gamifier prépa MP* + trail. Stockage local (IndexedDB).
 // ============================================================================
 
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '1.05';
+const APP_VERSION = '2.00';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -193,12 +193,12 @@ const RANKS = [
   { from: 1,   to: 4,   title: 'Mortel',              color: '#a0a4b8' },
   { from: 5,   to: 9,   title: 'Initié',              color: '#5cc8ff' },
   { from: 10,  to: 14,  title: 'Aspirant',            color: '#7c5cff' },
-  { from: 15,  to: 19,  title: 'Chasseur',            color: '#ffb547' },
-  { from: 20,  to: 29,  title: 'Marcheur des Crêtes', color: '#ffb547' },
-  { from: 30,  to: 49,  title: 'Géant',               color: '#ff6a3d' },
-  { from: 50,  to: 74,  title: 'Fils de Poséidon',    color: '#ff6a3d' },
-  { from: 75,  to: 99,  title: 'Constellation',       color: '#ffd86b' },
-  { from: 100, to: 999, title: 'Orion',               color: '#ffd86b' }
+  { from: 15,  to: 19,  title: 'Coureur',             color: '#ffb547' },
+  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#ffb547' },
+  { from: 30,  to: 49,  title: 'Cendres',             color: '#ff6a3d' },
+  { from: 50,  to: 74,  title: 'Renaissance',         color: '#ff6a3d' },
+  { from: 75,  to: 99,  title: 'Phénix',              color: '#ffd86b' },
+  { from: 100, to: 999, title: 'Hélios',              color: '#ffd86b' }
 ];
 
 function getRank(level) {
@@ -1366,28 +1366,122 @@ function parseGoalTimeInput(str) {
   return null;
 }
 
-// Rendu HTML des allures cibles pour un objectif de course.
-function renderGoalPacesHtml(goal, goalPaces, currentPaces) {
-  const distLabel = ({ 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' })[goal.distance] || (goal.distance / 1000 + ' km');
+// Rendu HTML actionnable pour un objectif : situation actuelle, séances types
+// pour y arriver, volume hebdo cible, et faisabilité d'après le kilométrage
+// récent. Beaucoup plus concret que la liste de zones d'allure brutes.
+function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activities) {
+  const DIST_LABELS = { 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' };
+  const distLabel = DIST_LABELS[goal.distance] || (goal.distance / 1000 + ' km');
   const goalPace = Math.round(goal.timeS / (goal.distance / 1000));
-  const diff = (key) => {
-    if (!currentPaces || !currentPaces[key]) return '';
-    const d = goalPaces[key] - currentPaces[key];
-    if (Math.abs(d) < 5) return '<span class="goal-diff dim">≈ allure actuelle</span>';
-    if (d < 0) return `<span class="goal-diff faster">${Math.abs(Math.round(d))} s/km plus rapide</span>`;
-    return `<span class="goal-diff slower">${Math.round(d)} s/km plus lent</span>`;
-  };
+  const goalVdot = daniels_solveVDOTfromTime(goal.distance, goal.timeS);
+  const vdotGap = currentVdot ? Math.round((goalVdot - currentVdot) * 10) / 10 : null;
+
+  // Distance type pour chaque dimension d'entraînement (heuristique Daniels).
+  // On dimensionne les séances d'après l'objectif pour qu'elles aient du sens.
+  const km = goal.distance / 1000;
+  const longKm = Math.round(Math.min(km * 1.2, km < 21 ? km + 5 : 32));         // sortie longue ≈ 1.2× distance, plafond 32
+  const tempoKm = km <= 10 ? 4 : km <= 21 ? 6 : 10;                               // tempo 20-40 min selon objectif
+  // Fractios : selon distance, format adapté
+  let fractioFormat;
+  if (km <= 5)        fractioFormat = `8 × 400 m allure ${formatPace(goalPaces.I)} · récup 200 m lent`;
+  else if (km <= 10)  fractioFormat = `6 × 800 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
+  else if (km <= 15)  fractioFormat = `5 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
+  else if (km <= 21)  fractioFormat = `4 × 1500 m allure ${formatPace(goalPaces.I)} · récup 600 m lent`;
+  else                fractioFormat = `5 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
+  // Footing : plus court que la sortie longue
+  const easyKm = km <= 10 ? 6 : km <= 21 ? 8 : 10;
+
+  // Volume hebdo cible standard
+  let weeklyKm;
+  if (km <= 5)        weeklyKm = 25;
+  else if (km <= 10)  weeklyKm = 35;
+  else if (km <= 15)  weeklyKm = 45;
+  else if (km <= 21)  weeklyKm = 55;
+  else                weeklyKm = 70;
+
+  // Volume hebdo récent (4 dernières semaines)
+  const fourWeeksAgo = Date.now() - 28 * 86400000;
+  const recentActs = (activities || []).filter(a => new Date(a.date).getTime() >= fourWeeksAgo);
+  const recentKm = recentActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
+  const avgWeekKm = Math.round(recentKm / 4 * 10) / 10;
+
+  // Faisabilité
+  let feasibility;
+  if (avgWeekKm === 0) {
+    feasibility = { tone: 'cool', text: `Pas de données récentes. Vise progressivement ${weeklyKm} km/sem pour préparer cet objectif.` };
+  } else if (avgWeekKm >= weeklyKm * 0.85) {
+    feasibility = { tone: 'gold', text: `Volume actuel (~${avgWeekKm} km/sem) compatible avec cet objectif. Continue à ce rythme.` };
+  } else if (avgWeekKm >= weeklyKm * 0.6) {
+    const gap = Math.round(weeklyKm - avgWeekKm);
+    feasibility = { tone: 'warm', text: `Volume actuel ~${avgWeekKm} km/sem. Pour cet objectif, monte progressivement à ${weeklyKm} km/sem (+${gap} km, par paliers de 10% par semaine).` };
+  } else {
+    feasibility = { tone: 'warm', text: `Volume actuel ~${avgWeekKm} km/sem trop bas pour ${distLabel}. Construis ta base aérobie d'abord (vise ${Math.round(weeklyKm * 0.7)} km/sem avant de viser ce chrono).` };
+  }
+  const feasColor = feasibility.tone === 'gold' ? 'var(--gold)'
+                  : feasibility.tone === 'warm' ? 'var(--accent-warm)'
+                  : 'var(--accent-cool)';
+
+  // Indicateur de progression VDOT
+  let progressLine = '';
+  if (vdotGap != null) {
+    if (vdotGap <= 0) {
+      progressLine = `<div class="goal-progress" style="color: var(--gold)">✓ Tu as déjà le niveau pour cet objectif. Reste à courir la distance prête le jour J.</div>`;
+    } else if (vdotGap <= 2) {
+      progressLine = `<div class="goal-progress">Tu es proche : <strong>+${vdotGap} VDOT</strong> à gagner (~quelques semaines de bon entraînement).</div>`;
+    } else if (vdotGap <= 5) {
+      progressLine = `<div class="goal-progress">Écart modéré : <strong>+${vdotGap} VDOT</strong> à construire (~2-3 mois de progression régulière).</div>`;
+    } else {
+      progressLine = `<div class="goal-progress">Objectif ambitieux : <strong>+${vdotGap} VDOT</strong> à construire (plusieurs mois de travail soutenu).</div>`;
+    }
+  }
+
   return `
     <div class="goal-output-head">
-      <strong>${distLabel} en ${formatDuration(goal.timeS)}</strong>
-      <span class="dim text-xs">allure cible : ${formatPace(goalPace)}</span>
+      <div>
+        <div><strong>${distLabel} en ${formatDuration(goal.timeS)}</strong></div>
+        <div class="dim text-xs">allure cible : <span class="mono">${formatPace(goalPace)}</span></div>
+      </div>
+      <div class="dim text-xs" style="text-align: right;">
+        VDOT requis : <strong>${Math.round(goalVdot * 10) / 10}</strong>
+      </div>
     </div>
-    <div class="paces-grid">
-      <div class="pace-cell"><div class="pace-key">E</div><div class="pace-val mono">${formatPace(goalPaces.E)}</div><div class="pace-desc">Footing</div>${diff('E')}</div>
-      <div class="pace-cell"><div class="pace-key">M</div><div class="pace-val mono">${formatPace(goalPaces.M)}</div><div class="pace-desc">Marathon</div>${diff('M')}</div>
-      <div class="pace-cell"><div class="pace-key">T</div><div class="pace-val mono">${formatPace(goalPaces.T)}</div><div class="pace-desc">Seuil</div>${diff('T')}</div>
-      <div class="pace-cell"><div class="pace-key">I</div><div class="pace-val mono">${formatPace(goalPaces.I)}</div><div class="pace-desc">VMA</div>${diff('I')}</div>
-      <div class="pace-cell"><div class="pace-key">R</div><div class="pace-val mono">${formatPace(goalPaces.R)}</div><div class="pace-desc">Sprint</div>${diff('R')}</div>
+    ${progressLine}
+    <div class="goal-feas" style="border-left-color: ${feasColor}">${escapeHtml(feasibility.text)}</div>
+
+    <div class="goal-section-title">📋 Plan-type hebdomadaire (${weeklyKm} km/sem cible)</div>
+    <div class="goal-sessions">
+      <div class="goal-session">
+        <div class="goal-session-icon">🏃</div>
+        <div class="goal-session-body">
+          <div class="goal-session-title">2× Footing facile</div>
+          <div class="goal-session-detail">${easyKm} km à <span class="mono">${formatPace(goalPaces.E)}</span> · respiration confortable, tu peux parler</div>
+        </div>
+      </div>
+      <div class="goal-session">
+        <div class="goal-session-icon">⚡</div>
+        <div class="goal-session-body">
+          <div class="goal-session-title">1× Tempo / seuil</div>
+          <div class="goal-session-detail">Échauffement 2 km + ${tempoKm} km à <span class="mono">${formatPace(goalPaces.T)}</span> + retour calme · effort soutenu mais contrôlé</div>
+        </div>
+      </div>
+      <div class="goal-session">
+        <div class="goal-session-icon">💨</div>
+        <div class="goal-session-body">
+          <div class="goal-session-title">1× Fractionné VMA</div>
+          <div class="goal-session-detail">Échauffement 2 km + ${fractioFormat} + retour calme</div>
+        </div>
+      </div>
+      <div class="goal-session">
+        <div class="goal-session-icon">🌄</div>
+        <div class="goal-session-body">
+          <div class="goal-session-title">1× Sortie longue</div>
+          <div class="goal-session-detail">${longKm} km à <span class="mono">${formatPace(goalPaces.E)}</span>${km >= 21 ? ` (avec ${Math.round(longKm/3)} km finaux à ${formatPace(goalPaces.M)} si possible)` : ''}</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="goal-tip dim text-xs">
+      💡 <strong>80% du volume en E (footing facile)</strong> · 20% en intensité (tempo + fractios). C'est la règle qui fait progresser durablement.
     </div>
   `;
 }
@@ -1474,149 +1568,6 @@ function activityVO2maxPoints(activities) {
     .filter(Boolean)
     .sort((a, b) => a.date.localeCompare(b.date));
 }
-// ============================================================================
-// COACHING : analyse semaine passée + plan semaine suivante
-// ============================================================================
-
-// Analyse les sorties d'une semaine donnée (ws = lundi 00:00 local).
-function analyseWeekRunning(activities, ws) {
-  const start = ws.getTime();
-  const end = start + 7 * 86400000;
-  const acts = activities.filter(a => {
-    const t = new Date(a.date).getTime();
-    return t >= start && t < end;
-  });
-  const totalKm = acts.reduce((s, a) => s + (a.distanceKm || 0), 0);
-  const totalDplus = acts.reduce((s, a) => s + (a.elevGain || 0), 0);
-  const totalDur = acts.reduce((s, a) => s + (a.duration || 0), 0);
-  const totalLoad = acts.reduce((s, a) => s + activityLoad(a), 0);
-  // Allure moyenne pondérée par distance.
-  let totSec = 0, totKm = 0;
-  for (const a of acts) {
-    if (a.duration && a.distanceKm) { totSec += a.duration; totKm += a.distanceKm; }
-  }
-  const avgPace = totKm > 0 ? totSec / totKm : 0;
-  const byType = {};
-  for (const a of acts) byType[a.type] = (byType[a.type] || 0) + 1;
-  return {
-    activities: acts,
-    runs: acts.length,
-    totalKm: Math.round(totalKm * 10) / 10,
-    totalDplus: Math.round(totalDplus),
-    totalDur,
-    totalLoad,
-    avgPace: Math.round(avgPace),
-    byType
-  };
-}
-
-// Génère le plan de la semaine suivante en se basant sur les analyses récentes.
-// Règles :
-//   - Volume cible = +5-10% sur la moyenne des 3 dernières semaines complètes,
-//     sauf si charge récente (TSB) très négative → stagnation ou récup.
-//   - Structure (en tenant compte du schedule) :
-//       * 2 footings (lun, ven) — fondamentale, allure facile
-//       * 1 séance qualité (mer) — fractionné
-//       * 1 sortie longue (sam ou dim) — endurance
-//   - Si l'utilisateur a manqué le fractionné 2 sem d'affilée → on le souligne.
-function generateWeekPlan(activities) {
-  const now = new Date();
-  const thisMonday = startOfWeek(now);
-  // Semaine en cours
-  const wCurrent = analyseWeekRunning(activities, thisMonday);
-  // Trois dernières semaines complètes.
-  const w1 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 7 * 86400000));
-  const w2 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 14 * 86400000));
-  const w3 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 21 * 86400000));
-  const past3 = [w1, w2, w3];
-  const validPast = past3.filter(w => w.runs > 0);
-  const avgKm3w = validPast.length > 0
-    ? validPast.reduce((s, w) => s + w.totalKm, 0) / validPast.length
-    : 0;
-
-  // Référence pour calculer la cible suivante : on prend la semaine en cours
-  // SI elle a déjà ≥ 3 sorties (l'utilisateur l'a "remplie"), sinon la sem
-  // dernière complète.
-  const useCurrent = wCurrent.runs >= 3;
-  const refWeek = useCurrent ? wCurrent : w1;
-  const refLabel = useCurrent ? 'semaine en cours' : 'semaine dernière';
-
-  const load = trainingLoadStats(activities, now);
-
-  // Cible volume
-  let targetKm;
-  let progressNote;
-  if (avgKm3w < 5 && refWeek.totalKm < 5) {
-    // Démarrage : on ne pousse pas
-    targetKm = Math.max(15, avgKm3w + 5);
-    progressNote = 'Démarrage progressif. Vise 3-4 sorties courtes pour construire ta base.';
-  } else if (load.tsb < -25) {
-    targetKm = Math.round(refWeek.totalKm * 0.85 * 10) / 10;
-    progressNote = `Charge récente élevée vs ${refLabel} (${refWeek.totalKm} km). Cette semaine peut être plus légère.`;
-  } else if (load.tsb > 10) {
-    targetKm = Math.round(refWeek.totalKm * 1.10 * 10) / 10;
-    progressNote = `Tu es frais : on peut pousser un peu (+10% sur les ${refWeek.totalKm} km de la ${refLabel}).`;
-  } else {
-    targetKm = Math.round(refWeek.totalKm * 1.05 * 10) / 10;
-    progressNote = `Progression douce : +5% sur les ${refWeek.totalKm} km de la ${refLabel}.`;
-  }
-
-  // Si la cible est inférieure à un seuil minimum (10 km), on borne pour ne pas
-  // proposer un plan vide.
-  if (targetKm < 10) targetKm = Math.max(10, avgKm3w * 1.05);
-
-  // Détection des manqués : si 0 fractionné cette sem ou depuis 2 sem
-  const fractioRefCount = refWeek.byType.fractionne || 0;
-  const prevFractio = (useCurrent ? w1.byType.fractionne : w2.byType.fractionne) || 0;
-  const missingSpeed = fractioRefCount === 0 && prevFractio === 0;
-
-  // Construction des 4-5 séances. On pré-définit la répartition typique du
-  // volume entre les sorties pour qu'elles se complètent.
-  const distLong = Math.round(targetKm * 0.32 * 10) / 10;
-  const distFooting = Math.round(targetKm * 0.18 * 10) / 10;
-  const distFractio = Math.round(targetKm * 0.16 * 10) / 10;
-  const sessions = [
-    {
-      day: 'Lundi', type: 'footing', icon: '🏃',
-      label: `Footing facile · ${distFooting} km`,
-      detail: 'Allure conversationnelle (5:30-6:00/km). Récup mentale après le week-end.'
-    },
-    {
-      day: 'Mercredi', type: 'fractionne', icon: '⚡',
-      label: `Fractionné · ${distFractio} km${missingSpeed ? ' (priorité)' : ''}`,
-      detail: missingSpeed
-        ? '6×400m allure 10K rapide / récup 1\' lent. Indispensable cette semaine.'
-        : '6×400m ou 4×1000m selon ta forme, après échauffement de 15 min.'
-    },
-    {
-      day: 'Vendredi', type: 'footing', icon: '🏃',
-      label: `Footing tonique · ${distFooting} km`,
-      detail: 'Allure marathon (~5:00/km), reste à l\'aise. Prépare le long du week-end.'
-    },
-    {
-      day: 'Samedi ou Dimanche', type: 'sortie-we', icon: '🌄',
-      label: `Sortie longue · ${distLong} km`,
-      detail: load.tsb < -10
-        ? 'Allure très facile (6:00/km), reste sous le seuil aérobie. Récupération active.'
-        : 'Allure endurance (5:30/km), en aisance respiratoire. Nourrit ta base aérobie.'
-    }
-  ];
-
-  return {
-    pastWeeks: { w1, w2, w3 },
-    currentWeek: wCurrent,
-    refWeek,
-    refLabel,
-    useCurrent,
-    avgKm3w: Math.round(avgKm3w * 10) / 10,
-    targetKm,
-    progressNote,
-    load,
-    missingSpeed,
-    sessions
-  };
-}
-
 // ============================================================================
 // CATALOGUE DE PARCOURS — détection des tracés récurrents
 // ============================================================================
@@ -2738,13 +2689,13 @@ function renderSport(root) {
   setTimeout(() => renderMap(sel), 50);
 }
 
-// Style JSON MapLibre 100% custom Orion. Couleurs alignées sur la palette
+// Style JSON MapLibre 100% custom Hélios. Couleurs alignées sur la palette
 // de l'app (--bg-*, --accent-*) — fond charbon profond, eau bleu nuit, routes
 // violet pâle, parcs vert sombre. Source de tiles vectorielles : OpenFreeMap
 // (gratuit, sans clé, basé sur OpenMapTiles).
 const ORION_MAP_STYLE = {
   version: 8,
-  name: 'Orion',
+  name: 'Hélios',
   glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources: {
     openmaptiles: {
@@ -2808,7 +2759,7 @@ const ORION_MAP_STYLE = {
   ]
 };
 
-// Rend une carte Orion-stylée dans un conteneur DOM. Renvoie l'instance MapLibre.
+// Rend une carte Hélios-stylée dans un conteneur DOM. Renvoie l'instance MapLibre.
 function renderMapInto(mapEl, activity) {
   if (!activity || !window.maplibregl || !mapEl) return null;
   const map = new maplibregl.Map({
@@ -3483,7 +3434,7 @@ function renderStats(root) {
         </button>
         ${goalMeta ? `<button class="btn ghost sm" id="goal-clear">Effacer</button>` : ''}
       </div>
-      <div id="goal-output">${goalPaces && goalMeta ? renderGoalPacesHtml(goalMeta, goalPaces, paces) : ''}</div>
+      <div id="goal-output">${goalPaces && goalMeta ? renderGoalPacesHtml(goalMeta, goalPaces, paces, vdot ? vdot.vdot : null, acts) : ''}</div>
     `;
     page.appendChild(goalCard);
     setTimeout(() => {
@@ -3527,28 +3478,6 @@ function renderStats(root) {
       <div class="rolling-row"><div class="rolling-dist">10 km</div><div class="mono">${fmtT(rAll.best10k)}</div><div class="mono">${fmtT(r90.best10k)}</div><div class="mono">${fmtT(r30.best10k)}</div></div>
       <div class="rolling-row"><div class="rolling-dist">Semi</div><div class="mono">${fmtT(rAll.bestSemi)}</div><div class="mono">${fmtT(r90.bestSemi)}</div><div class="mono">${fmtT(r30.bestSemi)}</div></div>
     </div>
-  `}));
-
-  // ── Plan semaine prochaine ─────────────────────────────────────────────
-  const plan = generateWeekPlan(acts);
-  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🎯 Plan semaine prochaine'));
-  const sessionsHtml = plan.sessions.map(s => `
-    <div class="plan-session">
-      <div class="plan-session-icon">${s.icon}</div>
-      <div class="plan-session-body">
-        <div class="plan-session-day">${s.day}</div>
-        <div class="plan-session-label">${s.label}</div>
-        <div class="plan-session-detail dim text-xs">${escapeHtml(s.detail)}</div>
-      </div>
-    </div>
-  `).join('');
-  page.appendChild(el('div', { class: 'card mb-3', html: `
-    <div class="plan-summary">
-      <div><span class="dim text-xs">${plan.refLabel.charAt(0).toUpperCase() + plan.refLabel.slice(1)} :</span> <strong>${plan.refWeek.totalKm} km</strong> · ${plan.refWeek.runs} sortie${plan.refWeek.runs > 1 ? 's' : ''}</div>
-      <div><span class="dim text-xs">Cible suivante :</span> <strong style="color: var(--gold)">${plan.targetKm} km</strong></div>
-    </div>
-    <p class="dim text-sm" style="margin: 10px 0;">${escapeHtml(plan.progressNote)}</p>
-    <div class="plan-sessions">${sessionsHtml}</div>
   `}));
 
   // ── Catalogue parcours ─────────────────────────────────────────────────
@@ -3602,7 +3531,7 @@ function renderStats(root) {
   setTimeout(() => renderStatsCharts(logs, acts), 30);
 }
 
-// Helpers de styling Chart.js cohérents avec la palette Orion.
+// Helpers de styling Chart.js cohérents avec la palette Hélios.
 const CHART_COLORS = {
   text: '#a0a4b8',
   textMute: '#5e6480',
@@ -4201,7 +4130,7 @@ function renderProfil(root) {
   page.appendChild(el('div', {
     class: 'dim text-xs mt-5',
     style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);'
-  }, `Orion v${APP_VERSION}`));
+  }, `Hélios v${APP_VERSION}`));
 
   root.appendChild(page);
 }
@@ -4234,7 +4163,7 @@ async function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `orion-backup-${todayKey()}.json`;
+  a.download = `helios-backup-${todayKey()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -4275,7 +4204,7 @@ async function downloadAutoBackup(date) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `orion-backup-${date}.json`;
+  a.download = `helios-backup-${date}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

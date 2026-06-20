@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '1.00';
+const APP_VERSION = '1.03';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -33,7 +33,7 @@ const State = {
 // ============================================================================
 
 const DB_NAME = 'orion';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 let _db;
 
 function openDB() {
@@ -52,8 +52,8 @@ function openDB() {
       if (!db.objectStoreNames.contains('schedule'))    db.createObjectStore('schedule', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('records'))     db.createObjectStore('records', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('meta'))        db.createObjectStore('meta', { keyPath: 'key' });
-      // v2 : pas de nouveau store, juste un nouveau skill `lettres` + champs sur quêtes/activités.
-      // La migration des données est gérée hors-onupgradeneeded dans migrateData().
+      // v3 : store dédié aux backups quotidiens automatiques. Clé = date YYYY-MM-DD.
+      if (!db.objectStoreNames.contains('backups'))     db.createObjectStore('backups', { keyPath: 'date' });
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
   });
@@ -1132,11 +1132,515 @@ function bestSplit(points, distanceTarget) {
 
 function computeSplits(parsed) {
   const splits = {};
+  const b1 = bestSplit(parsed.points, 1000);
   const b5 = bestSplit(parsed.points, 5000);
   const b10 = bestSplit(parsed.points, 10000);
+  const bSemi = bestSplit(parsed.points, 21097);
+  if (b1) splits.best1k = b1;
   if (b5) splits.best5k = b5;
   if (b10) splits.best10k = b10;
+  if (bSemi) splits.bestSemi = bSemi;
+  // Splits kilomètre par kilomètre (perfs par km).
+  splits.kmSplits = computeKmSplits(parsed.points);
   return splits;
+}
+
+// Pour chaque km franchi, calcule durée, allure (s/km), et D+ partiel.
+// Renvoie [{ km: 1, distance: 1000, duration: 312, pace: 312, elevGain: 5 }, ...]
+function computeKmSplits(points) {
+  if (!points || points.length < 2) return [];
+  const splits = [];
+  let cumDist = 0;
+  let kmStart = 0;        // index de début du km en cours
+  let kmStartDist = 0;    // distance cumulée au début du km en cours
+  let kmGain = 0;         // D+ accumulé dans le km en cours
+  let lastEle = points[0].ele;
+  const NOISE = 1.5;
+
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    cumDist += haversine(a.lat, a.lon, b.lat, b.lon);
+    if (b.ele !== null && lastEle !== null) {
+      const dEle = b.ele - lastEle;
+      if (Math.abs(dEle) >= NOISE) {
+        if (dEle > 0) kmGain += dEle;
+        lastEle = b.ele;
+      }
+    } else if (b.ele !== null) {
+      lastEle = b.ele;
+    }
+    // A-t-on franchi un nouveau km ?
+    while (cumDist - kmStartDist >= 1000) {
+      // Interpolation pour trouver le timestamp précis au km franchi.
+      const tStart = points[kmStart].time;
+      const tEnd = b.time;
+      let dur = 0;
+      if (tStart && tEnd) {
+        // On approxime : la fraction du segment où on franchit le km.
+        const distInSeg = haversine(a.lat, a.lon, b.lat, b.lon);
+        const distLeftInKm = 1000 - (cumDist - distInSeg - kmStartDist);
+        const fracInSeg = distInSeg > 0 ? distLeftInKm / distInSeg : 0;
+        const tCross = a.time + (b.time - a.time) * fracInSeg;
+        dur = (tCross - tStart) / 1000;
+      }
+      const km = splits.length + 1;
+      splits.push({
+        km,
+        distance: 1000,
+        duration: Math.round(dur),
+        pace: dur > 0 ? Math.round(dur) : 0,
+        elevGain: Math.round(kmGain)
+      });
+      kmStart = i;
+      kmStartDist += 1000;
+      kmGain = 0;
+    }
+  }
+
+  // Optionnel : on n'inclut pas le km partiel final (< 1000 m), peu utile.
+  return splits;
+}
+
+// Estimateur VO2max basé sur la formule de Riegel + Daniels.
+// Pour un effort sur distance D (m) en temps T (s), on calcule la VO2max
+// approximée par : VO2 = -4.60 + 0.182258 × v + 0.000104 × v²
+//                 où v = D / T × 60 (m/min)
+// puis on divise par la fraction d'utilisation de la VO2max selon la durée
+// (formule Daniels) : %max = 0.8 + 0.1894 × exp(-0.012778 × T_min)
+//                          + 0.2989 × exp(-0.1932 × T_min)
+function estimateVO2max(distanceM, timeS) {
+  if (!distanceM || !timeS || timeS < 60) return null;
+  const v = distanceM / timeS * 60; // m/min
+  const vo2 = -4.60 + 0.182258 * v + 0.000104 * v * v;
+  const tMin = timeS / 60;
+  const pctMax = 0.8
+    + 0.1894 * Math.exp(-0.012778 * tMin)
+    + 0.2989 * Math.exp(-0.1932 * tMin);
+  if (pctMax <= 0) return null;
+  return vo2 / pctMax;
+}
+
+// Estime le VO2max actuel depuis les meilleurs splits récents (90j).
+// Prend la meilleure estimation parmi 5K, 10K, semi (le 1K seul est trop court).
+function currentVO2max(activities) {
+  if (!activities || activities.length === 0) return null;
+  const cutoff = Date.now() - 90 * 86400000;
+  const recent = activities.filter(a => new Date(a.date).getTime() >= cutoff);
+  let best = null;
+  for (const a of recent) {
+    const candidates = [
+      { d: 5000, t: a.best5k },
+      { d: 10000, t: a.best10k },
+      { d: 21097, t: a.bestSemi }
+    ];
+    for (const c of candidates) {
+      if (!c.t) continue;
+      const vo2 = estimateVO2max(c.d, c.t);
+      if (vo2 != null && (best == null || vo2 > best.value)) {
+        best = { value: vo2, distance: c.d, time: c.t, activity: a };
+      }
+    }
+  }
+  return best;
+}
+
+// Pour la courbe d'évolution : pour chaque activité chronométrée, retourne
+// le meilleur VO2max obtenable depuis ses propres splits (5K/10K/semi/1K).
+function activityVO2maxPoints(activities) {
+  return activities
+    .map(a => {
+      const candidates = [
+        { d: 5000, t: a.best5k },
+        { d: 10000, t: a.best10k },
+        { d: 21097, t: a.bestSemi }
+      ];
+      let best = null;
+      for (const c of candidates) {
+        if (!c.t) continue;
+        const vo2 = estimateVO2max(c.d, c.t);
+        if (vo2 != null && (best == null || vo2 > best)) best = vo2;
+      }
+      // Fallback : si pas de splits internes mais durée + distance complète, on essaie.
+      if (best == null && a.duration && a.distanceKm > 1) {
+        const vo2 = estimateVO2max(a.distanceKm * 1000, a.duration);
+        if (vo2 != null) best = vo2;
+      }
+      return best != null ? { date: a.date, vo2: Math.round(best * 10) / 10, name: a.name } : null;
+    })
+    .filter(Boolean)
+    .sort((a, b) => a.date.localeCompare(b.date));
+}
+// ============================================================================
+// COACHING : analyse semaine passée + plan semaine suivante
+// ============================================================================
+
+// Analyse les sorties d'une semaine donnée (ws = lundi 00:00 local).
+function analyseWeekRunning(activities, ws) {
+  const start = ws.getTime();
+  const end = start + 7 * 86400000;
+  const acts = activities.filter(a => {
+    const t = new Date(a.date).getTime();
+    return t >= start && t < end;
+  });
+  const totalKm = acts.reduce((s, a) => s + (a.distanceKm || 0), 0);
+  const totalDplus = acts.reduce((s, a) => s + (a.elevGain || 0), 0);
+  const totalDur = acts.reduce((s, a) => s + (a.duration || 0), 0);
+  const totalLoad = acts.reduce((s, a) => s + activityLoad(a), 0);
+  // Allure moyenne pondérée par distance.
+  let totSec = 0, totKm = 0;
+  for (const a of acts) {
+    if (a.duration && a.distanceKm) { totSec += a.duration; totKm += a.distanceKm; }
+  }
+  const avgPace = totKm > 0 ? totSec / totKm : 0;
+  const byType = {};
+  for (const a of acts) byType[a.type] = (byType[a.type] || 0) + 1;
+  return {
+    activities: acts,
+    runs: acts.length,
+    totalKm: Math.round(totalKm * 10) / 10,
+    totalDplus: Math.round(totalDplus),
+    totalDur,
+    totalLoad,
+    avgPace: Math.round(avgPace),
+    byType
+  };
+}
+
+// Génère le plan de la semaine suivante en se basant sur les analyses récentes.
+// Règles :
+//   - Volume cible = +5-10% sur la moyenne des 3 dernières semaines complètes,
+//     sauf si charge récente (TSB) très négative → stagnation ou récup.
+//   - Structure (en tenant compte du schedule) :
+//       * 2 footings (lun, ven) — fondamentale, allure facile
+//       * 1 séance qualité (mer) — fractionné
+//       * 1 sortie longue (sam ou dim) — endurance
+//   - Si l'utilisateur a manqué le fractionné 2 sem d'affilée → on le souligne.
+function generateWeekPlan(activities) {
+  const now = new Date();
+  const thisMonday = startOfWeek(now);
+  // Trois dernières semaines complètes.
+  const w1 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 7 * 86400000));
+  const w2 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 14 * 86400000));
+  const w3 = analyseWeekRunning(activities, new Date(thisMonday.getTime() - 21 * 86400000));
+  const past3 = [w1, w2, w3];
+  const validPast = past3.filter(w => w.runs > 0);
+  const avgKm3w = validPast.length > 0
+    ? validPast.reduce((s, w) => s + w.totalKm, 0) / validPast.length
+    : 0;
+
+  const load = trainingLoadStats(activities, now);
+
+  // Cible volume
+  let targetKm;
+  let progressNote;
+  if (avgKm3w < 5) {
+    // Démarrage : on ne pousse pas
+    targetKm = Math.max(15, avgKm3w + 5);
+    progressNote = 'Démarrage progressif. Vise 3-4 sorties courtes pour construire ta base.';
+  } else if (load.tsb < -15) {
+    targetKm = Math.round(avgKm3w * 0.85 * 10) / 10;
+    progressNote = 'Charge récente élevée. Cette semaine doit être plus légère pour récupérer.';
+  } else if (load.tsb > 5) {
+    targetKm = Math.round(avgKm3w * 1.10 * 10) / 10;
+    progressNote = 'Tu es frais : on peut pousser un peu (+10% volume).';
+  } else {
+    targetKm = Math.round(avgKm3w * 1.05 * 10) / 10;
+    progressNote = 'Progression douce, +5% sur le volume hebdo.';
+  }
+
+  // Détection des manqués : si 0 fractionné depuis 2 sem
+  const recentFractio = w1.byType.fractionne || 0;
+  const prevFractio = w2.byType.fractionne || 0;
+  const missingSpeed = recentFractio === 0 && prevFractio === 0;
+
+  // Construction des 4-5 séances. On pré-définit la répartition typique du
+  // volume entre les sorties pour qu'elles se complètent.
+  const distLong = Math.round(targetKm * 0.32 * 10) / 10;
+  const distFooting = Math.round(targetKm * 0.18 * 10) / 10;
+  const distFractio = Math.round(targetKm * 0.16 * 10) / 10;
+  const sessions = [
+    {
+      day: 'Lundi', type: 'footing', icon: '🏃',
+      label: `Footing facile · ${distFooting} km`,
+      detail: 'Allure conversationnelle (5:30-6:00/km). Récup mentale après le week-end.'
+    },
+    {
+      day: 'Mercredi', type: 'fractionne', icon: '⚡',
+      label: `Fractionné · ${distFractio} km${missingSpeed ? ' (priorité)' : ''}`,
+      detail: missingSpeed
+        ? '6×400m allure 10K rapide / récup 1\' lent. Indispensable cette semaine.'
+        : '6×400m ou 4×1000m selon ta forme, après échauffement de 15 min.'
+    },
+    {
+      day: 'Vendredi', type: 'footing', icon: '🏃',
+      label: `Footing tonique · ${distFooting} km`,
+      detail: 'Allure marathon (~5:00/km), reste à l\'aise. Prépare le long du week-end.'
+    },
+    {
+      day: 'Samedi ou Dimanche', type: 'sortie-we', icon: '🌄',
+      label: `Sortie longue · ${distLong} km`,
+      detail: load.tsb < -10
+        ? 'Allure très facile (6:00/km), reste sous le seuil aérobie. Récupération active.'
+        : 'Allure endurance (5:30/km), en aisance respiratoire. Nourrit ta base aérobie.'
+    }
+  ];
+
+  return {
+    pastWeeks: { w1, w2, w3 },
+    avgKm3w: Math.round(avgKm3w * 10) / 10,
+    targetKm,
+    progressNote,
+    load,
+    missingSpeed,
+    sessions
+  };
+}
+
+// ============================================================================
+// CATALOGUE DE PARCOURS — détection des tracés récurrents
+// ============================================================================
+//
+// Objectif : reconnaître quand deux sorties suivent ~le même tracé, les
+// regrouper en "parcours", et permettre comparer les perfs entre elles.
+//
+// Algo : pour chaque activité, on calcule une signature spatiale (downsample
+// à N points équirépartis). Deux activités appartiennent au même parcours si
+// leur distance Hausdorff approximée est < seuil ET leur distance totale
+// similaire (±20%).
+
+const ROUTE_SIGNATURE_POINTS = 30;
+const ROUTE_MATCH_DIST_M = 150;        // tolérance entre points appariés
+const ROUTE_MATCH_DIST_RATIO = 0.20;   // tolérance distance totale (±20%)
+
+// Downsample N points équirépartis le long de la trace (par distance, pas par index).
+function downsampleTrack(points, n = ROUTE_SIGNATURE_POINTS) {
+  if (!points || points.length < 2) return [];
+  // Distances cumulées
+  const cum = [0];
+  for (let i = 1; i < points.length; i++) {
+    cum.push(cum[i - 1] + haversine(points[i - 1].lat, points[i - 1].lon, points[i].lat, points[i].lon));
+  }
+  const total = cum[cum.length - 1];
+  if (total === 0) return [];
+  const out = [];
+  for (let k = 0; k < n; k++) {
+    const target = (k / (n - 1)) * total;
+    // Recherche binaire ou linéaire (on a peu de points)
+    let i = 0;
+    while (i < cum.length - 1 && cum[i + 1] < target) i++;
+    out.push({ lat: points[i].lat, lon: points[i].lon });
+  }
+  return out;
+}
+
+// Distance moyenne entre deux signatures de même taille (sens forward).
+function sigDistanceForward(sigA, sigB) {
+  if (sigA.length !== sigB.length) return Infinity;
+  let total = 0;
+  for (let i = 0; i < sigA.length; i++) {
+    total += haversine(sigA[i].lat, sigA[i].lon, sigB[i].lat, sigB[i].lon);
+  }
+  return total / sigA.length;
+}
+
+// Idem en parcourant B à l'envers (parcours réalisé dans l'autre sens).
+function sigDistanceReverse(sigA, sigB) {
+  if (sigA.length !== sigB.length) return Infinity;
+  let total = 0;
+  const n = sigA.length;
+  for (let i = 0; i < n; i++) {
+    const j = n - 1 - i;
+    total += haversine(sigA[i].lat, sigA[i].lon, sigB[j].lat, sigB[j].lon);
+  }
+  return total / n;
+}
+
+// Deux activités sont sur le même parcours ?
+function isSameRoute(a, b) {
+  if (!a._sig || !b._sig) return false;
+  if (a.distanceKm <= 0 || b.distanceKm <= 0) return false;
+  const ratio = Math.abs(a.distanceKm - b.distanceKm) / Math.max(a.distanceKm, b.distanceKm);
+  if (ratio > ROUTE_MATCH_DIST_RATIO) return false;
+  const dF = sigDistanceForward(a._sig, b._sig);
+  const dR = sigDistanceReverse(a._sig, b._sig);
+  return Math.min(dF, dR) < ROUTE_MATCH_DIST_M;
+}
+
+// Regroupe les activités en clusters (parcours), retourne les routes
+// triées par fréquence décroissante. Chaque route :
+//   { id, activities, count, avgDistanceKm, bestTime, bestPace, lastDate, name }
+function detectRoutes(activities) {
+  // Pré-calcul des signatures + filtre des activités sans points GPS.
+  const acts = activities
+    .filter(a => a.points && Array.isArray(a.points) && a.points.length > 5 && a.distanceKm > 0)
+    .map(a => ({ ...a, _sig: downsampleTrack(a.points) }))
+    .filter(a => a._sig.length === ROUTE_SIGNATURE_POINTS);
+
+  // Algo glouton : on parcourt, pour chaque activité on cherche un cluster qui
+  // accepte (distance moy au membre représentatif < seuil), sinon nouveau cluster.
+  const clusters = [];
+  for (const a of acts) {
+    let placed = false;
+    for (const c of clusters) {
+      if (isSameRoute(a, c.repr)) {
+        c.activities.push(a);
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) clusters.push({ repr: a, activities: [a] });
+  }
+  // On ne garde que les clusters avec ≥ 2 sorties (un parcours, c'est plusieurs fois).
+  const routes = clusters
+    .filter(c => c.activities.length >= 2)
+    .map((c, idx) => {
+      const acts = c.activities.sort((a, b) => a.date.localeCompare(b.date));
+      const distances = acts.map(a => a.distanceKm);
+      const avgKm = distances.reduce((s, v) => s + v, 0) / distances.length;
+      const timed = acts.filter(a => a.duration > 0);
+      let bestTime = null, bestPace = null, bestActId = null;
+      for (const a of timed) {
+        const p = a.duration / a.distanceKm;
+        if (bestPace == null || p < bestPace) {
+          bestPace = p; bestTime = a.duration; bestActId = a.id;
+        }
+      }
+      const last = acts[acts.length - 1];
+      // Nom : on déduit du type majoritaire + distance arrondie.
+      const typeCounts = {};
+      for (const a of acts) typeCounts[a.type] = (typeCounts[a.type] || 0) + 1;
+      const dominantType = Object.entries(typeCounts).sort((a, b) => b[1] - a[1])[0][0];
+      const typeLabel = SPORT_TYPES[dominantType]?.label || 'Course';
+      return {
+        id: 'route-' + idx,
+        activities: acts,
+        count: acts.length,
+        avgDistanceKm: Math.round(avgKm * 10) / 10,
+        bestTime,
+        bestPace,
+        bestActId,
+        lastDate: last.date,
+        name: `${typeLabel} ${avgKm.toFixed(1)} km`,
+        dominantType
+      };
+    })
+    .sort((a, b) => b.count - a.count || b.lastDate.localeCompare(a.lastDate));
+  return routes;
+}
+
+// ============================================================================
+// CHARGE D'ENTRAÎNEMENT
+// ============================================================================
+
+// Charge d'entraînement style TSS (Training Stress Score). Pour chaque sortie,
+// on calcule un score basé sur la durée pondérée par l'intensité d'allure.
+// IF (Intensity Factor) ≈ allure_seuil / allure_actuelle (plus tu vas vite, plus c'est élevé).
+// On considère un seuil personnel par défaut à 4:30/km (270 s/km), ajustable.
+const THRESHOLD_PACE_S = 270;
+
+function activityLoad(activity) {
+  if (!activity || !activity.duration || !activity.distanceKm) return 0;
+  const pace = activity.duration / activity.distanceKm; // s/km
+  if (pace <= 0) return 0;
+  let intensity = THRESHOLD_PACE_S / pace; // > 1 si plus rapide, < 1 si plus lent
+  intensity = Math.max(0.5, Math.min(1.3, intensity)); // borne raisonnable
+  // Bonus D+ : 100m de D+ ≈ 30 s d'effort supplémentaire en pénibilité.
+  const dPlusBonus = (activity.elevGain || 0) / 100 * 30;
+  const effectiveDur = activity.duration + dPlusBonus; // s
+  // TSS = (durée × IF²) / 36 → un effort 1h au seuil = 100 points
+  return Math.round((effectiveDur * intensity * intensity) / 36);
+}
+
+// Calcule CTL (Chronic Training Load = moyenne charge/jour sur 28j) et
+// ATL (Acute Training Load = moyenne 7j). TSB = CTL - ATL = "freshness".
+function trainingLoadStats(activities, refDate = new Date()) {
+  const ref = refDate.getTime();
+  const ctlCutoff = ref - 28 * 86400000;
+  const atlCutoff = ref - 7 * 86400000;
+  let ctlSum = 0, atlSum = 0;
+  for (const a of activities) {
+    const t = new Date(a.date).getTime();
+    if (t > ref) continue;
+    const load = activityLoad(a);
+    if (t >= ctlCutoff) ctlSum += load;
+    if (t >= atlCutoff) atlSum += load;
+  }
+  const ctl = ctlSum / 28;
+  const atl = atlSum / 7;
+  const tsb = ctl - atl;
+  // Recommandation textuelle selon TSB :
+  let advice;
+  if (atl < 5) advice = { tone: 'cool', text: 'Volume très bas — relance progressivement.' };
+  else if (tsb < -15) advice = { tone: 'warm', text: 'Charge récente très élevée. Pense à une journée de récup.' };
+  else if (tsb < -5) advice = { tone: 'gold', text: 'Bon stimulus. Tu progresses, surveille la récup.' };
+  else if (tsb < 5) advice = { tone: 'gold', text: 'Équilibre bien tenu, continue.' };
+  else advice = { tone: 'cool', text: 'Tu es frais. Tu peux pousser sur la prochaine séance.' };
+  return {
+    ctl: Math.round(ctl * 10) / 10,
+    atl: Math.round(atl * 10) / 10,
+    tsb: Math.round(tsb * 10) / 10,
+    advice
+  };
+}
+
+// Calcule les meilleurs splits dans une fenêtre temporelle glissante (en jours).
+// Renvoie { best1k, best5k, best10k, bestSemi } en secondes (null si rien).
+function getRollingRecords(activities, windowDays) {
+  const cutoff = Date.now() - windowDays * 86400000;
+  const recent = activities.filter(a => new Date(a.date).getTime() >= cutoff);
+  const fields = ['best1k', 'best5k', 'best10k', 'bestSemi'];
+  const out = {};
+  for (const f of fields) {
+    let best = null;
+    for (const a of recent) {
+      const v = a[f];
+      if (v && (best == null || v < best)) best = v;
+    }
+    out[f] = best;
+  }
+  return out;
+}
+
+// Rendu HTML des splits km par km : barre horizontale par km, longueur
+// inversement proportionnelle à l'allure (km le plus rapide = barre pleine).
+// Le plus rapide est en or, le plus lent en ambre/orange.
+function renderKmSplitsHtml(splits) {
+  if (!splits || splits.length === 0) return '';
+  const valid = splits.filter(s => s.duration > 0);
+  if (valid.length === 0) return '';
+  const paces = valid.map(s => s.pace);
+  const fastest = Math.min(...paces);
+  const slowest = Math.max(...paces);
+  const range = Math.max(1, slowest - fastest);
+
+  const formatPaceShort = (sec) => {
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec % 60);
+    return `${m}:${String(s).padStart(2, '0')}`;
+  };
+
+  let html = '<div class="km-splits">';
+  html += '<div class="km-splits-title">Splits km par km</div>';
+  for (const s of splits) {
+    const isFastest = s.pace === fastest && s.duration > 0;
+    const isSlowest = s.pace === slowest && s.duration > 0 && slowest !== fastest;
+    // Largeur barre : 100% pour le fastest, décroît linéairement.
+    const t = (slowest - s.pace) / range; // 1 = fastest, 0 = slowest
+    const width = 30 + t * 70;
+    const cls = isFastest ? 'fastest' : isSlowest ? 'slowest' : '';
+    html += `
+      <div class="km-split ${cls}">
+        <div class="km-split-label">km ${s.km}</div>
+        <div class="km-split-bar-wrap">
+          <div class="km-split-bar" style="width: ${width}%"></div>
+        </div>
+        <div class="km-split-pace mono">${formatPaceShort(s.pace)}/km</div>
+        <div class="km-split-elev dim mono">${s.elevGain > 0 ? '+' + s.elevGain + 'm' : ''}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  return html;
 }
 
 async function checkAndUpdateRecords(activity) {
@@ -1258,15 +1762,33 @@ async function migrateData() {
     if (dirty) await dbPut('schedule', s);
   }
 
-  // Activités : backfill xpAwarded/skillsAwarded pour permettre la suppression réversible.
+  // Activités : backfill xpAwarded/skillsAwarded pour permettre la suppression
+  // réversible. Backfill aussi les nouveaux best splits (1k, semi) et les
+  // splits km par km pour les sorties importées avant ces fonctionnalités.
   const acts = await dbAll('activities');
   for (const a of acts) {
+    let dirty = false;
     if (a.xpAwarded == null) {
-      const { xp, skills } = activityXp(a);
+      const { xp, skills } = activityXp(a, a.type);
       a.xpAwarded = xp;
       a.skillsAwarded = skills;
-      await dbPut('activities', a);
+      dirty = true;
     }
+    if (a.points && Array.isArray(a.points)) {
+      if (a.kmSplits == null) {
+        a.kmSplits = computeKmSplits(a.points);
+        dirty = true;
+      }
+      if (a.best1k == null) {
+        const b1 = bestSplit(a.points, 1000);
+        if (b1) { a.best1k = b1; dirty = true; }
+      }
+      if (a.bestSemi == null) {
+        const bs = bestSplit(a.points, 21097);
+        if (bs) { a.bestSemi = bs; dirty = true; }
+      }
+    }
+    if (dirty) await dbPut('activities', a);
   }
 }
 
@@ -1799,6 +2321,7 @@ function renderSport(root) {
         <div class="metric"><div class="m-val grad-text">${formatDuration(sel.duration)}</div><div class="m-lbl">durée</div></div>
         <div class="metric"><div class="m-val grad-text">${formatPace(sel.avgPace)}</div><div class="m-lbl">allure</div></div>
       </div>
+      ${sel.kmSplits && sel.kmSplits.length > 0 ? renderKmSplitsHtml(sel.kmSplits) : ''}
     `});
     page.appendChild(card);
     setTimeout(() => {
@@ -2128,6 +2651,146 @@ async function recomputeAllRecords() {
   }
 }
 
+// Recalcule TOUT depuis zéro à partir de l'historique (workLogs + completions
+// + activities), en appliquant les barèmes XP courants. Utile quand on a
+// modifié les multiplicateurs (ex: passage de Montagne → Allure) et qu'on
+// veut que les anciennes données rétroagissent.
+//
+// Étapes :
+//  1) Reset profile.totalXp = 0 + reset chaque skill XP/level à 0/1.
+//  2) Pour chaque activity : recalcule activityXp(act, type), met à jour
+//     act.xpAwarded/skillsAwarded, applique au profil.
+//  3) Pour chaque workLog : recalcule via computeWorkXp + portions
+//     SUBJECTS, met à jour log.lastXpAwarded/lastSkillsAwarded, applique.
+//  4) Pour chaque completion : recalcule selon le type de quête et
+//     applique aussi.
+//  5) Reset les meta.lastDailyPenalty/lastWeeklyPenalty pour que les malus/bonus
+//     soient ré-évalués lors du prochain applyPendingPenalties().
+async function recomputeAllXp() {
+  const profile = State.profile;
+  if (!profile) return { success: false, reason: 'no profile' };
+
+  // 1) Reset profil
+  profile.totalXp = 0;
+  profile.level = 1;
+  for (const skillKey of Object.keys(profile.skills || {})) {
+    profile.skills[skillKey] = { xp: 0, level: 1 };
+  }
+  await dbPut('profile', profile);
+  // Recharge State.profile pour que les awardXp suivants opèrent sur l'objet à jour.
+  State.profile = profile;
+
+  let totalActivities = 0;
+  let totalWorkLogs = 0;
+  let totalCompletions = 0;
+  let totalXp = 0;
+
+  // 2) Activités : on recalcule l'XP pour chaque, on met à jour la fiche
+  //    en base, puis on applique l'XP au profil.
+  const acts = await dbAll('activities');
+  // Trie chronologiquement pour que les level-ups soient cohérents.
+  acts.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  for (const a of acts) {
+    const type = a.type || 'footing';
+    const { xp, skills } = activityXp(a, type);
+    a.xpAwarded = xp;
+    a.skillsAwarded = skills;
+    await dbPut('activities', a);
+    if (xp > 0) {
+      await awardXp(xp, skills);
+      totalXp += xp;
+    }
+    totalActivities++;
+  }
+
+  // 3) Work logs : on recalcule chaque jour avec computeWorkXp +
+  //    pondération par matière. On stocke le nouveau lastXpAwarded.
+  const logs = await dbAll('workLog');
+  logs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  for (const l of logs) {
+    const bySubject = l.bySubject || {};
+    const totalMin = Object.values(bySubject).reduce((s, m) => s + m, 0);
+    if (totalMin === 0) {
+      l.lastXpAwarded = 0;
+      l.lastSkillsAwarded = {};
+      await dbPut('workLog', l);
+      continue;
+    }
+    const goalHours = l.goalHours || 0;
+    const { xp: newXp } = computeWorkXp(totalMin, goalHours);
+    const newSkillsXp = {};
+    for (const [subj, mins] of Object.entries(bySubject)) {
+      const meta = SUBJECTS[subj];
+      if (!meta) continue;
+      const portion = mins / totalMin;
+      const mult = meta.skillMult ?? 0.6;
+      newSkillsXp[meta.skill] = (newSkillsXp[meta.skill] || 0) + Math.round(newXp * portion * mult);
+    }
+    newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.10);
+    l.lastXpAwarded = newXp;
+    l.lastSkillsAwarded = newSkillsXp;
+    await dbPut('workLog', l);
+    if (newXp > 0) {
+      await awardXp(newXp, newSkillsXp);
+      totalXp += newXp;
+    }
+    totalWorkLogs++;
+  }
+
+  // 4) Completions hebdo : on recalcule chacune et on applique l'XP.
+  //    On les trie par weekKey + questId pour stabilité.
+  const completions = await dbAll('completions');
+  const quests = await dbAll('quests');
+  completions.sort((a, b) => (a.weekKey || '').localeCompare(b.weekKey || ''));
+  for (const c of completions) {
+    const q = quests.find(x => x.id === c.questId);
+    if (!q) continue;
+    const value = c.actualValue || 0;
+    let xp, ratio;
+    if (q.type === 'weekly-hours') {
+      const r = computeHoursXp(value, q.goalHours);
+      xp = r.xp; ratio = r.ratio;
+    } else {
+      const r = computeCountXp(value, q.goalCount);
+      xp = r.xp; ratio = r.ratio;
+    }
+    const skillsXp = {};
+    if (q.skill) skillsXp[q.skill] = Math.round(xp * 0.7);
+    skillsXp.discipline = (skillsXp.discipline || 0) + Math.round(xp * 0.08);
+    // Met à jour la completion en base avec les nouvelles valeurs.
+    c.lastXp = xp;
+    c.lastSkillsXp = skillsXp;
+    c.xp = xp;
+    c.skills = skillsXp;
+    c.ratio = ratio;
+    await dbPut('completions', c);
+    if (xp > 0) {
+      await awardXp(xp, skillsXp);
+      totalXp += xp;
+    }
+    totalCompletions++;
+  }
+
+  // 5) Reset les marqueurs de fin-de-période pour que les malus/bonus passés
+  //    soient réappliqués lors du prochain applyPendingPenalties.
+  await dbDelete('meta', 'lastDailyPenalty');
+  await dbDelete('meta', 'lastWeeklyPenalty');
+
+  // Recharge tout en mémoire et ré-applique les pénalités historiques.
+  await loadAll();
+  await applyPendingPenalties();
+  await loadAll();
+
+  return {
+    success: true,
+    totalActivities,
+    totalWorkLogs,
+    totalCompletions,
+    finalXp: State.profile.totalXp,
+    rawXpBeforePenalties: totalXp
+  };
+}
+
 async function deleteActivity(activity) {
   // Avant de retirer l'XP, anticipe la perte de niveau pour confirmer.
   const profile = State.profile;
@@ -2159,18 +2822,16 @@ async function editActivity(activity) {
     <div class="gpx-preview-head">
       <div class="gpx-preview-title">
         <span class="gpx-preview-icon">✏️</span>
-        <span>Modifier la sortie</span>
+        <span>Catégorie de la sortie</span>
       </div>
       <button class="gpx-preview-close" aria-label="Fermer">✕</button>
     </div>
     <div style="padding: 16px 18px;">
-      <label class="dim text-xs" style="display:block; margin-bottom:6px;">Nom</label>
-      <input type="text" class="input" id="edit-name" value="${escapeHtml(activity.name || '')}" style="width:100%;" />
-      <label class="dim text-xs" style="display:block; margin:12px 0 6px;">Catégorie</label>
+      <label class="dim text-xs" style="display:block; margin-bottom:6px;">Catégorie</label>
       <select class="input" id="edit-cat" style="width:100%;">
         ${cats.map(c => `<option value="${c}" ${c === activity.type ? 'selected' : ''}>${SPORT_TYPES[c]?.icon || ''} ${SPORT_TYPES[c]?.label || c}</option>`).join('')}
       </select>
-      <p class="dim text-xs mt-3">Changer la catégorie recalcule l'XP gagné. La différence est appliquée à ton niveau.</p>
+      <p class="dim text-xs mt-3">Le nom de la sortie sera mis à jour automatiquement selon la catégorie. Si la catégorie change, l'XP est recalculé et la différence appliquée à ton niveau.</p>
     </div>
     <div class="gpx-preview-actions">
       <button class="btn ghost" id="edit-cancel">Annuler</button>
@@ -2189,8 +2850,8 @@ async function editActivity(activity) {
   overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
 
   modal.querySelector('#edit-save').addEventListener('click', async () => {
-    const newName = modal.querySelector('#edit-name').value.trim() || activity.name;
     const newCat = modal.querySelector('#edit-cat').value;
+    const newName = defaultActivityName(newCat, activity.date);
     const oldXp = activity.xpAwarded || 0;
     const oldSkills = activity.skillsAwarded || {};
     let updated = { ...activity, name: newName, type: newCat };
@@ -2199,7 +2860,6 @@ async function editActivity(activity) {
       const { xp, skills } = activityXp(activity, newCat);
       updated.xpAwarded = xp;
       updated.skillsAwarded = skills;
-      // Ajuste le delta sur le profil
       const xpDelta = xp - oldXp;
       const skillsDelta = {};
       const allKeys = new Set([...Object.keys(oldSkills), ...Object.keys(skills)]);
@@ -2208,7 +2868,6 @@ async function editActivity(activity) {
       const negS = Object.fromEntries(Object.entries(skillsDelta).filter(([_, v]) => v < 0).map(([k, v]) => [k, -v]));
       if (xpDelta > 0) await awardXp(xpDelta, posS);
       else if (xpDelta < 0) await removeXp(-xpDelta, negS);
-      // Apply skill-only deltas si nécessaire
       if (xpDelta === 0 && Object.keys(posS).length) await awardXp(0, posS);
       if (xpDelta === 0 && Object.keys(negS).length) await removeXp(0, negS);
     }
@@ -2218,7 +2877,7 @@ async function editActivity(activity) {
     State.currentActivity = updated;
     close();
     render();
-    showToast({ type: 'xp', title: 'Sortie mise à jour', text: newName });
+    showToast({ type: 'xp', title: 'Catégorie mise à jour', text: newName });
   });
 }
 
@@ -2283,7 +2942,7 @@ function renderStats(root) {
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">🗓️</span><span class="rec-label">Plus grosse semaine</span></div><div class="rec-value">${bestWeekMin > 0 ? (bestWeekMin/60).toFixed(1) + 'h' : '—'}</div></div>
   `}));
 
-  // Sport
+  // Sport — refonte complète : focus sur les métriques runner
   const totalKm = acts.reduce((s, a) => s + (a.distanceKm || 0), 0);
   const totalDplus = acts.reduce((s, a) => s + (a.elevGain || 0), 0);
   const totalDur = acts.reduce((s, a) => s + (a.duration || 0), 0);
@@ -2298,51 +2957,128 @@ function renderStats(root) {
     </div>
   `}));
 
-  // Volume hebdo : aire distance + ligne allure moyenne (toutes sorties)
-  page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '📊 Volume & allure · 12 dernières semaines'),
-    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-volume' })])
-  ]));
+  // ── Forme actuelle (charge) ────────────────────────────────────────────
+  const load = trainingLoadStats(acts);
+  const tsbColor = load.advice.tone === 'cool' ? 'var(--accent-cool)'
+                 : load.advice.tone === 'warm' ? 'var(--accent-warm)'
+                 : 'var(--gold)';
+  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🔋 Forme actuelle'));
+  page.appendChild(el('div', { class: 'card mb-3', html: `
+    <div class="load-grid">
+      <div class="load-card">
+        <div class="load-val" style="color: var(--gold)">${load.ctl}</div>
+        <div class="load-lbl">CTL · forme</div>
+        <div class="load-hint">moyenne 28 j</div>
+      </div>
+      <div class="load-card">
+        <div class="load-val" style="color: var(--accent-warm)">${load.atl}</div>
+        <div class="load-lbl">ATL · fatigue</div>
+        <div class="load-hint">moyenne 7 j</div>
+      </div>
+      <div class="load-card">
+        <div class="load-val" style="color: ${tsbColor}">${load.tsb >= 0 ? '+' : ''}${load.tsb}</div>
+        <div class="load-lbl">TSB · fraîcheur</div>
+        <div class="load-hint">CTL − ATL</div>
+      </div>
+    </div>
+    <div class="load-advice" style="border-left-color: ${tsbColor}">${escapeHtml(load.advice.text)}</div>
+  `}));
 
-  // Section par catégorie : footing (allure), trail (D+), fractionné (intervalles), week-end (volume)
-  const footings = acts.filter(a => a.type === 'footing' || a.type === 'course');
-  const trails = acts.filter(a => a.type === 'trail');
-  const fractionnes = acts.filter(a => a.type === 'fractionne');
-  const weekends = acts.filter(a => a.type === 'sortie-we');
-
-  if (footings.length > 0) {
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🏃 Footings · allure'));
-    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-      el('div', { class: 'chart-title' }, `Allure moyenne · ${footings.length} footing${footings.length > 1 ? 's' : ''}`),
-      el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-footing-pace' })])
-    ]));
+  // ── VO2max estimé ──────────────────────────────────────────────────────
+  const vo2 = currentVO2max(acts);
+  const vo2Points = activityVO2maxPoints(acts);
+  if (vo2 || vo2Points.length > 0) {
+    const vo2Val = vo2 ? Math.round(vo2.value * 10) / 10 : '—';
+    const vo2Source = vo2
+      ? `Estimé depuis meilleur ${vo2.distance / 1000}K récent (${formatDuration(vo2.time)})`
+      : 'Pas assez de données récentes';
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🫁 VO₂ max estimé'));
+    page.appendChild(el('div', { class: 'card mb-3', html: `
+      <div class="vo2-hero">
+        <div>
+          <div class="vo2-val grad-text">${vo2Val}</div>
+          <div class="dim text-xs">ml/kg/min</div>
+        </div>
+        <div class="vo2-source dim text-xs">${vo2Source}</div>
+      </div>
+      ${vo2Points.length >= 2 ? '<div class="chart-wrap" style="height: 160px;"><canvas id="chart-vo2"></canvas></div>' : ''}
+    `}));
   }
 
-  if (trails.length > 0) {
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '⛰️ Trail · dénivelé'));
-    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-      el('div', { class: 'chart-title' }, `D+ et distance · ${trails.length} trail${trails.length > 1 ? 's' : ''}`),
-      el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-trail-dplus' })])
-    ]));
+  // ── Records absolus / 30j / 90j ────────────────────────────────────────
+  const r30 = getRollingRecords(acts, 30);
+  const r90 = getRollingRecords(acts, 90);
+  const rAll = getRollingRecords(acts, 99999);
+  const fmtT = (s) => {
+    if (!s) return '—';
+    const m = Math.floor(s / 60), sec = Math.round(s % 60);
+    return `${m}:${String(sec).padStart(2, '0')}`;
+  };
+  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🏆 Records glissants'));
+  page.appendChild(el('div', { class: 'card mb-3', html: `
+    <div class="rolling-table">
+      <div class="rolling-header"><div></div><div>Absolu</div><div>90 j</div><div>30 j</div></div>
+      <div class="rolling-row"><div class="rolling-dist">1 km</div><div class="mono">${fmtT(rAll.best1k)}</div><div class="mono">${fmtT(r90.best1k)}</div><div class="mono">${fmtT(r30.best1k)}</div></div>
+      <div class="rolling-row"><div class="rolling-dist">5 km</div><div class="mono">${fmtT(rAll.best5k)}</div><div class="mono">${fmtT(r90.best5k)}</div><div class="mono">${fmtT(r30.best5k)}</div></div>
+      <div class="rolling-row"><div class="rolling-dist">10 km</div><div class="mono">${fmtT(rAll.best10k)}</div><div class="mono">${fmtT(r90.best10k)}</div><div class="mono">${fmtT(r30.best10k)}</div></div>
+      <div class="rolling-row"><div class="rolling-dist">Semi</div><div class="mono">${fmtT(rAll.bestSemi)}</div><div class="mono">${fmtT(r90.bestSemi)}</div><div class="mono">${fmtT(r30.bestSemi)}</div></div>
+    </div>
+  `}));
+
+  // ── Plan semaine prochaine ─────────────────────────────────────────────
+  const plan = generateWeekPlan(acts);
+  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🎯 Plan semaine prochaine'));
+  const sessionsHtml = plan.sessions.map(s => `
+    <div class="plan-session">
+      <div class="plan-session-icon">${s.icon}</div>
+      <div class="plan-session-body">
+        <div class="plan-session-day">${s.day}</div>
+        <div class="plan-session-label">${s.label}</div>
+        <div class="plan-session-detail dim text-xs">${escapeHtml(s.detail)}</div>
+      </div>
+    </div>
+  `).join('');
+  page.appendChild(el('div', { class: 'card mb-3', html: `
+    <div class="plan-summary">
+      <div><span class="dim text-xs">Sem dernière :</span> <strong>${plan.pastWeeks.w1.totalKm} km</strong> · ${plan.pastWeeks.w1.runs} sortie${plan.pastWeeks.w1.runs > 1 ? 's' : ''}</div>
+      <div><span class="dim text-xs">Cible :</span> <strong style="color: var(--gold)">${plan.targetKm} km</strong></div>
+    </div>
+    <p class="dim text-sm" style="margin: 10px 0;">${escapeHtml(plan.progressNote)}</p>
+    <div class="plan-sessions">${sessionsHtml}</div>
+  `}));
+
+  // ── Catalogue parcours ─────────────────────────────────────────────────
+  const routes = detectRoutes(acts);
+  if (routes.length > 0) {
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🗺️ Parcours récurrents'));
+    const routesHtml = routes.slice(0, 5).map(r => `
+      <button class="route-card" data-route-id="${r.id}">
+        <div class="route-card-head">
+          <div class="route-card-name">${activityTypeIcon(r.dominantType)} ${escapeHtml(r.name)}</div>
+          <div class="route-card-count">${r.count}× <span class="dim">parcouru</span></div>
+        </div>
+        <div class="route-card-meta dim text-xs">
+          Meilleur : <span class="mono">${formatPace(r.bestPace || 0)}</span>
+          · Dernier : ${formatDate(r.lastDate)}
+        </div>
+      </button>
+    `).join('');
+    const routesContainer = el('div', { class: 'routes-list mb-3' });
+    routesContainer.innerHTML = routesHtml;
+    page.appendChild(routesContainer);
+    setTimeout(() => {
+      routesContainer.querySelectorAll('[data-route-id]').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const r = routes.find(x => x.id === btn.dataset.routeId);
+          if (r) showRouteCompare(r);
+        });
+      });
+    }, 0);
+    // On garde une référence pour pouvoir lookup l'objet à l'open de modale.
+    State._routesCache = routes;
   }
 
-  if (fractionnes.length > 0) {
-    const last = fractionnes.sort((a, b) => b.date.localeCompare(a.date))[0];
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '⚡ Fractionné · dernier'));
-    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-      el('div', { class: 'chart-title' }, escapeHtml(last.name) + ' · ' + formatDate(last.date)),
-      el('div', { id: 'fractionne-intervals' })
-    ]));
-  }
-
-  if (weekends.length > 0) {
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🌄 Sorties week-end'));
-    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-      el('div', { class: 'chart-title' }, `Distance par sortie · ${weekends.length} sortie${weekends.length > 1 ? 's' : ''} week-end`),
-      el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-we-distance' })])
-    ]));
-  }
-
+  // ── Records personnels (existant, fin de page) ─────────────────────────
   page.appendChild(el('h3', { class: 'mb-2 mt-4' }, 'Records personnels'));
   let recsHtml = '';
   for (const t of RECORD_TYPES) {
@@ -2414,22 +3150,180 @@ function renderStatsCharts(logs, acts) {
   }
   State.charts = {};
 
-  // ── 1. Heatmap calendaire travail (12 semaines × 7 jours) ─────────────────
+  // Travail : heatmap calendaire + donut matières
   renderWorkHeatmap(logs);
-
   if (!window.Chart) return;
-
-  // ── 2. Donut matières (30 derniers jours) ─────────────────────────────────
   renderSubjectsDonut(logs);
 
-  // ── 3. Volume hebdo : aire distance + ligne allure (12 semaines) ──────────
-  renderSportVolume(acts);
+  // Sport : courbe VO2max
+  renderVO2maxChart(acts);
+}
 
-  // ── 4. Stats par catégorie ────────────────────────────────────────────────
-  renderFootingPace(acts.filter(a => a.type === 'footing' || a.type === 'course'));
-  renderTrailDplus(acts.filter(a => a.type === 'trail'));
-  renderFractionneIntervals(acts.filter(a => a.type === 'fractionne'));
-  renderWeekendDistance(acts.filter(a => a.type === 'sortie-we'));
+// Courbe d'évolution du VO2max (extraite de chaque sortie chronométrée).
+function renderVO2maxChart(acts) {
+  const ctx = document.getElementById('chart-vo2');
+  if (!ctx) return;
+  const points = activityVO2maxPoints(acts);
+  if (points.length < 2) return;
+  const labels = points.map(p => new Date(p.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+  const data = points.map(p => p.vo2);
+  const ctxC = ctx.getContext('2d');
+  const grad = ctxC.createLinearGradient(0, 0, 0, 160);
+  grad.addColorStop(0, 'rgba(124, 92, 255, 0.4)');
+  grad.addColorStop(1, 'rgba(124, 92, 255, 0)');
+  State.charts.vo2 = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [{
+        label: 'VO₂max',
+        data,
+        borderColor: CHART_COLORS.violet,
+        backgroundColor: grad,
+        borderWidth: 2.5,
+        tension: 0.35,
+        pointRadius: 4,
+        pointHoverRadius: 6,
+        pointBackgroundColor: '#ffd86b',
+        pointBorderColor: CHART_COLORS.bg,
+        pointBorderWidth: 1.5,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...chartCommonOptions().plugins.tooltip,
+          callbacks: {
+            label: (c) => `${c.parsed.y} ml/kg/min`,
+            title: (items) => points[items[0].dataIndex].name || items[0].label
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0 }, grid: { display: false } },
+        y: { ticks: { color: CHART_COLORS.textMute, font: { size: 10 } }, grid: { color: CHART_COLORS.grid, drawBorder: false } }
+      }
+    }
+  });
+}
+
+// Modale qui détaille un parcours récurrent : liste des sorties classées
+// (meilleur temps en haut), tableau d'écart au record, et un petit graphe
+// d'évolution de l'allure sur ce parcours.
+function showRouteCompare(route) {
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal' });
+  const acts = [...route.activities].sort((a, b) => b.date.localeCompare(a.date));
+  const timed = acts.filter(a => a.duration > 0);
+  // Classement par allure
+  const ranked = [...timed].sort((a, b) => (a.duration / a.distanceKm) - (b.duration / b.distanceKm));
+  const bestPace = ranked[0] ? ranked[0].duration / ranked[0].distanceKm : 0;
+
+  const rowsHtml = acts.map(a => {
+    const isPR = ranked[0] && a.id === ranked[0].id;
+    const pace = a.duration > 0 ? a.duration / a.distanceKm : 0;
+    const gap = pace > 0 && bestPace > 0 ? pace - bestPace : null;
+    const gapTxt = gap == null ? '—' : gap === 0 ? '🥇 record' : `+${Math.round(gap)}s/km`;
+    const gapClass = gap === 0 ? 'gap-best' : gap > 30 ? 'gap-slow' : '';
+    return `
+      <div class="route-comp-row ${isPR ? 'is-pr' : ''}">
+        <div class="route-comp-date">${formatDate(a.date)}</div>
+        <div class="route-comp-pace mono">${pace > 0 ? formatPace(pace) : '—'}</div>
+        <div class="route-comp-dur dim mono">${formatDuration(a.duration || 0)}</div>
+        <div class="route-comp-gap ${gapClass}">${gapTxt}</div>
+      </div>
+    `;
+  }).join('');
+
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title">
+        <span class="gpx-preview-icon">🗺️</span>
+        <span>${escapeHtml(route.name)}</span>
+      </div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 14px 18px;">
+      <div class="totals" style="margin-bottom: 12px;">
+        <div><div class="t-val grad-text">${route.count}</div><div class="t-lbl">parcours</div></div>
+        <div><div class="t-val grad-text">${formatPace(route.bestPace || 0)}</div><div class="t-lbl">meilleure allure</div></div>
+        <div><div class="t-val grad-text">${formatDuration(route.bestTime || 0)}</div><div class="t-lbl">meilleur temps</div></div>
+      </div>
+      <div class="chart-wrap" style="height: 140px; margin-bottom: 12px;">
+        <canvas id="chart-route-pace"></canvas>
+      </div>
+      <div class="route-comp-table">
+        <div class="route-comp-header"><div>Date</div><div>Allure</div><div>Durée</div><div>Écart</div></div>
+        ${rowsHtml}
+      </div>
+    </div>
+    <div class="gpx-preview-actions">
+      <button class="btn ghost" id="route-close">Fermer</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const close = () => {
+    if (State._routeChart) { try { State._routeChart.destroy(); } catch {} State._routeChart = null; }
+    overlay.remove();
+  };
+  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
+  modal.querySelector('#route-close').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  // Petit graphe d'évolution de l'allure sur ce parcours.
+  setTimeout(() => {
+    if (!window.Chart) return;
+    const ctx = modal.querySelector('#chart-route-pace');
+    if (!ctx || timed.length < 2) return;
+    const ordered = [...timed].sort((a, b) => a.date.localeCompare(b.date));
+    const labels = ordered.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+    const paces = ordered.map(a => Number(((a.duration / a.distanceKm) / 60).toFixed(2)));
+    const ctxC = ctx.getContext('2d');
+    const grad = ctxC.createLinearGradient(0, 0, 0, 140);
+    grad.addColorStop(0, 'rgba(255, 216, 107, 0.4)');
+    grad.addColorStop(1, 'rgba(255, 216, 107, 0)');
+    State._routeChart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [{
+          label: 'Allure',
+          data: paces,
+          borderColor: CHART_COLORS.gold,
+          backgroundColor: grad,
+          borderWidth: 2.5,
+          tension: 0.35,
+          pointRadius: 4,
+          pointBackgroundColor: '#ffd86b',
+          pointBorderColor: CHART_COLORS.bg,
+          pointBorderWidth: 1.5,
+          fill: true
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: chartCommonOptions().plugins.tooltip },
+        scales: {
+          x: { ticks: { color: CHART_COLORS.textMute, font: { size: 9 }, maxRotation: 0 }, grid: { display: false } },
+          y: {
+            reverse: true,
+            ticks: { color: CHART_COLORS.textMute, font: { size: 9 }, callback: (v) => {
+              const m = Math.floor(v); const s = Math.round((v - m) * 60);
+              return `${m}:${String(s).padStart(2, '0')}`;
+            }},
+            grid: { color: CHART_COLORS.grid, drawBorder: false }
+          }
+        }
+      }
+    });
+  }, 30);
 }
 
 // Heatmap style GitHub : 12 semaines × 7 jours, intensité selon heures travaillées.
@@ -2497,7 +3391,9 @@ function renderWorkHeatmap(logs) {
       const tip = cell.future
         ? ''
         : `${cell.date.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' })} · ${cell.hours.toFixed(1)} h`;
-      html += `<div class="heatmap-cell ${cls}" title="${tip}"></div>`;
+      // data-key permet de retrouver le workLog au clic.
+      const dataAttr = cell.future ? '' : `data-key="${cell.k}"`;
+      html += `<div class="heatmap-cell ${cls}" title="${tip}" ${dataAttr}></div>`;
     }
     html += '</div>';
   }
@@ -2513,6 +3409,77 @@ function renderWorkHeatmap(logs) {
     <span>plus</span>
   </div>`;
   root.innerHTML = html;
+
+  // Click sur une cellule : popover détaillé (heures + matières).
+  root.querySelectorAll('.heatmap-cell[data-key]').forEach(cellEl => {
+    cellEl.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const k = cellEl.dataset.key;
+      const log = logs.find(l => l.date === k);
+      showHeatmapPopover(cellEl, k, log);
+    });
+  });
+}
+
+// Popover flottant qui affiche les détails d'une cellule heatmap.
+function showHeatmapPopover(anchorEl, dateKey, log) {
+  // Ferme tout popover déjà ouvert.
+  document.querySelectorAll('.heatmap-popover').forEach(p => p.remove());
+
+  const date = new Date(dateKey + 'T00:00:00');
+  const dateLabel = date.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+  const totalMin = log?.totalMinutes || 0;
+  const bySubject = log?.bySubject || {};
+  let subjectsHtml = '';
+  if (totalMin > 0) {
+    const sorted = Object.entries(bySubject).filter(([_, m]) => m > 0).sort((a, b) => b[1] - a[1]);
+    subjectsHtml = sorted.map(([k, m]) => {
+      const meta = SUBJECTS[k];
+      return `
+        <div class="popover-subject">
+          <span>${meta?.icon || '📖'} ${meta?.label || k}</span>
+          <span class="mono">${formatMinutes(m)}</span>
+        </div>
+      `;
+    }).join('');
+  }
+
+  const popover = el('div', { class: 'heatmap-popover' });
+  popover.innerHTML = `
+    <div class="popover-head">${dateLabel}</div>
+    <div class="popover-total">${totalMin > 0 ? formatMinutes(totalMin) : 'Pas de travail enregistré'}</div>
+    ${subjectsHtml ? `<div class="popover-subjects">${subjectsHtml}</div>` : ''}
+  `;
+
+  // Positionnement : sous la cellule, recentré horizontalement, avec marge bord d'écran.
+  document.body.appendChild(popover);
+  const rect = anchorEl.getBoundingClientRect();
+  const popRect = popover.getBoundingClientRect();
+  let left = rect.left + rect.width / 2 - popRect.width / 2;
+  left = Math.max(8, Math.min(left, window.innerWidth - popRect.width - 8));
+  let top = rect.bottom + 6;
+  if (top + popRect.height > window.innerHeight - 8) {
+    top = rect.top - popRect.height - 6;
+  }
+  popover.style.left = `${left}px`;
+  popover.style.top = `${top}px`;
+
+  // Fermeture au clic ailleurs / scroll / esc.
+  const close = () => {
+    popover.remove();
+    document.removeEventListener('click', onDocClick, true);
+    document.removeEventListener('scroll', close, true);
+    document.removeEventListener('keydown', onEsc);
+  };
+  const onDocClick = (e) => {
+    if (!popover.contains(e.target) && e.target !== anchorEl) close();
+  };
+  const onEsc = (e) => { if (e.key === 'Escape') close(); };
+  setTimeout(() => {
+    document.addEventListener('click', onDocClick, true);
+    document.addEventListener('scroll', close, true);
+    document.addEventListener('keydown', onEsc);
+  }, 0);
 }
 
 function renderSubjectsDonut(logs) {
@@ -2575,316 +3542,6 @@ function renderSubjectsDonut(logs) {
   });
 }
 
-function renderSportVolume(acts) {
-  const ctx = document.getElementById('chart-sport-volume');
-  if (!ctx) return;
-  const monday = startOfWeek();
-  const weeks = [];
-  for (let i = 11; i >= 0; i--) {
-    const m = new Date(monday); m.setDate(m.getDate() - i * 7);
-    weeks.push({ start: m, end: new Date(m.getTime() + 7 * 86400000), label: m.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }) });
-  }
-  const distances = [];
-  const paces = [];
-  for (const w of weeks) {
-    const wActs = acts.filter(a => { const d = new Date(a.date); return d >= w.start && d < w.end; });
-    const km = wActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
-    distances.push(Number(km.toFixed(1)));
-    // Allure moyenne pondérée par distance, en min/km
-    let totalSec = 0, totalKm = 0;
-    for (const a of wActs) {
-      if (a.duration && a.distanceKm) {
-        totalSec += a.duration;
-        totalKm += a.distanceKm;
-      }
-    }
-    paces.push(totalKm > 0 ? Number((totalSec / totalKm / 60).toFixed(2)) : null);
-  }
-  // Si jamais aucune sortie : message vide.
-  if (distances.every(d => d === 0)) {
-    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas encore de sorties</div>';
-    return;
-  }
-
-  const ctxC = ctx.getContext('2d');
-  const gradFill = ctxC.createLinearGradient(0, 0, 0, 220);
-  gradFill.addColorStop(0, 'rgba(255, 106, 61, 0.55)');
-  gradFill.addColorStop(1, 'rgba(255, 106, 61, 0.04)');
-
-  State.charts.sportVolume = new Chart(ctx, {
-    data: {
-      labels: weeks.map(w => w.label),
-      datasets: [
-        {
-          type: 'line',
-          label: 'Distance (km)',
-          data: distances,
-          yAxisID: 'y',
-          borderColor: CHART_COLORS.warm,
-          backgroundColor: gradFill,
-          borderWidth: 2.5,
-          tension: 0.35,
-          pointRadius: 4,
-          pointHoverRadius: 6,
-          pointBackgroundColor: '#ffd86b',
-          pointBorderColor: CHART_COLORS.warm,
-          pointBorderWidth: 1.5,
-          fill: true,
-          order: 2
-        },
-        {
-          type: 'line',
-          label: 'Allure (min/km)',
-          data: paces,
-          yAxisID: 'y1',
-          borderColor: CHART_COLORS.cool,
-          backgroundColor: 'transparent',
-          borderWidth: 2,
-          borderDash: [4, 4],
-          tension: 0.3,
-          pointRadius: 3,
-          pointBackgroundColor: CHART_COLORS.cool,
-          pointBorderColor: CHART_COLORS.bg,
-          pointBorderWidth: 1.5,
-          spanGaps: true,
-          fill: false,
-          order: 1
-        }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: {
-        legend: { labels: { color: CHART_COLORS.text, font: { size: 11 }, usePointStyle: true, padding: 14 } },
-        tooltip: chartCommonOptions().plugins.tooltip
-      },
-      scales: {
-        x: {
-          ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 },
-          grid: { display: false }
-        },
-        y: {
-          position: 'left',
-          beginAtZero: true,
-          ticks: { color: CHART_COLORS.warm, font: { size: 10 }, callback: (v) => v + ' km' },
-          grid: { color: CHART_COLORS.grid, drawBorder: false }
-        },
-        y1: {
-          position: 'right',
-          reverse: true, // allure plus rapide = plus haut visuellement
-          ticks: { color: CHART_COLORS.cool, font: { size: 10 }, callback: (v) => {
-            const m = Math.floor(v); const s = Math.round((v - m) * 60);
-            return `${m}:${String(s).padStart(2, '0')}`;
-          }},
-          grid: { display: false }
-        }
-      }
-    }
-  });
-}
-
-// Helper : crée un line chart d'allure avec axe Y inversé.
-function makePaceChart(canvasId, sorted, color, fillColor) {
-  const ctx = document.getElementById(canvasId);
-  if (!ctx) return null;
-  if (sorted.length < 2) {
-    ctx.parentElement.innerHTML = '<div class="chart-empty">Au moins 2 sorties chronométrées</div>';
-    return null;
-  }
-  const paces = sorted.map(a => a.duration / a.distanceKm / 60);
-  const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
-  const best = Math.min(...paces);
-  const worst = Math.max(...paces);
-  const ctxC = ctx.getContext('2d');
-  const grad = ctxC.createLinearGradient(0, 0, 0, 220);
-  grad.addColorStop(0, fillColor);
-  grad.addColorStop(1, 'rgba(0,0,0,0)');
-  return new Chart(ctx, {
-    type: 'line',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Allure',
-        data: paces.map(p => Number(p.toFixed(2))),
-        borderColor: color,
-        backgroundColor: grad,
-        borderWidth: 2.5,
-        tension: 0.35,
-        pointRadius: 5,
-        pointHoverRadius: 7,
-        pointBackgroundColor: color,
-        pointBorderColor: CHART_COLORS.bg,
-        pointBorderWidth: 2,
-        fill: true
-      }]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...chartCommonOptions().plugins.tooltip,
-          callbacks: {
-            label: (c) => {
-              const a = sorted[c.dataIndex];
-              const m = Math.floor(c.parsed.y);
-              const s = Math.round((c.parsed.y - m) * 60);
-              return [`${m}:${String(s).padStart(2, '0')}/km`, `${a.distanceKm} km · ${formatDuration(a.duration)}`];
-            },
-            title: (items) => sorted[items[0].dataIndex].name || items[0].label
-          }
-        }
-      },
-      scales: {
-        x: { ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 }, grid: { display: false } },
-        y: {
-          reverse: true,
-          ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, callback: (v) => {
-            const m = Math.floor(v); const s = Math.round((v - m) * 60);
-            return `${m}:${String(s).padStart(2, '0')}`;
-          }},
-          grid: { color: CHART_COLORS.grid, drawBorder: false },
-          suggestedMin: best - 0.3,
-          suggestedMax: worst + 0.3
-        }
-      }
-    }
-  });
-}
-
-function renderFootingPace(footings) {
-  const sorted = [...footings]
-    .filter(a => a.duration > 0 && a.distanceKm > 0)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-20);
-  State.charts.footingPace = makePaceChart('chart-footing-pace', sorted, CHART_COLORS.gold, 'rgba(255, 216, 107, 0.35)');
-}
-
-function renderTrailDplus(trails) {
-  const ctx = document.getElementById('chart-trail-dplus');
-  if (!ctx) return;
-  const sorted = [...trails].sort((a, b) => a.date.localeCompare(b.date)).slice(-12);
-  if (sorted.length === 0) {
-    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas de trail enregistré</div>';
-    return;
-  }
-  const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
-  const dplus = sorted.map(a => a.elevGain || 0);
-  const km = sorted.map(a => a.distanceKm || 0);
-  State.charts.trailDplus = new Chart(ctx, {
-    data: {
-      labels,
-      datasets: [
-        { type: 'bar', label: 'D+ (m)', data: dplus, backgroundColor: 'rgba(255, 181, 71, 0.7)', borderColor: CHART_COLORS.warm, borderWidth: 1, borderRadius: 4, yAxisID: 'y' },
-        { type: 'line', label: 'Distance (km)', data: km, borderColor: CHART_COLORS.cool, backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 4, pointBackgroundColor: CHART_COLORS.cool, pointBorderColor: CHART_COLORS.bg, pointBorderWidth: 1.5, yAxisID: 'y1' }
-      ]
-    },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      interaction: { mode: 'index', intersect: false },
-      plugins: { legend: { labels: { color: CHART_COLORS.text, font: { size: 11 }, usePointStyle: true, padding: 14 } }, tooltip: chartCommonOptions().plugins.tooltip },
-      scales: {
-        x: { ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0 }, grid: { display: false } },
-        y: { position: 'left', beginAtZero: true, ticks: { color: CHART_COLORS.warm, font: { size: 10 }, callback: (v) => v + ' m' }, grid: { color: CHART_COLORS.grid, drawBorder: false } },
-        y1: { position: 'right', beginAtZero: true, ticks: { color: CHART_COLORS.cool, font: { size: 10 }, callback: (v) => v + ' km' }, grid: { display: false } }
-      }
-    }
-  });
-}
-
-function renderFractionneIntervals(fractionnes) {
-  const root = document.getElementById('fractionne-intervals');
-  if (!root) return;
-  if (fractionnes.length === 0) {
-    root.innerHTML = '<div class="chart-empty">Pas de fractionné enregistré</div>';
-    return;
-  }
-  const last = [...fractionnes].sort((a, b) => b.date.localeCompare(a.date))[0];
-  const intervals = last.intervals || [];
-  if (intervals.length === 0) {
-    root.innerHTML = '<div class="chart-empty">Pas d\'intervalles détectés sur cette sortie</div>';
-    return;
-  }
-  const efforts = intervals.filter(i => i.kind === 'effort');
-  const repos = intervals.filter(i => i.kind === 'repos');
-  const totalEffort = efforts.reduce((s, i) => s + i.duration, 0);
-  const totalRepos = repos.reduce((s, i) => s + i.duration, 0);
-  const avgEffortPace = efforts.length > 0
-    ? Math.round(efforts.reduce((s, i) => s + i.avgPace, 0) / efforts.length)
-    : 0;
-
-  let html = `
-    <div class="totals" style="margin-bottom: 12px;">
-      <div><div class="t-val grad-text">${efforts.length}</div><div class="t-lbl">efforts</div></div>
-      <div><div class="t-val grad-text">${formatDuration(totalEffort)}</div><div class="t-lbl">effort total</div></div>
-      <div><div class="t-val grad-text">${formatDuration(totalRepos)}</div><div class="t-lbl">repos total</div></div>
-      <div><div class="t-val grad-text">${formatPace(avgEffortPace)}</div><div class="t-lbl">allure effort</div></div>
-    </div>
-    <div class="intervals-list">
-  `;
-  for (let i = 0; i < intervals.length; i++) {
-    const it = intervals[i];
-    const isEffort = it.kind === 'effort';
-    html += `
-      <div class="interval-row ${isEffort ? 'effort' : 'repos'}">
-        <div class="interval-label">${isEffort ? '⚡' : '😮‍💨'} ${isEffort ? 'Effort' : 'Repos'} ${isEffort ? Math.ceil((i + 1) / 2) : ''}</div>
-        <div class="interval-meta">${formatDuration(it.duration)} · ${(it.distance / 1000).toFixed(2)} km · ${formatPace(it.avgPace)}</div>
-      </div>
-    `;
-  }
-  html += '</div>';
-  root.innerHTML = html;
-}
-
-function renderWeekendDistance(weekends) {
-  const ctx = document.getElementById('chart-we-distance');
-  if (!ctx) return;
-  const sorted = [...weekends].sort((a, b) => a.date.localeCompare(b.date)).slice(-12);
-  if (sorted.length === 0) {
-    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas de sortie week-end enregistrée</div>';
-    return;
-  }
-  const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
-  const km = sorted.map(a => a.distanceKm || 0);
-  const ctxC = ctx.getContext('2d');
-  const grad = ctxC.createLinearGradient(0, 0, 0, 220);
-  grad.addColorStop(0, 'rgba(124, 92, 255, 0.7)');
-  grad.addColorStop(1, 'rgba(124, 92, 255, 0.1)');
-  State.charts.weDist = new Chart(ctx, {
-    type: 'bar',
-    data: {
-      labels,
-      datasets: [{
-        label: 'Distance',
-        data: km,
-        backgroundColor: grad,
-        borderColor: CHART_COLORS.violet,
-        borderWidth: 1,
-        borderRadius: 4
-      }]
-    },
-    options: {
-      ...chartCommonOptions(),
-      plugins: {
-        legend: { display: false },
-        tooltip: {
-          ...chartCommonOptions().plugins.tooltip,
-          callbacks: {
-            label: (c) => {
-              const a = sorted[c.dataIndex];
-              return [`${c.parsed.y} km · ${formatDuration(a.duration)}`, formatPace(a.avgPace)];
-            },
-            title: (items) => sorted[items[0].dataIndex].name || items[0].label
-          }
-        }
-      }
-    }
-  });
-}
 
 // ============================================================================
 // 18. VIEW : PROFIL
@@ -2955,7 +3612,7 @@ function renderProfil(root) {
   page.appendChild(el('h3', { class: 'mb-2' }, '💾 Sauvegarde'));
   const saveCard = el('div', { class: 'card mb-4' });
   saveCard.innerHTML = `
-    <p class="dim text-sm mb-3">Données stockées localement. Pense à exporter régulièrement.</p>
+    <p class="dim text-sm mb-3">Données stockées localement. Sauvegarde auto au premier lancement de chaque journée (gardé 7 jours).</p>
     <div class="save-actions">
       <button class="btn-gpx" id="btn-export">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -2967,11 +3624,73 @@ function renderProfil(root) {
         <input type="file" accept=".json" hidden id="import-file" />
       </label>
     </div>
+    <div class="dim text-xs mt-3" id="auto-backup-info">Chargement…</div>
   `;
   page.appendChild(saveCard);
-  setTimeout(() => {
+  setTimeout(async () => {
     saveCard.querySelector('#btn-export').addEventListener('click', exportData);
     saveCard.querySelector('#import-file').addEventListener('change', onImportFile);
+    // Affiche la dernière sauvegarde auto.
+    const infoEl = saveCard.querySelector('#auto-backup-info');
+    const backups = await dbAll('backups');
+    backups.sort((a, b) => b.date.localeCompare(a.date));
+    if (backups.length === 0) {
+      infoEl.textContent = 'Aucune sauvegarde auto pour l\'instant.';
+    } else {
+      const last = backups[0];
+      const sizeKb = Math.round(last.size / 1024);
+      const items = backups.map(b => `<button class="auto-backup-item" data-date="${b.date}">${formatDate(b.date)}</button>`).join('');
+      infoEl.innerHTML = `
+        Dernière sauvegarde auto : <strong>${formatDate(last.date)}</strong> · ${sizeKb} Ko<br>
+        <div class="auto-backup-list">${items}</div>
+      `;
+      infoEl.querySelectorAll('.auto-backup-item').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          await downloadAutoBackup(btn.dataset.date);
+        });
+      });
+    }
+  }, 0);
+
+  // Outils avancés (recalcul total, etc.)
+  page.appendChild(el('h3', { class: 'mb-2' }, '⚙️ Outils'));
+  const toolsCard = el('div', { class: 'card mb-4' });
+  toolsCard.innerHTML = `
+    <p class="dim text-sm mb-3">
+      Recalcule l'XP total et les niveaux à partir de l'historique complet (sorties, work logs, quêtes), avec les barèmes courants.
+      Utile après une mise à jour des compétences ou des règles XP. Aucune donnée n'est perdue, seuls les niveaux sont recalculés.
+    </p>
+    <button class="btn-gpx" id="btn-recompute" style="width:100%; justify-content:center;">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+      <span>Recalculer XP totale</span>
+    </button>
+  `;
+  page.appendChild(toolsCard);
+  setTimeout(() => {
+    toolsCard.querySelector('#btn-recompute').addEventListener('click', async () => {
+      if (!confirm('Recalculer XP et niveaux depuis l\'historique complet ?\n\nTes données restent intactes, seul le calcul est refait avec les barèmes courants. Cette opération peut prendre quelques secondes.')) return;
+      const btn = toolsCard.querySelector('#btn-recompute');
+      btn.disabled = true;
+      btn.querySelector('span').textContent = 'Recalcul…';
+      try {
+        const r = await recomputeAllXp();
+        if (r.success) {
+          showToast({
+            type: 'levelup',
+            title: 'Recalcul terminé',
+            text: `${r.totalActivities} sorties · ${r.totalWorkLogs} work logs · ${r.totalCompletions} quêtes · ${r.finalXp} XP`
+          }, 5000);
+          render();
+        } else {
+          showToast({ type: 'err', title: 'Échec', text: r.reason || 'Erreur inconnue' });
+        }
+      } catch (err) {
+        showToast({ type: 'err', title: 'Erreur', text: err.message });
+      } finally {
+        btn.disabled = false;
+        btn.querySelector('span').textContent = 'Recalculer XP totale';
+      }
+    });
   }, 0);
 
   // Footer version : juste l'info, discret.
@@ -2987,8 +3706,10 @@ function renderProfil(root) {
 // 19. EXPORT/IMPORT JSON
 // ============================================================================
 
-async function exportData() {
-  const data = {
+// Construit le snapshot complet de l'app (utilisé par export et backup auto).
+// `backups` lui-même est volontairement EXCLU pour éviter la récursion.
+async function buildSnapshot() {
+  return {
     version: 1,
     exportedAt: new Date().toISOString(),
     profile: await dbAll('profile'),
@@ -3001,15 +3722,61 @@ async function exportData() {
     records: await dbAll('records'),
     meta: await dbAll('meta')
   };
+}
+
+async function exportData() {
+  const data = await buildSnapshot();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `orion-backup-${new Date().toISOString().slice(0, 10)}.json`;
+  a.download = `orion-backup-${todayKey()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+// Sauvegarde auto au premier lancement de la journée. Stockée en IndexedDB
+// (store `backups`), garde les 7 dernières. Idempotent : si une sauvegarde
+// du jour existe déjà, ne fait rien.
+async function maybeAutoBackup() {
+  try {
+    const today = todayKey();
+    const existing = await dbGet('backups', today);
+    if (existing) return { skipped: true };
+
+    const snapshot = await buildSnapshot();
+    const json = JSON.stringify(snapshot);
+    await dbPut('backups', { date: today, json, size: json.length, createdAt: new Date().toISOString() });
+
+    // Garde les 7 dernières sauvegardes.
+    const all = await dbAll('backups');
+    all.sort((a, b) => b.date.localeCompare(a.date));
+    for (let i = 7; i < all.length; i++) {
+      await dbDelete('backups', all[i].date);
+    }
+    await dbPut('meta', { key: 'lastAutoBackup', value: today });
+    return { created: true, date: today, size: json.length };
+  } catch (err) {
+    return { error: err.message };
+  }
+}
+
+// Télécharge un backup automatique précédemment stocké.
+async function downloadAutoBackup(date) {
+  const b = await dbGet('backups', date);
+  if (!b) return false;
+  const blob = new Blob([b.json], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `orion-backup-${date}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return true;
 }
 
 async function onImportFile(e) {
@@ -3057,6 +3824,10 @@ async function init() {
   // Applique les malus/bonus pour les jours/semaines déjà passés depuis la rentrée.
   const tick = await applyPendingPenalties();
   await loadAll();
+
+  // Sauvegarde automatique : 1× par jour au premier lancement.
+  // Silencieuse : on ne notifie que si elle a réellement créé un snapshot.
+  maybeAutoBackup().catch(() => {});
 
   document.getElementById('app').classList.remove('hidden');
   document.getElementById('tabbar').classList.remove('hidden');

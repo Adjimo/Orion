@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'helios-v4';
+const VERSION = 'helios-v5';
 const ASSETS = [
   './',
   './index.html',

@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '2.00';
+const APP_VERSION = '2.03';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -1376,28 +1376,27 @@ function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activit
   const goalVdot = daniels_solveVDOTfromTime(goal.distance, goal.timeS);
   const vdotGap = currentVdot ? Math.round((goalVdot - currentVdot) * 10) / 10 : null;
 
-  // Distance type pour chaque dimension d'entraînement (heuristique Daniels).
-  // On dimensionne les séances d'après l'objectif pour qu'elles aient du sens.
+  // Distance type pour chaque dimension d'entraînement (heuristique Daniels),
+  // bornée pour rester sous ~30 km/sem en 4 sorties max.
   const km = goal.distance / 1000;
-  const longKm = Math.round(Math.min(km * 1.2, km < 21 ? km + 5 : 32));         // sortie longue ≈ 1.2× distance, plafond 32
-  const tempoKm = km <= 10 ? 4 : km <= 21 ? 6 : 10;                               // tempo 20-40 min selon objectif
-  // Fractios : selon distance, format adapté
+  const longKm = Math.round(Math.min(km * 1.2, 14));               // sortie longue plafond 14 km
+  const tempoKm = km <= 10 ? 4 : km <= 21 ? 5 : 6;                  // tempo plus court (20-30 min max)
+  // Fractios : selon distance, format adapté (volume effort modeste)
   let fractioFormat;
-  if (km <= 5)        fractioFormat = `8 × 400 m allure ${formatPace(goalPaces.I)} · récup 200 m lent`;
-  else if (km <= 10)  fractioFormat = `6 × 800 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
-  else if (km <= 15)  fractioFormat = `5 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
-  else if (km <= 21)  fractioFormat = `4 × 1500 m allure ${formatPace(goalPaces.I)} · récup 600 m lent`;
-  else                fractioFormat = `5 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
-  // Footing : plus court que la sortie longue
-  const easyKm = km <= 10 ? 6 : km <= 21 ? 8 : 10;
+  if (km <= 5)        fractioFormat = `6 × 400 m allure ${formatPace(goalPaces.I)} · récup 200 m lent`;
+  else if (km <= 10)  fractioFormat = `5 × 800 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
+  else if (km <= 15)  fractioFormat = `4 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
+  else if (km <= 21)  fractioFormat = `3 × 1500 m allure ${formatPace(goalPaces.I)} · récup 600 m lent`;
+  else                fractioFormat = `4 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
+  // Footings courts pour un total maîtrisé
+  const easyKm = km <= 10 ? 5 : 6;
 
-  // Volume hebdo cible standard
+  // Volume hebdo cible : volontairement modeste, plafonné à 30 km / 4 sorties.
   let weeklyKm;
-  if (km <= 5)        weeklyKm = 25;
-  else if (km <= 10)  weeklyKm = 35;
-  else if (km <= 15)  weeklyKm = 45;
-  else if (km <= 21)  weeklyKm = 55;
-  else                weeklyKm = 70;
+  if (km <= 5)        weeklyKm = 20;
+  else if (km <= 10)  weeklyKm = 25;
+  else if (km <= 15)  weeklyKm = 28;
+  else                weeklyKm = 30;
 
   // Volume hebdo récent (4 dernières semaines)
   const fourWeeksAgo = Date.now() - 28 * 86400000;
@@ -1448,12 +1447,12 @@ function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activit
     ${progressLine}
     <div class="goal-feas" style="border-left-color: ${feasColor}">${escapeHtml(feasibility.text)}</div>
 
-    <div class="goal-section-title">📋 Plan-type hebdomadaire (${weeklyKm} km/sem cible)</div>
+    <div class="goal-section-title">📋 Plan-type hebdomadaire (~${weeklyKm} km / 4 sorties)</div>
     <div class="goal-sessions">
       <div class="goal-session">
         <div class="goal-session-icon">🏃</div>
         <div class="goal-session-body">
-          <div class="goal-session-title">2× Footing facile</div>
+          <div class="goal-session-title">1× Footing facile</div>
           <div class="goal-session-detail">${easyKm} km à <span class="mono">${formatPace(goalPaces.E)}</span> · respiration confortable, tu peux parler</div>
         </div>
       </div>
@@ -3280,61 +3279,6 @@ function renderStats(root) {
       <div><div class="t-val grad-text">${acts.length}</div><div class="t-lbl">sorties</div></div>
     </div>
   `}));
-
-  // ── Forme actuelle (charge) ────────────────────────────────────────────
-  const load = trainingLoadStats(acts);
-  const tsbColor = load.advice.tone === 'cool' ? 'var(--accent-cool)'
-                 : load.advice.tone === 'warm' ? 'var(--accent-warm)'
-                 : 'var(--gold)';
-  // Allure-seuil personnalisée (formatée pour l'explication)
-  const thrM = Math.floor(load.thresholdS / 60);
-  const thrS = Math.round(load.thresholdS % 60);
-  const thrLabel = `${thrM}:${String(thrS).padStart(2, '0')}/km`;
-
-  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🔋 Forme actuelle'));
-  const loadCard = el('div', { class: 'card mb-3' });
-  loadCard.innerHTML = `
-    <div class="flex between mb-2">
-      <div class="dim text-xs">Volume d'entraînement récent</div>
-      <button class="info-btn" id="load-info-toggle" title="Plus d'infos">ℹ️</button>
-    </div>
-    <div class="load-grid">
-      <div class="load-card">
-        <div class="load-val" style="color: var(--gold)">${load.ctl}</div>
-        <div class="load-lbl">Forme</div>
-        <div class="load-hint">28 derniers jours</div>
-      </div>
-      <div class="load-card">
-        <div class="load-val" style="color: var(--accent-warm)">${load.atl}</div>
-        <div class="load-lbl">Charge récente</div>
-        <div class="load-hint">7 derniers jours</div>
-      </div>
-      <div class="load-card">
-        <div class="load-val" style="color: ${tsbColor}">${load.tsb >= 0 ? '+' : ''}${load.tsb}</div>
-        <div class="load-lbl">Équilibre</div>
-        <div class="load-hint">forme − charge</div>
-      </div>
-    </div>
-    <div class="load-advice" style="border-left-color: ${tsbColor}">${escapeHtml(load.advice.text)}</div>
-    <div class="load-explainer hidden" id="load-explainer">
-      <p><strong>Comment ça marche</strong></p>
-      <p>On évalue chaque sortie selon sa durée et son intensité (allure × dénivelé), puis on cumule.</p>
-      <ul>
-        <li><strong>Forme</strong> : ta moyenne de charge sur 28 jours. Plus c'est élevé, plus tu encaisses du volume sans souci.</li>
-        <li><strong>Charge récente</strong> : les 7 derniers jours. Si elle dépasse beaucoup ta forme, tu pousses fort.</li>
-        <li><strong>Équilibre</strong> : positif = tu es frais et peux pousser ; négatif = tu travailles dur ; très négatif = tu pourrais avoir besoin de récup. <em>Si tu te sens bien, fie-toi à ton ressenti — l'indicateur est une référence, pas une vérité.</em></li>
-      </ul>
-      <p class="dim text-xs">Allure de référence calibrée sur ton historique : <span class="mono">${thrLabel}</span>.</p>
-    </div>
-  `;
-  page.appendChild(loadCard);
-  setTimeout(() => {
-    const toggle = loadCard.querySelector('#load-info-toggle');
-    const explainer = loadCard.querySelector('#load-explainer');
-    toggle.addEventListener('click', () => {
-      explainer.classList.toggle('hidden');
-    });
-  }, 0);
 
   // ── Performance (VDOT + prédictions de chronos + allures cibles) ───────
   const vdot = currentVDOT(acts);

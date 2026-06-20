@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '2.04';
+const APP_VERSION = '2.05';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -279,35 +279,31 @@ const DAYS = [
 
 // Schedule recalibré pour la rentrée :
 // - Travail : lun 4h / mar 4h / mer 2h30 / jeu 4h / ven 6h / sam 8h / dim 8h = 35h
-// - Sport (catégories alignées sur les zones Daniels E/M/T/I/R) :
+// - Sport (5 catégories alignées sur les zones Daniels qui ont une séance hebdo) :
 //   * lun footing (E)         → endurance facile, récup mentale
-//   * mar renforcement        → musculation, gainage (séance courte)
+//   * mar libre               → pas de séance course (renfo si tu veux, hors GPX)
 //   * mer fractionné (I)      → VMA, intervalles courts
-//   * jeu renforcement
+//   * jeu libre
 //   * ven seuil (T)           → tempo, allure soutenue contrôlée
 //   * sam OU dim sortie longue → volume, allure E/M
 const DEFAULT_SCHEDULE = [
   { id: 'mon', sport: 'required', sportType: 'footing',       workHours: 4   },
-  { id: 'tue', sport: 'required', sportType: 'renforcement',  workHours: 4   },
+  { id: 'tue', sport: 'free',     sportType: null,            workHours: 4   },
   { id: 'wed', sport: 'required', sportType: 'fractionne',    workHours: 2.5 },
-  { id: 'thu', sport: 'required', sportType: 'renforcement',  workHours: 4   },
+  { id: 'thu', sport: 'free',     sportType: null,            workHours: 4   },
   { id: 'fri', sport: 'required', sportType: 'seuil',         workHours: 6   },
   { id: 'sat', sport: 'weekend',  sportType: 'sortie-longue', workHours: 8   },
   { id: 'sun', sport: 'weekend',  sportType: 'sortie-longue', workHours: 8   }
 ];
 
-// Catégories de sport, alignées sur les 5 zones d'entraînement Daniels (E/M/T/I/R)
-// + 2 catégories spécifiques (trail, renforcement) qui sortent du cadre Daniels.
-// Chaque catégorie indique sa zone de référence pour cohérence avec "Mon objectif".
+// 5 catégories de sport. Toutes correspondent à une séance hebdo régulière
+// (footing/fractionne/seuil/sortie-longue) ou à une sortie spécifique (trail).
 const SPORT_TYPES = {
   footing:        { label: 'Footing',         icon: '🏃',  desc: 'Endurance facile (zone E)',       zone: 'E' },
-  endurance:      { label: 'Endurance',       icon: '🛤️', desc: 'Allure marathon (zone M)',         zone: 'M' },
   seuil:          { label: 'Seuil',           icon: '🔥',  desc: 'Tempo, allure seuil (zone T)',     zone: 'T' },
   fractionne:     { label: 'Fractionné',      icon: '⚡',  desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
-  vitesse:        { label: 'Vitesse',         icon: '💨',  desc: 'Sprint, allure max (zone R)',      zone: 'R' },
-  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' },
   'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  desc: 'Volume long, allure E/M' },
-  renforcement:   { label: 'Renforcement',    icon: '💪',  desc: 'Musculation, gainage' }
+  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' }
 };
 
 async function getTodayPlan() {
@@ -540,7 +536,7 @@ async function recomputeAutoQuests() {
     const weekActs = acts.filter(a => new Date(a.date) >= ws);
     // On compte toutes les sorties de course (renforcement n'en est pas une).
     const courseCount = weekActs.filter(a =>
-      ['footing', 'endurance', 'seuil', 'fractionne', 'vitesse', 'trail', 'sortie-longue', 'course'].includes(a.type)
+      ['footing', 'seuil', 'fractionne', 'sortie-longue', 'trail', 'course'].includes(a.type)
     ).length;
     await setQuestValue(sortiesQ, courseCount);
   }
@@ -1084,30 +1080,20 @@ function activityXp(parsed, category) {
   let allureXp = Math.round(km * 25 * intensity);
 
   // Modulations par catégorie. Les bonus reflètent la difficulté physiologique :
-  // les zones plus intenses (T, I, R) sont plus dures donc allure XP majorée.
+  // les zones plus intenses (T, I) sont plus dures donc allure XP majorée.
   let categoryBonus = 0;
   if (cat === 'trail') {
     enduranceXp = Math.round(enduranceXp * 1.1);
     categoryBonus = Math.round(dPlus * 1.2); // bonus D+ exclusif au trail
-  } else if (cat === 'endurance') {
-    // Zone M : footing soutenu, légère prime
-    enduranceXp = Math.round(enduranceXp * 1.15);
-    allureXp = Math.round(allureXp * 1.10);
   } else if (cat === 'seuil') {
     // Zone T : tempo, allure soutenue contrôlée
     allureXp = Math.round(allureXp * 1.30);
   } else if (cat === 'fractionne') {
     // Zone I : VMA
     allureXp = Math.round(allureXp * 1.5);
-  } else if (cat === 'vitesse') {
-    // Zone R : sprint, allure max — prime allure forte
-    allureXp = Math.round(allureXp * 1.8);
   } else if (cat === 'sortie-longue') {
     enduranceXp = Math.round(enduranceXp * 2);
     allureXp = Math.round(allureXp * 1.3);
-  } else if (cat === 'renforcement') {
-    // Forfait : pas de GPX généralement, on retourne un petit montant fixe.
-    return { xp: 80, skills: { discipline: 25 } };
   }
   // 'footing' (E) : pas de modulation, baseline
 
@@ -2112,6 +2098,11 @@ async function migrateData() {
     let dirty = false;
     if (a.type === 'sortie-we') {
       a.type = 'sortie-longue';
+      dirty = true;
+    }
+    // Catégories supprimées (v2.04 → v2.05) : on rebascule sur footing.
+    if (a.type === 'endurance' || a.type === 'vitesse' || a.type === 'renforcement') {
+      a.type = 'footing';
       dirty = true;
     }
     if (a.xpAwarded == null) {
@@ -3166,8 +3157,8 @@ async function deleteActivity(activity) {
 async function editActivity(activity) {
   const overlay = el('div', { class: 'gpx-preview-overlay' });
   const modal = el('div', { class: 'gpx-preview-modal' });
-  // Liste de catégories (alignée sur les 7 SPORT_TYPES + footing).
-  const cats = ['footing', 'endurance', 'seuil', 'fractionne', 'vitesse', 'trail', 'sortie-longue', 'renforcement'];
+  // Liste des 5 catégories de sport.
+  const cats = ['footing', 'seuil', 'fractionne', 'sortie-longue', 'trail'];
   modal.innerHTML = `
     <div class="gpx-preview-head">
       <div class="gpx-preview-title">

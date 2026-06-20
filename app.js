@@ -5,6 +5,9 @@
 
 'use strict';
 
+// Version sémantique app affichée dans le profil. Incrémente à chaque release.
+const APP_VERSION = '1.00';
+
 // ============================================================================
 // 1. ÉTAT GLOBAL
 // ============================================================================
@@ -176,8 +179,8 @@ function deriveLevel(totalXp) {
 }
 
 const SKILL_META = {
-  endurance:  { label: 'Endurance',  icon: '🏃', color: '#5cc8ff', desc: 'Distance au sol.' },
-  montagne:   { label: 'Montagne',   icon: '⛰️', color: '#ffb547', desc: 'Dénivelé conquis.' },
+  endurance:  { label: 'Endurance',  icon: '🏃', color: '#5cc8ff', desc: 'Volume kilométrique.' },
+  allure:     { label: 'Allure',     icon: '⚡', color: '#ff6a3d', desc: 'Performance pure.' },
   maths:      { label: 'Maths',      icon: '🧮', color: '#7c5cff', desc: 'DM, exos, démos.' },
   physique:   { label: 'Physique',   icon: '⚛️', color: '#a78bfa', desc: 'Mécanique, thermo, ondes.' },
   si:         { label: 'SI / Info',  icon: '🔬', color: '#f472b6', desc: 'Sciences ingé / info.' },
@@ -216,7 +219,7 @@ const DEFAULT_PROFILE = {
   level: 1,
   skills: {
     endurance:  { xp: 0, level: 1 },
-    montagne:   { xp: 0, level: 1 },
+    allure:     { xp: 0, level: 1 },
     maths:      { xp: 0, level: 1 },
     physique:   { xp: 0, level: 1 },
     si:         { xp: 0, level: 1 },
@@ -224,9 +227,7 @@ const DEFAULT_PROFILE = {
     lettres:    { xp: 0, level: 1 },
     discipline: { xp: 0, level: 1 }
   },
-  streak: 0,
-  lastActiveDate: null,
-  bestStreak: 0
+  lastActiveDate: null
 };
 
 async function awardXp(amount, skillGains = {}) {
@@ -276,22 +277,29 @@ const DAYS = [
   { key: 'sun', label: 'Dimanche' }
 ];
 
+// Schedule recalibré pour la rentrée :
+// - Travail : lun 4h / mar 4h / mer 2h30 / jeu 4h / ven 6h / sam 8h / dim 8h = 35h
+// - Sport :
+//   * lun footing, mer fractionné, ven footing → required (séances structurées)
+//   * mar et jeu : renforcement musculation (séance courte, XP faible mais malus si non fait)
+//   * sam OU dim : sortie week-end (flexible, XP doublé) — l'utilisateur la place
+//     sur l'un des deux jours via l'import GPX
 const DEFAULT_SCHEDULE = [
-  { id: 'mon', sport: 'required', sportType: 'course', workHours: 4 },
-  { id: 'tue', sport: 'required', sportType: 'course', workHours: 4 },
-  { id: 'wed', sport: 'free',     sportType: null,     workHours: 6 },
-  { id: 'thu', sport: 'free',     sportType: null,     workHours: 5 },
-  { id: 'fri', sport: 'required', sportType: 'course', workHours: 4 },
-  { id: 'sat', sport: 'free',     sportType: null,     workHours: 8 },
-  { id: 'sun', sport: 'free',     sportType: null,     workHours: 6 }
+  { id: 'mon', sport: 'required', sportType: 'footing',       workHours: 4   },
+  { id: 'tue', sport: 'required', sportType: 'renforcement',  workHours: 4   },
+  { id: 'wed', sport: 'required', sportType: 'fractionne',    workHours: 2.5 },
+  { id: 'thu', sport: 'required', sportType: 'renforcement',  workHours: 4   },
+  { id: 'fri', sport: 'required', sportType: 'footing',       workHours: 6   },
+  { id: 'sat', sport: 'weekend',  sportType: 'sortie-we',     workHours: 8   },
+  { id: 'sun', sport: 'weekend',  sportType: 'sortie-we',     workHours: 8   }
 ];
 
 const SPORT_TYPES = {
-  course: { label: 'Course', icon: '🏃' },
-  fractionne: { label: 'Fractionné', icon: '⚡' },
-  long: { label: 'Sortie longue', icon: '🛤️' },
-  trail: { label: 'Trail', icon: '⛰️' },
-  rando: { label: 'Randonnée', icon: '🥾' }
+  footing:      { label: 'Footing',         icon: '🏃', desc: 'Endurance fondamentale' },
+  fractionne:   { label: 'Fractionné',      icon: '⚡', desc: 'Vitesse, intervalles' },
+  trail:        { label: 'Trail',           icon: '⛰️', desc: 'D+ et terrain technique' },
+  'sortie-we':  { label: 'Sortie week-end', icon: '🌄', desc: 'Volume long' },
+  renforcement: { label: 'Renforcement',    icon: '💪', desc: 'Musculation, gainage' }
 };
 
 async function getTodayPlan() {
@@ -303,13 +311,18 @@ async function getTodayPlan() {
 // 6. WORK TIME (saisie de travail unifiée)
 // ============================================================================
 
+// Multiplicateurs calibrés pour que chaque skill progresse à un rythme proche
+// du niveau global, étant donné une répartition réaliste du temps de travail
+// (maths ~55%, physique ~40%, anglais ~5%, français ~5%, SI ~5%).
+// Une matière qui prend une grande part du temps a un mult faible (déjà bcp d'XP),
+// une matière minoritaire a un mult fort pour compenser.
 const SUBJECTS = {
-  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 0.55 },
-  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 0.65 },
-  si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 1.40 },
-  langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 0.90 },
-  francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 0.90 },
-  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.50 }
+  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 1.10 },
+  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 1.30 },
+  si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 4.00 },
+  langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 4.00 },
+  francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 4.00 },
+  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.40 }
 };
 
 function baseXpForGoal(goalHours) {
@@ -378,7 +391,9 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
       newSkillsXp[meta.skill] = (newSkillsXp[meta.skill] || 0) + Math.round(newXp * portion * mult);
     }
   }
-  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.25);
+  // Discipline : juste un nudge (10%), pour ne pas qu'elle monte plus vite
+  // que les matières avec une vraie charge horaire.
+  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.10);
 
   const xpDelta = newXp - lastXp;
   const skillsDelta = {};
@@ -420,11 +435,12 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
 const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
   { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#ff6a3d', autoFromActivities: true, category: 'main' },
-  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 30, skill: 'discipline', icon: '⏱️', color: '#ffb547', autoFromWorkLog: true, category: 'main' },
+  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: '⏱️', color: '#ffb547', autoFromWorkLog: true, category: 'main' },
   { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#5cc8ff', category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
   { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#5cc8ff', autoFromLangues: true, category: 'secondary' },
-  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#ffd86b', autoFromLettres: true, category: 'secondary' }
+  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#ffd86b', autoFromLettres: true, category: 'secondary' },
+  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: '🔬', color: '#f472b6', autoFromSi: true, category: 'secondary' }
 ];
 
 function computeCountXp(actualCount, goalCount) {
@@ -464,7 +480,7 @@ async function setQuestValue(quest, newValue) {
 
   const newSkillsXp = {};
   if (quest.skill) newSkillsXp[quest.skill] = Math.round(newXp * 0.7);
-  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.2);
+  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.08);
 
   const xpDelta = newXp - lastXp;
   const skillsDelta = {};
@@ -503,7 +519,10 @@ async function setQuestValue(quest, newValue) {
 
 async function recomputeAutoQuests() {
   const ws = startOfWeek();
-  const weekStart = ws.toISOString().slice(0, 10);
+  // todayKey() respecte la timezone locale, contrairement à toISOString().
+  // Sans ça, lun 00:30 local renvoie un timestamp dimanche en UTC et la
+  // quête de la nouvelle semaine pioche les workLogs de la semaine d'avant.
+  const weekStart = todayKey(ws);
   const acts = await dbAll('activities');
   const logs = await dbAll('workLog');
   const quests = await dbAll('quests');
@@ -511,7 +530,10 @@ async function recomputeAutoQuests() {
   const sortiesQ = quests.find(q => q.id === 'wq-runs');
   if (sortiesQ) {
     const weekActs = acts.filter(a => new Date(a.date) >= ws);
-    const courseCount = weekActs.filter(a => a.type === 'course' || a.type === 'trail').length;
+    // On compte toutes les sorties de course (renforcement n'en est pas une).
+    const courseCount = weekActs.filter(a =>
+      ['footing', 'fractionne', 'trail', 'sortie-we', 'course'].includes(a.type)
+    ).length;
     await setQuestValue(sortiesQ, courseCount);
   }
   const workQ = quests.find(q => q.id === 'wq-work');
@@ -539,6 +561,16 @@ async function recomputeAutoQuests() {
       lettresMin += (bs.francais || 0);
     }
     await setQuestValue(lettresQ, lettresMin);
+  }
+  const siQ = quests.find(q => q.id === 'wq-si');
+  if (siQ) {
+    const weekLogs = logs.filter(l => l.date >= weekStart);
+    let siMin = 0;
+    for (const l of weekLogs) {
+      const bs = l.bySubject || {};
+      siMin += (bs.si || 0);
+    }
+    await setQuestValue(siQ, siMin);
   }
 }
 
@@ -688,7 +720,7 @@ async function applyPendingPenalties() {
           const dayXp = log?.lastXpAwarded || 0;
           const malusXp = Math.round(dayXp * factor);
           if (malusXp > 0) {
-            await removeXp(malusXp, { discipline: Math.round(malusXp * 0.5) });
+            await removeXp(malusXp, { discipline: Math.round(malusXp * 0.20) });
             applied.push({ kind: 'daily-work', date: dk, xp: malusXp, percent: factor, ratio });
           }
         }
@@ -725,7 +757,7 @@ async function applyPendingPenalties() {
       totalMalusFactor = Math.min(0.8, totalMalusFactor);
       if (totalMalusFactor > 0 && weekXp > 0) {
         const malusXp = Math.round(weekXp * totalMalusFactor);
-        await removeXp(malusXp, { discipline: Math.round(malusXp * 0.5) });
+        await removeXp(malusXp, { discipline: Math.round(malusXp * 0.20) });
         applied.push({ kind: 'weekly-malus', week: wk, xp: malusXp, percent: totalMalusFactor, weekXp, details: malusDetails });
       }
 
@@ -739,7 +771,7 @@ async function applyPendingPenalties() {
           const bonusXp = Math.round(fullXp * f);
           const skills = {};
           if (q.skill) skills[q.skill] = Math.round(bonusXp * 0.7);
-          skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.2);
+          skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.08);
           await awardXp(bonusXp, skills);
           applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, xp: bonusXp, percent: f, ratio });
         }
@@ -846,11 +878,145 @@ function haversine(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Détecte la catégorie d'une sortie. Combine la date (week-end ?) à l'analyse
+// de la trace (D+/km pour le trail, variance d'allure pour le fractionné).
+// Retourne 'footing' | 'trail' | 'fractionne' | 'sortie-we'.
 function detectActivityType(parsed) {
+  const date = new Date(parsed.date);
+  const dayOfWeek = date.getDay(); // 0 = dimanche, 6 = samedi
+  const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const dPlusPerKm = parsed.distanceKm > 0 ? parsed.elevGain / parsed.distanceKm : 0;
-  if (dPlusPerKm > 30) return 'trail';
-  if (parsed.avgSpeed < 6) return 'rando';
-  return 'course';
+  const isLong = parsed.distanceKm >= 12; // sortie longue typique du week-end
+
+  // Trail : beaucoup de D+ par km, prioritaire (peut être un trail le dimanche).
+  if (dPlusPerKm > 25) return 'trail';
+
+  // Sortie week-end : samedi ou dimanche ET distance "longue".
+  if (isWeekend && isLong) return 'sortie-we';
+
+  // Fractionné : on regarde la variance des speeds entre points consécutifs.
+  if (detectFractionnePattern(parsed.points)) return 'fractionne';
+
+  return 'footing';
+}
+
+// Vrai si la trace présente une alternance significative entre phases rapides
+// et phases lentes — signe d'un fractionné. Heuristique : on segmente en
+// fenêtres de 30s, on calcule l'allure de chaque fenêtre, et si la dispersion
+// (écart-type / moyenne) dépasse 0.18 ET qu'au moins 4 alternances ont lieu,
+// c'est un fractionné.
+function detectFractionnePattern(points) {
+  if (!points || points.length < 30) return false;
+  const windows = [];
+  let winStart = 0;
+  for (let i = 1; i < points.length; i++) {
+    const a = points[winStart], b = points[i];
+    if (!a.time || !b.time) { winStart = i; continue; }
+    if ((b.time - a.time) >= 30000) { // fenêtre de 30s
+      let dist = 0;
+      for (let j = winStart + 1; j <= i; j++) {
+        const p = points[j - 1], q = points[j];
+        dist += haversine(p.lat, p.lon, q.lat, q.lon);
+      }
+      const dt = (b.time - a.time) / 1000;
+      const speed = dist / dt; // m/s
+      windows.push(speed);
+      winStart = i;
+    }
+  }
+  if (windows.length < 8) return false;
+  const mean = windows.reduce((s, v) => s + v, 0) / windows.length;
+  if (mean <= 0) return false;
+  const variance = windows.reduce((s, v) => s + (v - mean) ** 2, 0) / windows.length;
+  const cv = Math.sqrt(variance) / mean; // coefficient de variation
+  // Compte les "alternances" : transitions au-dessus / au-dessous de la moyenne.
+  let alt = 0;
+  for (let i = 1; i < windows.length; i++) {
+    if ((windows[i] >= mean) !== (windows[i - 1] >= mean)) alt++;
+  }
+  return cv >= 0.18 && alt >= 4;
+}
+
+// Génère un nom par défaut pour une activité importée selon sa catégorie + date.
+function defaultActivityName(category, date) {
+  const meta = SPORT_TYPES[category] || SPORT_TYPES.footing;
+  const d = new Date(date);
+  const dayLabel = d.toLocaleDateString('fr-FR', { weekday: 'short', day: 'numeric', month: 'short' });
+  return `${meta.label} · ${dayLabel}`;
+}
+
+// Icône d'une activité selon son type (toutes catégories : nouvelles + legacy).
+function activityTypeIcon(type) {
+  return SPORT_TYPES[type]?.icon
+    || (type === 'trail' ? '⛰️' : type === 'rando' ? '🥾' : '🏃');
+}
+
+// Analyse une trace de fractionné : segmente en phases d'effort et de récupération
+// par seuillage de la vitesse autour d'une médiane glissante. Renvoie la liste
+// des intervalles { kind: 'effort' | 'repos', duration: s, distance: m, avgPace: s/km }.
+function analyseIntervals(points) {
+  if (!points || points.length < 10) return [];
+  // Construit une série de points avec speed instantanée (m/s) lissée sur 5s.
+  const series = [];
+  for (let i = 1; i < points.length; i++) {
+    const a = points[i - 1], b = points[i];
+    if (!a.time || !b.time) continue;
+    const dt = (b.time - a.time) / 1000;
+    if (dt <= 0) continue;
+    const dist = haversine(a.lat, a.lon, b.lat, b.lon);
+    series.push({ t: b.time, speed: dist / dt, dist, dt });
+  }
+  if (series.length < 10) return [];
+
+  // Calcule la médiane des speeds.
+  const sortedSpeeds = [...series.map(s => s.speed)].sort((a, b) => a - b);
+  const median = sortedSpeeds[Math.floor(sortedSpeeds.length / 2)];
+  // Seuils : effort > 1.15 × médiane, repos < 0.85 × médiane. Hystérésis.
+  const effortThr = median * 1.15;
+  const reposThr = median * 0.85;
+
+  // Classe chaque échantillon, en évitant les sauts trop courts (< 8s).
+  const intervals = [];
+  let cur = null; // {kind, startIdx}
+  for (let i = 0; i < series.length; i++) {
+    const sp = series[i].speed;
+    let kind;
+    if (sp >= effortThr) kind = 'effort';
+    else if (sp <= reposThr) kind = 'repos';
+    else kind = cur?.kind || 'repos'; // zone neutre : on conserve le précédent
+    if (!cur) {
+      cur = { kind, startIdx: i };
+    } else if (cur.kind !== kind) {
+      // Ferme le précédent, ouvre le nouveau.
+      const seg = series.slice(cur.startIdx, i);
+      const dur = seg.reduce((s, p) => s + p.dt, 0);
+      const dist = seg.reduce((s, p) => s + p.dist, 0);
+      // On filtre les segments trop courts pour ne pas avoir de bruit.
+      if (dur >= 8) {
+        intervals.push({
+          kind: cur.kind,
+          duration: Math.round(dur),
+          distance: Math.round(dist),
+          avgPace: dist > 0 ? Math.round(dur / (dist / 1000)) : 0
+        });
+      }
+      cur = { kind, startIdx: i };
+    }
+  }
+  if (cur) {
+    const seg = series.slice(cur.startIdx);
+    const dur = seg.reduce((s, p) => s + p.dt, 0);
+    const dist = seg.reduce((s, p) => s + p.dist, 0);
+    if (dur >= 8) {
+      intervals.push({
+        kind: cur.kind,
+        duration: Math.round(dur),
+        distance: Math.round(dist),
+        avgPace: dist > 0 ? Math.round(dur / (dist / 1000)) : 0
+      });
+    }
+  }
+  return intervals;
 }
 
 function formatDuration(seconds) {
@@ -869,16 +1035,67 @@ function formatPace(secondsPerKm) {
   return `${m}:${String(s).padStart(2, '0')}/km`;
 }
 
-function activityXp(parsed) {
-  // Calibré pour 3 sorties/semaine moyenne (10 km, 200 m D+) ≈ 1800 XP/sem sport.
-  // Montagne fortement boostée pour compenser le faible volume de D+.
-  const xp = Math.round(parsed.distanceKm * 28 + parsed.elevGain * 1.6);
+// Calcul XP d'une activité GPX, basé sur deux dimensions séparées :
+// - ENDURANCE : strictement proportionnel au volume kilométrique. Plus tu cours
+//   loin, plus tu gagnes — indépendamment de la vitesse.
+// - ALLURE : reflète la performance pure. Plus tu es rapide (allure plus
+//   basse en s/km), plus tu gagnes. Référence : footing à 5:30/km = 0 bonus,
+//   chaque seconde gagnée par km = bonus, plafonné à un seuil "élite" de 3:30/km.
+//
+// Le type de sortie module la pondération :
+//   - footing       : équilibré
+//   - fractionne    : prime à l'allure
+//   - trail         : prime à l'endurance + bonus D+
+//   - sortie-we     : XP doublé (sortie longue, effort soutenu)
+//   - renforcement  : forfait minimal (séance courte non-GPS)
+function activityXp(parsed, category) {
+  const cat = category || parsed.type || 'footing';
+  const km = parsed.distanceKm || 0;
+  const dPlus = parsed.elevGain || 0;
+  const avgPaceSec = parsed.avgPace || 0; // s/km, 0 si pas de timing
+  const PACE_REF = 5 * 60 + 30;     // 5:30/km = 0 bonus
+  const PACE_MIN = 3 * 60 + 30;     // 3:30/km = bonus max
+  const PACE_MAX = 7 * 60 + 30;     // au-delà : bonus négatif (très lent)
+
+  // Endurance : 25 XP/km de base
+  let enduranceXp = Math.round(km * 25);
+
+  // Allure : intensité (0 = ref, 1 = élite, négatif = en deçà ref)
+  let intensity = 0;
+  if (avgPaceSec > 0) {
+    if (avgPaceSec <= PACE_REF) {
+      intensity = (PACE_REF - avgPaceSec) / (PACE_REF - PACE_MIN);
+    } else {
+      intensity = (PACE_REF - avgPaceSec) / (PACE_MAX - PACE_REF);
+    }
+    intensity = Math.max(-0.5, Math.min(1, intensity));
+  }
+  // Allure XP scale linéairement avec le kilométrage : courir 10 km à 4:00 vaut
+  // plus que 3 km à 4:00, mais l'XP ne dépend QUE de la vitesse via intensity.
+  let allureXp = Math.round(km * 25 * intensity);
+
+  // Modulations par catégorie
+  let categoryBonus = 0;
+  if (cat === 'trail') {
+    enduranceXp = Math.round(enduranceXp * 1.1);
+    categoryBonus = Math.round(dPlus * 1.2); // bonus D+ exclusif au trail
+  } else if (cat === 'fractionne') {
+    allureXp = Math.round(allureXp * 1.5);  // prime allure
+  } else if (cat === 'sortie-we') {
+    enduranceXp = Math.round(enduranceXp * 2);
+    allureXp = Math.round(allureXp * 1.3);
+  } else if (cat === 'renforcement') {
+    // Forfait : pas de GPX généralement, on retourne un petit montant fixe.
+    return { xp: 80, skills: { discipline: 50 } };
+  }
+
+  const totalXp = Math.max(0, enduranceXp + Math.max(0, allureXp) + categoryBonus);
   return {
-    xp,
+    xp: totalXp,
     skills: {
-      endurance: Math.round(parsed.distanceKm * 20),
-      montagne: Math.round(parsed.elevGain * 1.8),
-      discipline: 30
+      endurance: enduranceXp,
+      allure: Math.max(0, allureXp),
+      discipline: 20
     }
   };
 }
@@ -990,11 +1207,20 @@ async function initSeed() {
 // ============================================================================
 
 async function migrateData() {
-  // Profil : ajoute le skill `lettres` si absent.
+  // Profil : structure des skills + nettoyage streak.
   const profile = await dbGet('profile', 'me');
-  if (profile && !profile.skills.lettres) {
-    profile.skills.lettres = { xp: 0, level: 1 };
-    await dbPut('profile', profile);
+  if (profile) {
+    let dirty = false;
+    profile.skills = profile.skills || {};
+    // Ajout des nouveaux skills
+    if (!profile.skills.lettres) { profile.skills.lettres = { xp: 0, level: 1 }; dirty = true; }
+    if (!profile.skills.allure)  { profile.skills.allure  = { xp: 0, level: 1 }; dirty = true; }
+    // Suppression de l'ancien skill `montagne` (s'il existait, son XP est jeté).
+    if (profile.skills.montagne) { delete profile.skills.montagne; dirty = true; }
+    // Suppression des streaks (n'apportent rien).
+    if ('streak'     in profile) { delete profile.streak;     dirty = true; }
+    if ('bestStreak' in profile) { delete profile.bestStreak; dirty = true; }
+    if (dirty) await dbPut('profile', profile);
   }
 
   // Quêtes : resynchronise les champs déclaratifs (title, goal*, category, flags auto*)
@@ -1003,7 +1229,7 @@ async function migrateData() {
   // un objectif (ex: anglais 3h → 2h) sans laisser des incohérences en base.
   const quests = await dbAll('quests');
   const seedFields = ['title', 'type', 'goalHours', 'goalCount', 'unit', 'skill', 'icon', 'color',
-                      'autoFromActivities', 'autoFromWorkLog', 'autoFromLangues', 'autoFromLettres', 'category'];
+                      'autoFromActivities', 'autoFromWorkLog', 'autoFromLangues', 'autoFromLettres', 'autoFromSi', 'category'];
   for (const q of quests) {
     const seed = SEED_WEEKLY_QUESTS.find(s => s.id === q.id);
     if (!seed) continue;
@@ -1017,6 +1243,19 @@ async function migrateData() {
       }
     }
     if (dirty) await dbPut('quests', q);
+  }
+
+  // Schedule : resynchronise depuis DEFAULT_SCHEDULE (ex: pour appliquer les
+  // nouvelles heures de travail / sportType à la rentrée).
+  const sched = await dbAll('schedule');
+  for (const s of sched) {
+    const seed = DEFAULT_SCHEDULE.find(d => d.id === s.id);
+    if (!seed) continue;
+    let dirty = false;
+    for (const f of ['sport', 'sportType', 'workHours']) {
+      if (s[f] !== seed[f]) { s[f] = seed[f]; dirty = true; }
+    }
+    if (dirty) await dbPut('schedule', s);
   }
 
   // Activités : backfill xpAwarded/skillsAwarded pour permettre la suppression réversible.
@@ -1137,7 +1376,7 @@ function renderHome(root) {
   const weekActs = State.activities.filter(a => new Date(a.date) >= ws);
   const weekKm = weekActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
   const weekDplus = weekActs.reduce((s, a) => s + (a.elevGain || 0), 0);
-  const weekStart = ws.toISOString().slice(0, 10);
+  const weekStart = todayKey(ws);
   const weekLogs = State.workLogs.filter(l => l.date >= weekStart);
   const weekWorkMin = weekLogs.reduce((s, l) => s + (l.totalMinutes || 0), 0);
   const todayLog = State.workLogs.find(l => l.date === todayKey());
@@ -1168,9 +1407,9 @@ function renderHome(root) {
         nextR ? el('div', { class: 'text-xs mute mt-1', html: `Encore ${nextR.levelsAway} niv. avant <strong style="color:${nextR.rank.color}">${escapeHtml(nextR.rank.title)}</strong>` }) : null
       ]),
       el('div', { style: 'text-align:right;' }, [
-        el('div', { class: 'dim text-xs' }, 'Streak'),
-        el('div', { class: 'text-xl' }, '🔥 ' + (p.streak || 0)),
-        el('div', { class: 'text-xs mute' }, 'Record : ' + (p.bestStreak || 0))
+        el('div', { class: 'dim text-xs' }, 'Cette semaine'),
+        el('div', { class: 'text-xl' }, formatMinutes(weekWorkMin)),
+        el('div', { class: 'text-xs mute' }, `${weekActs.length} sortie${weekActs.length > 1 ? 's' : ''}`)
       ])
     ]),
     el('div', { class: '', html: progressBar(li.progress, 12) }),
@@ -1260,21 +1499,21 @@ function renderQuetes(root) {
   const dashWrap = el('div', { class: 'mb-5' });
   page.appendChild(dashWrap);
 
-  // Principales — donnent des malus si pas faites
-  page.appendChild(el('h3', { class: 'mb-1' }, '🎯 Principales'));
+  // Principaux — donnent des malus si pas faits
+  page.appendChild(el('h3', { class: 'mb-1' }, '🎯 Principaux'));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' },
     arePenaltiesActive()
-      ? 'Malus appliqué la semaine prochaine si non atteintes.'
-      : `À partir du ${formatDate(PENALTIES_START)}, malus si non atteintes.`));
+      ? 'Malus appliqué la semaine prochaine si non atteints.'
+      : `À partir du ${formatDate(PENALTIES_START)}, malus si non atteints.`));
   const mainWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(mainWrap);
 
-  // Secondaires — donnent des bonus si dépassées
+  // Secondaires — donnent des bonus si dépassés
   page.appendChild(el('h3', { class: 'mb-1' }, '✨ Secondaires'));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' },
     arePenaltiesActive()
-      ? 'Bonus de XP si dépassées.'
-      : `À partir du ${formatDate(PENALTIES_START)}, bonus si dépassées.`));
+      ? 'Bonus de XP si dépassés.'
+      : `À partir du ${formatDate(PENALTIES_START)}, bonus si dépassés.`));
   const secWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(secWrap);
 
@@ -1296,7 +1535,8 @@ async function renderDayDashboard(root) {
   const goalHours = todayPlan.workHours || 0;
   const wi = computeWorkXp(actualMinutes, goalHours);
   const progress = goalHours > 0 ? Math.min(1, actualMinutes / (goalHours * 60)) : 0;
-  const showSport = todayPlan.sport === 'required';
+  // On affiche le sport du jour pour required ET weekend (sortie longue flexible).
+  const showSport = todayPlan.sport === 'required' || todayPlan.sport === 'weekend';
   const todayActs = State.activities.filter(a => a.date.slice(0, 10) === dateKey);
   const sportDone = todayActs.length > 0;
 
@@ -1304,13 +1544,19 @@ async function renderDayDashboard(root) {
 
   let sportBlock = '';
   if (showSport) {
-    const sportMeta = SPORT_TYPES[todayPlan.sportType] || SPORT_TYPES.course;
+    const sportMeta = SPORT_TYPES[todayPlan.sportType] || SPORT_TYPES.footing;
+    const isWeekend = todayPlan.sport === 'weekend';
+    const subtitle = sportDone
+      ? '✓ Sortie validée'
+      : isWeekend
+        ? 'Sortie longue à caser samedi ou dimanche'
+        : 'Importe ton GPX quand c\'est fait';
     sportBlock = `
       <div class="block sport ${sportDone ? 'done' : ''}">
         <div class="block-icon">${sportMeta.icon}</div>
         <div class="block-body">
-          <div class="block-title">${sportMeta.label}<span class="pill warm" style="margin-left:8px;">Sport du jour</span></div>
-          <div class="dim text-xs">${sportDone ? '✓ Sortie validée' : 'Importe ton GPX quand c\'est fait'}</div>
+          <div class="block-title">${sportMeta.label}<span class="pill warm" style="margin-left:8px;">${isWeekend ? 'Week-end' : 'Sport du jour'}</span></div>
+          <div class="dim text-xs">${subtitle}</div>
         </div>
       </div>
     `;
@@ -1318,12 +1564,13 @@ async function renderDayDashboard(root) {
 
   let workBlock = '';
   if (goalHours > 0) {
+    const workDone = wi.ratio >= 1;
     workBlock = `
-      <div class="block work">
+      <div class="block work ${workDone ? 'done' : ''}">
         <div class="block-icon">📚</div>
         <div class="block-body">
           <div class="flex between">
-            <div class="block-title">Travail · objectif ${goalHours}h</div>
+            <div class="block-title">Travail · objectif ${goalHours}h${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>
             <div class="work-pct" style="color:${barColor};">${Math.round(wi.ratio * 100)}%</div>
           </div>
           <div class="work-bar">
@@ -1396,7 +1643,7 @@ async function renderWeeklyQuests(root, category = null) {
     const goal = isHours ? q.goalHours : q.goalCount;
     const unit = isHours ? 'h' : (q.unit || 'fois');
     const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
-    const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres;
+    const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi;
 
     // Aperçu malus/bonus, uniquement à partir de la rentrée.
     let forecast = '';
@@ -1534,14 +1781,17 @@ function renderSport(root) {
   // Selected activity card
   const sel = State.currentActivity;
   if (sel) {
-    const typeIcon = sel.type === 'trail' ? '⛰️' : sel.type === 'rando' ? '🥾' : '🏃';
+    const typeIcon = activityTypeIcon(sel.type);
     const card = el('div', { class: 'card mb-4', html: `
       <div class="flex between mb-2">
         <div>
           <div class="text-lg" style="font-weight:600;">${typeIcon} ${escapeHtml(sel.name)}</div>
-          <div class="dim text-sm">${formatDate(sel.date)}</div>
+          <div class="dim text-sm">${formatDate(sel.date)} · ${SPORT_TYPES[sel.type]?.label || sel.type}</div>
         </div>
-        <button class="btn ghost sm danger" id="del-act">Suppr.</button>
+        <div class="flex gap-2">
+          <button class="btn ghost sm" id="edit-act" title="Modifier">✏️</button>
+          <button class="btn ghost sm danger" id="del-act">Suppr.</button>
+        </div>
       </div>
       <div class="metrics">
         <div class="metric"><div class="m-val grad-text">${sel.distanceKm}</div><div class="m-lbl">km</div></div>
@@ -1552,6 +1802,7 @@ function renderSport(root) {
     `});
     page.appendChild(card);
     setTimeout(() => {
+      card.querySelector('#edit-act').addEventListener('click', () => editActivity(sel));
       card.querySelector('#del-act').addEventListener('click', async () => {
         if (!confirm(`Supprimer "${sel.name}" ?`)) return;
         const ok = await deleteActivity(sel);
@@ -1568,7 +1819,7 @@ function renderSport(root) {
   const list = el('div', { class: 'flex col gap-2' });
   const sortedActs = [...State.activities].sort((a, b) => b.date.localeCompare(a.date));
   for (const a of sortedActs) {
-    const ti = a.type === 'trail' ? '⛰️' : a.type === 'rando' ? '🥾' : '🏃';
+    const ti = activityTypeIcon(a.type);
     const btn = el('button', {
       class: 'act' + (sel?.id === a.id ? ' sel' : ''),
       onclick: () => { State.currentActivity = a; render(); }
@@ -1739,7 +1990,7 @@ function renderMap(activity) {
 // Résout à `true` si l'utilisateur confirme l'import, `false` sinon.
 function showGpxPreview(parsed, type, splits, xp) {
   return new Promise((resolve) => {
-    const typeIcon = type === 'trail' ? '⛰️' : type === 'rando' ? '🥾' : '🏃';
+    const typeIcon = activityTypeIcon(type);
     const overlay = el('div', { class: 'gpx-preview-overlay' });
     const modal = el('div', { class: 'gpx-preview-modal' });
     modal.innerHTML = `
@@ -1799,17 +2050,29 @@ async function onGpxFile(e) {
     const parsed = parseGpx(text);
     const splits = computeSplits(parsed);
     const type = detectActivityType(parsed);
-    const { xp, skills } = activityXp(parsed);
+    const { xp, skills } = activityXp(parsed, type);
+    // Si fractionné, on calcule les intervalles maintenant pour les stocker.
+    const intervals = type === 'fractionne' ? analyseIntervals(parsed.points) : null;
+    const autoName = defaultActivityName(type, parsed.date);
 
     // Preview avant import : l'utilisateur peut annuler.
-    const confirmed = await showGpxPreview(parsed, type, splits, xp);
+    const confirmed = await showGpxPreview({ ...parsed, name: autoName }, type, splits, xp);
     if (!confirmed) {
       e.target.value = '';
       return;
     }
 
     // On stocke ce qui a été gagné pour permettre une suppression réversible.
-    const activity = { id: 'act-' + Date.now(), type, ...parsed, ...splits, xpAwarded: xp, skillsAwarded: skills };
+    const activity = {
+      id: 'act-' + Date.now(),
+      type,
+      ...parsed,
+      name: autoName,
+      ...splits,
+      intervals,
+      xpAwarded: xp,
+      skillsAwarded: skills
+    };
     await dbPut('activities', activity);
     const result = await awardXp(xp, skills);
     const broken = await checkAndUpdateRecords(activity);
@@ -1886,6 +2149,79 @@ async function deleteActivity(activity) {
   return true;
 }
 
+// Édite le nom et la catégorie d'une sortie passée. Si la catégorie change,
+// l'XP est recalculé et le delta est appliqué (réversible).
+async function editActivity(activity) {
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal' });
+  const cats = ['footing', 'fractionne', 'trail', 'sortie-we', 'renforcement'];
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title">
+        <span class="gpx-preview-icon">✏️</span>
+        <span>Modifier la sortie</span>
+      </div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 16px 18px;">
+      <label class="dim text-xs" style="display:block; margin-bottom:6px;">Nom</label>
+      <input type="text" class="input" id="edit-name" value="${escapeHtml(activity.name || '')}" style="width:100%;" />
+      <label class="dim text-xs" style="display:block; margin:12px 0 6px;">Catégorie</label>
+      <select class="input" id="edit-cat" style="width:100%;">
+        ${cats.map(c => `<option value="${c}" ${c === activity.type ? 'selected' : ''}>${SPORT_TYPES[c]?.icon || ''} ${SPORT_TYPES[c]?.label || c}</option>`).join('')}
+      </select>
+      <p class="dim text-xs mt-3">Changer la catégorie recalcule l'XP gagné. La différence est appliquée à ton niveau.</p>
+    </div>
+    <div class="gpx-preview-actions">
+      <button class="btn ghost" id="edit-cancel">Annuler</button>
+      <button class="btn-gpx" id="edit-save">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Enregistrer
+      </button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
+  modal.querySelector('#edit-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  modal.querySelector('#edit-save').addEventListener('click', async () => {
+    const newName = modal.querySelector('#edit-name').value.trim() || activity.name;
+    const newCat = modal.querySelector('#edit-cat').value;
+    const oldXp = activity.xpAwarded || 0;
+    const oldSkills = activity.skillsAwarded || {};
+    let updated = { ...activity, name: newName, type: newCat };
+    // Recalcule l'XP si la catégorie change.
+    if (newCat !== activity.type) {
+      const { xp, skills } = activityXp(activity, newCat);
+      updated.xpAwarded = xp;
+      updated.skillsAwarded = skills;
+      // Ajuste le delta sur le profil
+      const xpDelta = xp - oldXp;
+      const skillsDelta = {};
+      const allKeys = new Set([...Object.keys(oldSkills), ...Object.keys(skills)]);
+      for (const k of allKeys) skillsDelta[k] = (skills[k] || 0) - (oldSkills[k] || 0);
+      const posS = Object.fromEntries(Object.entries(skillsDelta).filter(([_, v]) => v > 0));
+      const negS = Object.fromEntries(Object.entries(skillsDelta).filter(([_, v]) => v < 0).map(([k, v]) => [k, -v]));
+      if (xpDelta > 0) await awardXp(xpDelta, posS);
+      else if (xpDelta < 0) await removeXp(-xpDelta, negS);
+      // Apply skill-only deltas si nécessaire
+      if (xpDelta === 0 && Object.keys(posS).length) await awardXp(0, posS);
+      if (xpDelta === 0 && Object.keys(negS).length) await removeXp(0, negS);
+    }
+    await dbPut('activities', updated);
+    await recomputeAutoQuests();
+    await loadAll();
+    State.currentActivity = updated;
+    close();
+    render();
+    showToast({ type: 'xp', title: 'Sortie mise à jour', text: newName });
+  });
+}
+
 // ============================================================================
 // 17. VIEW : STATS
 // ============================================================================
@@ -1907,25 +2243,25 @@ function renderStats(root) {
     workByWeek[wk] = (workByWeek[wk] || 0) + (l.totalMinutes || 0);
   }
   const bestWeekMin = Math.max(0, ...Object.values(workByWeek));
-  // Streak max
-  let bestWorkStreak = 0;
-  const dates = logs.filter(l => (l.totalMinutes || 0) > 0).map(l => l.date).sort();
-  if (dates.length > 0) {
-    let cur = 1; bestWorkStreak = 1;
-    for (let i = 1; i < dates.length; i++) {
-      const dd = Math.round((new Date(dates[i]) - new Date(dates[i - 1])) / 86400000);
-      if (dd === 1) { cur++; bestWorkStreak = Math.max(bestWorkStreak, cur); }
-      else cur = 1;
-    }
-  }
+  const weekValues = Object.values(workByWeek);
+  const avgWeekMin = weekValues.length > 0
+    ? weekValues.reduce((s, v) => s + v, 0) / weekValues.length
+    : 0;
+  // Progression : moyenne des 4 dernières semaines vs les 4 précédentes
+  const sortedWeeks = Object.entries(workByWeek).sort((a, b) => a[0].localeCompare(b[0]));
+  const recent4 = sortedWeeks.slice(-4).map(e => e[1]);
+  const prev4 = sortedWeeks.slice(-8, -4).map(e => e[1]);
+  const recent4Avg = recent4.length > 0 ? recent4.reduce((s, v) => s + v, 0) / recent4.length : 0;
+  const prev4Avg = prev4.length > 0 ? prev4.reduce((s, v) => s + v, 0) / prev4.length : 0;
+  const trendPct = prev4Avg > 0 ? Math.round((recent4Avg - prev4Avg) / prev4Avg * 100) : 0;
 
   page.appendChild(el('h3', { class: 'section-h work' }, '📚 Travail'));
   page.appendChild(el('div', { class: 'card mb-3', html: `
     <div class="totals">
       <div><div class="t-val grad-text">${(totalWorkMin/60).toFixed(1)}</div><div class="t-lbl">heures cumulées</div></div>
-      <div><div class="t-val grad-text">${workDays}</div><div class="t-lbl">jours actifs</div></div>
-      <div><div class="t-val grad-text">${(totalWorkMin/60/Math.max(1,workDays)).toFixed(1)}</div><div class="t-lbl">moyenne / jour (h)</div></div>
-      <div><div class="t-val grad-text">${bestWorkStreak}</div><div class="t-lbl">jours d'affilée max</div></div>
+      <div><div class="t-val grad-text">${(avgWeekMin/60).toFixed(1)}</div><div class="t-lbl">moy. / semaine (h)</div></div>
+      <div><div class="t-val grad-text">${(totalWorkMin/60/Math.max(1,workDays)).toFixed(1)}</div><div class="t-lbl">moy. / jour actif (h)</div></div>
+      <div><div class="t-val grad-text" style="color: ${trendPct >= 0 ? 'var(--accent)' : 'var(--danger)'}">${trendPct >= 0 ? '+' : ''}${trendPct}%</div><div class="t-lbl">tendance 4 sem.</div></div>
     </div>
   `}));
 
@@ -1945,8 +2281,6 @@ function renderStats(root) {
   page.appendChild(el('div', { class: 'card mb-5', html: `
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">📅</span><span class="rec-label">Plus grosse journée</span></div><div class="rec-value">${bestDayMin > 0 ? formatMinutes(bestDayMin) : '—'}</div></div>
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">🗓️</span><span class="rec-label">Plus grosse semaine</span></div><div class="rec-value">${bestWeekMin > 0 ? (bestWeekMin/60).toFixed(1) + 'h' : '—'}</div></div>
-    <div class="rec-row"><div class="rec-left"><span class="rec-icon">🔥</span><span class="rec-label">Plus longue série</span></div><div class="rec-value">${bestWorkStreak > 0 ? bestWorkStreak + ' j' : '—'}</div></div>
-    <div class="rec-row"><div class="rec-left"><span class="rec-icon">📚</span><span class="rec-label">Jours travaillés</span></div><div class="rec-value">${workDays > 0 ? workDays : '—'}</div></div>
   `}));
 
   // Sport
@@ -1964,19 +2298,52 @@ function renderStats(root) {
     </div>
   `}));
 
-  // Volume hebdo : aire distance + ligne allure moyenne
+  // Volume hebdo : aire distance + ligne allure moyenne (toutes sorties)
   page.appendChild(el('div', { class: 'chart-card mb-3' }, [
     el('div', { class: 'chart-title' }, '📊 Volume & allure · 12 dernières semaines'),
     el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-volume' })])
   ]));
 
-  // Pace progression : ligne allure des 20 dernières sorties
-  page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '⚡ Allure moyenne · dernières sorties'),
-    el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-sport-pace' })])
-  ]));
+  // Section par catégorie : footing (allure), trail (D+), fractionné (intervalles), week-end (volume)
+  const footings = acts.filter(a => a.type === 'footing' || a.type === 'course');
+  const trails = acts.filter(a => a.type === 'trail');
+  const fractionnes = acts.filter(a => a.type === 'fractionne');
+  const weekends = acts.filter(a => a.type === 'sortie-we');
 
-  page.appendChild(el('h3', { class: 'mb-2' }, 'Records personnels'));
+  if (footings.length > 0) {
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🏃 Footings · allure'));
+    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+      el('div', { class: 'chart-title' }, `Allure moyenne · ${footings.length} footing${footings.length > 1 ? 's' : ''}`),
+      el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-footing-pace' })])
+    ]));
+  }
+
+  if (trails.length > 0) {
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '⛰️ Trail · dénivelé'));
+    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+      el('div', { class: 'chart-title' }, `D+ et distance · ${trails.length} trail${trails.length > 1 ? 's' : ''}`),
+      el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-trail-dplus' })])
+    ]));
+  }
+
+  if (fractionnes.length > 0) {
+    const last = fractionnes.sort((a, b) => b.date.localeCompare(a.date))[0];
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '⚡ Fractionné · dernier'));
+    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+      el('div', { class: 'chart-title' }, escapeHtml(last.name) + ' · ' + formatDate(last.date)),
+      el('div', { id: 'fractionne-intervals' })
+    ]));
+  }
+
+  if (weekends.length > 0) {
+    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🌄 Sorties week-end'));
+    page.appendChild(el('div', { class: 'chart-card mb-3' }, [
+      el('div', { class: 'chart-title' }, `Distance par sortie · ${weekends.length} sortie${weekends.length > 1 ? 's' : ''} week-end`),
+      el('div', { class: 'chart-wrap' }, [el('canvas', { id: 'chart-we-distance' })])
+    ]));
+  }
+
+  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, 'Records personnels'));
   let recsHtml = '';
   for (const t of RECORD_TYPES) {
     const r = State.records[t.id];
@@ -2058,8 +2425,11 @@ function renderStatsCharts(logs, acts) {
   // ── 3. Volume hebdo : aire distance + ligne allure (12 semaines) ──────────
   renderSportVolume(acts);
 
-  // ── 4. Pace progression : 20 dernières sorties ────────────────────────────
-  renderSportPace(acts);
+  // ── 4. Stats par catégorie ────────────────────────────────────────────────
+  renderFootingPace(acts.filter(a => a.type === 'footing' || a.type === 'course'));
+  renderTrailDplus(acts.filter(a => a.type === 'trail'));
+  renderFractionneIntervals(acts.filter(a => a.type === 'fractionne'));
+  renderWeekendDistance(acts.filter(a => a.type === 'sortie-we'));
 }
 
 // Heatmap style GitHub : 12 semaines × 7 jours, intensité selon heures travaillées.
@@ -2315,55 +2685,40 @@ function renderSportVolume(acts) {
   });
 }
 
-function renderSportPace(acts) {
-  const ctx = document.getElementById('chart-sport-pace');
-  if (!ctx) return;
-  const sorted = [...acts]
-    .filter(a => a.duration > 0 && a.distanceKm > 0)
-    .sort((a, b) => a.date.localeCompare(b.date))
-    .slice(-20);
+// Helper : crée un line chart d'allure avec axe Y inversé.
+function makePaceChart(canvasId, sorted, color, fillColor) {
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return null;
   if (sorted.length < 2) {
-    ctx.parentElement.innerHTML = '<div class="chart-empty">Au moins 2 sorties chronométrées pour voir la progression</div>';
-    return;
+    ctx.parentElement.innerHTML = '<div class="chart-empty">Au moins 2 sorties chronométrées</div>';
+    return null;
   }
-  // Allure en min/km
   const paces = sorted.map(a => a.duration / a.distanceKm / 60);
   const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
-  // Couleur par sortie selon le type
-  const pointColors = sorted.map(a =>
-    a.type === 'trail' ? '#ffb547' :
-    a.type === 'rando' ? '#5cc8ff' :
-    '#ffd86b'
-  );
-
   const best = Math.min(...paces);
   const worst = Math.max(...paces);
-
   const ctxC = ctx.getContext('2d');
   const grad = ctxC.createLinearGradient(0, 0, 0, 220);
-  grad.addColorStop(0, 'rgba(255, 216, 107, 0.35)');
-  grad.addColorStop(1, 'rgba(255, 216, 107, 0)');
-
-  State.charts.sportPace = new Chart(ctx, {
+  grad.addColorStop(0, fillColor);
+  grad.addColorStop(1, 'rgba(0,0,0,0)');
+  return new Chart(ctx, {
     type: 'line',
     data: {
       labels,
-      datasets: [
-        {
-          label: 'Allure',
-          data: paces.map(p => Number(p.toFixed(2))),
-          borderColor: CHART_COLORS.gold,
-          backgroundColor: grad,
-          borderWidth: 2.5,
-          tension: 0.35,
-          pointRadius: 5,
-          pointHoverRadius: 7,
-          pointBackgroundColor: pointColors,
-          pointBorderColor: CHART_COLORS.bg,
-          pointBorderWidth: 2,
-          fill: true
-        }
-      ]
+      datasets: [{
+        label: 'Allure',
+        data: paces.map(p => Number(p.toFixed(2))),
+        borderColor: color,
+        backgroundColor: grad,
+        borderWidth: 2.5,
+        tension: 0.35,
+        pointRadius: 5,
+        pointHoverRadius: 7,
+        pointBackgroundColor: color,
+        pointBorderColor: CHART_COLORS.bg,
+        pointBorderWidth: 2,
+        fill: true
+      }]
     },
     options: {
       responsive: true,
@@ -2377,18 +2732,14 @@ function renderSportPace(acts) {
               const a = sorted[c.dataIndex];
               const m = Math.floor(c.parsed.y);
               const s = Math.round((c.parsed.y - m) * 60);
-              const pace = `${m}:${String(s).padStart(2, '0')}/km`;
-              return [`${pace}`, `${a.distanceKm} km · ${formatDuration(a.duration)}`];
+              return [`${m}:${String(s).padStart(2, '0')}/km`, `${a.distanceKm} km · ${formatDuration(a.duration)}`];
             },
             title: (items) => sorted[items[0].dataIndex].name || items[0].label
           }
         }
       },
       scales: {
-        x: {
-          ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 },
-          grid: { display: false }
-        },
+        x: { ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0, autoSkipPadding: 12 }, grid: { display: false } },
         y: {
           reverse: true,
           ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, callback: (v) => {
@@ -2396,9 +2747,139 @@ function renderSportPace(acts) {
             return `${m}:${String(s).padStart(2, '0')}`;
           }},
           grid: { color: CHART_COLORS.grid, drawBorder: false },
-          // Étend un peu pour donner de l'air visuel
           suggestedMin: best - 0.3,
           suggestedMax: worst + 0.3
+        }
+      }
+    }
+  });
+}
+
+function renderFootingPace(footings) {
+  const sorted = [...footings]
+    .filter(a => a.duration > 0 && a.distanceKm > 0)
+    .sort((a, b) => a.date.localeCompare(b.date))
+    .slice(-20);
+  State.charts.footingPace = makePaceChart('chart-footing-pace', sorted, CHART_COLORS.gold, 'rgba(255, 216, 107, 0.35)');
+}
+
+function renderTrailDplus(trails) {
+  const ctx = document.getElementById('chart-trail-dplus');
+  if (!ctx) return;
+  const sorted = [...trails].sort((a, b) => a.date.localeCompare(b.date)).slice(-12);
+  if (sorted.length === 0) {
+    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas de trail enregistré</div>';
+    return;
+  }
+  const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+  const dplus = sorted.map(a => a.elevGain || 0);
+  const km = sorted.map(a => a.distanceKm || 0);
+  State.charts.trailDplus = new Chart(ctx, {
+    data: {
+      labels,
+      datasets: [
+        { type: 'bar', label: 'D+ (m)', data: dplus, backgroundColor: 'rgba(255, 181, 71, 0.7)', borderColor: CHART_COLORS.warm, borderWidth: 1, borderRadius: 4, yAxisID: 'y' },
+        { type: 'line', label: 'Distance (km)', data: km, borderColor: CHART_COLORS.cool, backgroundColor: 'transparent', borderWidth: 2, tension: 0.3, pointRadius: 4, pointBackgroundColor: CHART_COLORS.cool, pointBorderColor: CHART_COLORS.bg, pointBorderWidth: 1.5, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: { legend: { labels: { color: CHART_COLORS.text, font: { size: 11 }, usePointStyle: true, padding: 14 } }, tooltip: chartCommonOptions().plugins.tooltip },
+      scales: {
+        x: { ticks: { color: CHART_COLORS.textMute, font: { size: 10 }, maxRotation: 0 }, grid: { display: false } },
+        y: { position: 'left', beginAtZero: true, ticks: { color: CHART_COLORS.warm, font: { size: 10 }, callback: (v) => v + ' m' }, grid: { color: CHART_COLORS.grid, drawBorder: false } },
+        y1: { position: 'right', beginAtZero: true, ticks: { color: CHART_COLORS.cool, font: { size: 10 }, callback: (v) => v + ' km' }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+function renderFractionneIntervals(fractionnes) {
+  const root = document.getElementById('fractionne-intervals');
+  if (!root) return;
+  if (fractionnes.length === 0) {
+    root.innerHTML = '<div class="chart-empty">Pas de fractionné enregistré</div>';
+    return;
+  }
+  const last = [...fractionnes].sort((a, b) => b.date.localeCompare(a.date))[0];
+  const intervals = last.intervals || [];
+  if (intervals.length === 0) {
+    root.innerHTML = '<div class="chart-empty">Pas d\'intervalles détectés sur cette sortie</div>';
+    return;
+  }
+  const efforts = intervals.filter(i => i.kind === 'effort');
+  const repos = intervals.filter(i => i.kind === 'repos');
+  const totalEffort = efforts.reduce((s, i) => s + i.duration, 0);
+  const totalRepos = repos.reduce((s, i) => s + i.duration, 0);
+  const avgEffortPace = efforts.length > 0
+    ? Math.round(efforts.reduce((s, i) => s + i.avgPace, 0) / efforts.length)
+    : 0;
+
+  let html = `
+    <div class="totals" style="margin-bottom: 12px;">
+      <div><div class="t-val grad-text">${efforts.length}</div><div class="t-lbl">efforts</div></div>
+      <div><div class="t-val grad-text">${formatDuration(totalEffort)}</div><div class="t-lbl">effort total</div></div>
+      <div><div class="t-val grad-text">${formatDuration(totalRepos)}</div><div class="t-lbl">repos total</div></div>
+      <div><div class="t-val grad-text">${formatPace(avgEffortPace)}</div><div class="t-lbl">allure effort</div></div>
+    </div>
+    <div class="intervals-list">
+  `;
+  for (let i = 0; i < intervals.length; i++) {
+    const it = intervals[i];
+    const isEffort = it.kind === 'effort';
+    html += `
+      <div class="interval-row ${isEffort ? 'effort' : 'repos'}">
+        <div class="interval-label">${isEffort ? '⚡' : '😮‍💨'} ${isEffort ? 'Effort' : 'Repos'} ${isEffort ? Math.ceil((i + 1) / 2) : ''}</div>
+        <div class="interval-meta">${formatDuration(it.duration)} · ${(it.distance / 1000).toFixed(2)} km · ${formatPace(it.avgPace)}</div>
+      </div>
+    `;
+  }
+  html += '</div>';
+  root.innerHTML = html;
+}
+
+function renderWeekendDistance(weekends) {
+  const ctx = document.getElementById('chart-we-distance');
+  if (!ctx) return;
+  const sorted = [...weekends].sort((a, b) => a.date.localeCompare(b.date)).slice(-12);
+  if (sorted.length === 0) {
+    ctx.parentElement.innerHTML = '<div class="chart-empty">Pas de sortie week-end enregistrée</div>';
+    return;
+  }
+  const labels = sorted.map(a => new Date(a.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' }));
+  const km = sorted.map(a => a.distanceKm || 0);
+  const ctxC = ctx.getContext('2d');
+  const grad = ctxC.createLinearGradient(0, 0, 0, 220);
+  grad.addColorStop(0, 'rgba(124, 92, 255, 0.7)');
+  grad.addColorStop(1, 'rgba(124, 92, 255, 0.1)');
+  State.charts.weDist = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Distance',
+        data: km,
+        backgroundColor: grad,
+        borderColor: CHART_COLORS.violet,
+        borderWidth: 1,
+        borderRadius: 4
+      }]
+    },
+    options: {
+      ...chartCommonOptions(),
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          ...chartCommonOptions().plugins.tooltip,
+          callbacks: {
+            label: (c) => {
+              const a = sorted[c.dataIndex];
+              return [`${c.parsed.y} km · ${formatDuration(a.duration)}`, formatPace(a.avgPace)];
+            },
+            title: (items) => sorted[items[0].dataIndex].name || items[0].label
+          }
         }
       }
     }
@@ -2431,8 +2912,6 @@ function renderProfil(root) {
     <div class="flex gap-3 mt-3">
       <div><div class="dim text-xs">Niveau</div><div class="text-xl grad-text">${li.level}</div></div>
       <div><div class="dim text-xs">XP total</div><div class="text-xl">${p.totalXp}</div></div>
-      <div><div class="dim text-xs">Streak</div><div class="text-xl">🔥 ${p.streak || 0}</div></div>
-      <div><div class="dim text-xs">Record</div><div class="text-xl">${p.bestStreak || 0}</div></div>
     </div>
   `;
   page.appendChild(card);
@@ -2477,11 +2956,17 @@ function renderProfil(root) {
   const saveCard = el('div', { class: 'card mb-4' });
   saveCard.innerHTML = `
     <p class="dim text-sm mb-3">Données stockées localement. Pense à exporter régulièrement.</p>
-    <button class="btn primary full mb-2" id="btn-export">📥 Exporter (JSON)</button>
-    <label class="btn ghost full">
-      📤 Importer une sauvegarde
-      <input type="file" accept=".json" hidden id="import-file" />
-    </label>
+    <div class="save-actions">
+      <button class="btn-gpx" id="btn-export">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        <span>Exporter</span>
+      </button>
+      <label class="btn-gpx" id="btn-import-label">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        <span>Importer</span>
+        <input type="file" accept=".json" hidden id="import-file" />
+      </label>
+    </div>
   `;
   page.appendChild(saveCard);
   setTimeout(() => {
@@ -2489,75 +2974,11 @@ function renderProfil(root) {
     saveCard.querySelector('#import-file').addEventListener('change', onImportFile);
   }, 0);
 
-  // À propos / maintenance
-  page.appendChild(el('h3', { class: 'mb-2' }, '🛠️ Maintenance'));
-  const mntCard = el('div', { class: 'card mb-4' });
-  mntCard.innerHTML = `
-    <div class="flex between mb-2">
-      <span class="dim text-sm">Version</span>
-      <span class="mono text-sm" id="sw-version">…</span>
-    </div>
-    <div class="flex between mb-3">
-      <span class="dim text-sm">Statut</span>
-      <span class="text-sm" id="sw-status">…</span>
-    </div>
-    <p class="dim text-xs mb-3">
-      Si l'app n'a pas l'air à jour après une mise en ligne, vide le cache pour forcer le téléchargement de la dernière version. Tes données ne sont pas effacées.
-    </p>
-    <button class="btn ghost full mb-2" id="btn-check-update">🔄 Vérifier la mise à jour</button>
-    <button class="btn ghost full" id="btn-clear-cache">🧹 Vider le cache et recharger</button>
-  `;
-  page.appendChild(mntCard);
-  setTimeout(async () => {
-    const versionEl = mntCard.querySelector('#sw-version');
-    const statusEl = mntCard.querySelector('#sw-status');
-    if (window.OrionSW) {
-      const info = await window.OrionSW.getInfo();
-      if (info.version) {
-        versionEl.textContent = info.version;
-      } else if (info.hasRegistration) {
-        versionEl.textContent = '(installé · ancienne version)';
-      } else {
-        versionEl.textContent = 'non installé';
-      }
-      // Statut : actif / en attente / installation / aucun
-      let statusHtml;
-      if (info.hasController) {
-        statusHtml = '<span style="color: var(--accent);">✓ actif</span>';
-      } else if (info.hasRegistration) {
-        statusHtml = '<span style="color: var(--accent-cool);">⏳ ' + (info.state || 'en cours') + '</span>';
-      } else {
-        statusHtml = '<span style="color: var(--text-mute);">aucun</span>';
-      }
-      statusEl.innerHTML = statusHtml;
-    } else {
-      versionEl.textContent = 'non supporté';
-      statusEl.textContent = '—';
-    }
-    mntCard.querySelector('#btn-check-update').addEventListener('click', async () => {
-      if (!window.OrionSW) {
-        showToast({ type: 'err', title: 'Indisponible', text: 'Service Worker non supporté' });
-        return;
-      }
-      showToast({ type: 'xp', title: 'Vérification…', text: 'Recherche d\'une mise à jour' });
-      await window.OrionSW.forceCheckUpdate();
-      // Si une nouvelle version est trouvée, le SW va activer et postMessage déclenchera un reload.
-      // Sinon on signale qu'on est à jour.
-      setTimeout(() => {
-        showToast({ type: 'xp', title: 'À jour', text: 'Aucune nouvelle version disponible' });
-      }, 2000);
-    });
-    mntCard.querySelector('#btn-clear-cache').addEventListener('click', async () => {
-      if (!confirm('Vider le cache et recharger l\'app ? Tes données restent intactes.')) return;
-      if (window.OrionSW) {
-        await window.OrionSW.clearCacheAndReload();
-      } else {
-        location.reload();
-      }
-    });
-  }, 0);
-
-  // (Zone dangereuse supprimée : reset disponible uniquement via DevTools / réinstall PWA.)
+  // Footer version : juste l'info, discret.
+  page.appendChild(el('div', {
+    class: 'dim text-xs mt-5',
+    style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);'
+  }, `Orion v${APP_VERSION}`));
 
   root.appendChild(page);
 }

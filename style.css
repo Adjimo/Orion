@@ -1,4 +1,4 @@
-/* ===== Hélios — Thème global ===== */
+/* ===== Orion — Thème global ===== */
 :root {
   --bg-0: #06080f;
   --bg-1: #0a0e1a;
@@ -848,8 +848,61 @@ h3 { font-size: 1.05rem; }
   font-size: 0.7rem;
   transition: color 0.2s;
 }
-.tab.active { color: var(--accent); }
+.tab.active { color: var(--gold); }
 .tab svg { width: 22px; height: 22px; }
+.tab-icon {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  transition: opacity 0.2s;
+}
+.tab-icon-active { display: none; }
+.tab.active .tab-icon-mono { display: none; }
+.tab.active .tab-icon-active { display: block; }
+
+/* ===== Carte résumé "Mon objectif" cliquable ===== */
+.goal-summary-card {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  width: 100%;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  text-align: left;
+}
+.goal-summary-card:hover {
+  border-color: var(--gold);
+  background: var(--bg-3);
+}
+.goal-summary-card.empty {
+  border-style: dashed;
+  opacity: 0.85;
+}
+.goal-summary-icon img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+.goal-summary-body { flex: 1; min-width: 0; }
+.goal-summary-title {
+  font-weight: 600;
+  font-size: 1rem;
+  color: var(--text);
+}
+.goal-summary-meta { margin-top: 2px; }
+.goal-summary-chevron {
+  font-size: 1.8rem;
+  color: var(--text-mute);
+  line-height: 1;
+}
+.goal-modal {
+  max-width: 540px;
+  max-height: calc(100vh - 32px);
+}
 
 /* ===== Splash ===== */
 .splash {
@@ -876,25 +929,26 @@ h3 { font-size: 1.05rem; }
   opacity: 1;
   transform: translateY(0);
 }
-.splash-icon {
-  width: 120px;
-  height: 120px;
-  margin: 0 auto 20px;
-  display: block;
-  filter: drop-shadow(0 0 24px rgba(255, 106, 61, 0.45)) drop-shadow(0 0 40px rgba(124, 92, 255, 0.25));
-  animation: phx-rise 1.4s ease-out;
-  border-radius: 22px;
+.belt {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 22px;
 }
-@keyframes phx-rise {
-  0%   { opacity: 0; transform: scale(0.8) translateY(8px); }
-  60%  { opacity: 1; transform: scale(1.04) translateY(0); }
-  100% { opacity: 1; transform: scale(1) translateY(0); }
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
 }
+.dot.violet  { background: #7c5cff; box-shadow: 0 0 12px rgba(124, 92, 255, 0.8); }
+.dot.gold    { background: #ffd86b; box-shadow: 0 0 16px rgba(255, 216, 107, 0.95); width: 9px; height: 9px; }
+.dot.orange  { background: #ff6a3d; box-shadow: 0 0 12px rgba(255, 106, 61, 0.8); }
 .splash-title {
-  font-family: 'Cormorant Garamond', 'Cinzel', serif;
+  font-family: 'Cinzel', serif;
   font-weight: 600;
-  font-size: 3.4rem;
-  letter-spacing: 0.04em;
+  font-size: 2.6rem;
+  letter-spacing: 0.32em;
   background: linear-gradient(135deg, #7c5cff 0%, #ffd86b 45%, #ffb547 70%, #ff6a3d 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1338,7 +1392,16 @@ h3 { font-size: 1.05rem; }
   background: linear-gradient(90deg, rgba(255, 181, 71, 0.12), var(--bg-2));
   box-shadow: 0 0 14px rgba(255, 181, 71, 0.18);
 }
-.block-icon { font-size: 1.6rem; flex-shrink: 0; }
+.block-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.block-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .block-body { flex: 1; min-width: 0; }
 .block-title {
   font-weight: 600;
@@ -1385,7 +1448,15 @@ h3 { font-size: 1.05rem; }
   border-radius: var(--r-sm);
   border: 1px solid var(--border);
 }
-.sub-label { flex: 1; font-size: 0.78rem; color: var(--text-dim); }
+.sub-label {
+  flex: 1;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.sub-label img { width: 22px; height: 22px; object-fit: contain; display: block; flex-shrink: 0; }
 .sub-input {
   width: 60px;
   background: transparent;
@@ -1511,7 +1582,7 @@ h3 { font-size: 1.05rem; }
 }
 .map { height: 280px; width: 100%; background: #0a0e1a; }
 
-/* MapLibre GL : palette Hélios native définie dans le style JSON côté JS,
+/* MapLibre GL : palette Orion native définie dans le style JSON côté JS,
    on n'a donc pas à appliquer de filtre CSS. On ne reste qu'à styliser les
    contrôles et les markers pour qu'ils soient cohérents avec l'app. */
 .maplibregl-map { background: #0a0e1a; font-family: var(--font); }
@@ -1544,7 +1615,7 @@ h3 { font-size: 1.05rem; }
   background-color: var(--bg-3) !important;
 }
 
-/* Markers Hélios (HTMLElement) : cercles avec halo subtil */
+/* Markers Orion (HTMLElement) : cercles avec halo subtil */
 .orion-marker {
   width: 16px;
   height: 16px;
@@ -1591,7 +1662,16 @@ h3 { font-size: 1.05rem; }
   border-color: var(--accent);
   box-shadow: 0 0 12px rgba(255,181,71,0.2);
 }
-.act-icon { font-size: 1.4rem; }
+.act-icon {
+  font-size: 1.4rem;
+  width: 38px;
+  height: 38px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.act-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
 .act-body { flex: 1; min-width: 0; }
 .act-title {
   font-weight: 500;

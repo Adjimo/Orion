@@ -1,4 +1,4 @@
-# 🔥 Hélios
+# 🔥 Orion
 
 > Le phénix — webapp PWA pour gamifier ta vie de **prépa MP\*** + **course à pied**.
 
@@ -8,12 +8,12 @@
 
 - **Splash phénix** stylé (logo orange/rose/violet + titre doré)
 - **Navigation tabbar** : Accueil / Objectifs / Sport / Stats / Profil
-- **Système XP** avec niveaux et 9 rangs (Mortel → ... → Hélios)
+- **Système XP** avec niveaux et 9 rangs (Mortel → ... → Orion)
 - **8 compétences** : Endurance, Allure, Maths, Physique, SI, Anglais, Lettres, Discipline
 - **Saisie de travail unifiée par matière** avec recalcul automatique de l'XP
 - **Objectifs hebdo** principaux (sorties, travail, sommeil) + secondaires (anglais, lettres, SI)
 - **Bonus / malus** au passage de chaque période (à partir de la rentrée 2026-09-07)
-- **Import GPX** + carte Hélios stylée (MapLibre, palette violet/or), splits km par km, splits 1K/5K/10K/semi
+- **Import GPX** + carte Orion stylée (MapLibre, palette violet/or), splits km par km, splits 1K/5K/10K/semi
 - **Détection auto** footing / trail / fractionné / sortie week-end
 - **VDOT calibré + chronos prédits** (5K → marathon) basé sur tes meilleures perfs récentes
 - **Allures Daniels** (E/M/T/I/R) calibrées sur ton VDOT actuel
@@ -35,7 +35,7 @@ Tes données vivent **uniquement** dans le navigateur. Si tu vides Chrome ou cha
 
 Pour ne rien perdre :
 - **Profil** → **Sauvegarde** → **Exporter** (JSON)
-- Le fichier `helios-backup-YYYY-MM-DD.json` se télécharge
+- Le fichier `orion-backup-YYYY-MM-DD.json` se télécharge
 - Mets-le sur Google Drive / par email à toi-même
 - Pour restaurer : **Importer une sauvegarde**
 

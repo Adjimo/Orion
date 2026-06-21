@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
-  <title>Hélios</title>
+  <title>Orion</title>
 
   <!-- PWA -->
   <link rel="manifest" href="manifest.json" />
@@ -19,7 +19,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- MapLibre GL (carte vectorielle stylée Hélios) -->
+  <!-- MapLibre GL (carte vectorielle stylée Orion) -->
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" />
   <script defer src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 
@@ -33,8 +33,12 @@
   <!-- ===== SPLASH SCREEN ===== -->
   <div id="splash" class="splash">
     <div class="splash-content">
-      <img src="icons/favicon.svg" alt="Hélios" class="splash-icon" />
-      <div class="splash-title">Hélios</div>
+      <div class="belt">
+        <span class="dot violet"></span>
+        <span class="dot bigger gold"></span>
+        <span class="dot orange"></span>
+      </div>
+      <div class="splash-title">Orion</div>
     </div>
   </div>
 
@@ -62,23 +66,28 @@
   <nav class="tabbar hidden" id="tabbar">
     <div class="tabbar-inner">
       <button class="tab" data-route="home">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8v10a2 2 0 0 1-2 2h-4v-7h-6v7H5a2 2 0 0 1-2-2V11z"/></svg>
+        <img class="tab-icon tab-icon-mono" src="icons/ui/tab-accueil-mono.png" alt="">
+        <img class="tab-icon tab-icon-active" src="icons/ui/tab-accueil.png" alt="">
         <span>Accueil</span>
       </button>
       <button class="tab" data-route="quetes">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h9"/></svg>
+        <img class="tab-icon tab-icon-mono" src="icons/ui/tab-objectif-mono.png" alt="">
+        <img class="tab-icon tab-icon-active" src="icons/ui/tab-objectif.png" alt="">
         <span>Objectifs</span>
       </button>
       <button class="tab" data-route="sport">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="13" cy="4" r="2"/><path d="M5 22l3-7 4-2-2-5 5 4 4 1"/><path d="M9 13l-2 4"/></svg>
+        <img class="tab-icon tab-icon-mono" src="icons/ui/tab-sport-mono.png" alt="">
+        <img class="tab-icon tab-icon-active" src="icons/ui/tab-sport.png" alt="">
         <span>Sport</span>
       </button>
       <button class="tab" data-route="stats">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-4 4 4 5-6"/></svg>
+        <img class="tab-icon tab-icon-mono" src="icons/ui/tab-stats-mono.png" alt="">
+        <img class="tab-icon tab-icon-active" src="icons/ui/tab-stats.png" alt="">
         <span>Stats</span>
       </button>
       <button class="tab" data-route="profil">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>
+        <img class="tab-icon tab-icon-mono" src="icons/ui/tab-profil-mono.png" alt="">
+        <img class="tab-icon tab-icon-active" src="icons/ui/tab-profil.png" alt="">
         <span>Profil</span>
       </button>
     </div>

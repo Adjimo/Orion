@@ -1,12 +1,12 @@
 // ============================================================================
-// Hélios - app.js (vanilla JS)
+// Orion - app.js (vanilla JS)
 // Webapp PWA pour gamifier prépa MP* + trail. Stockage local (IndexedDB).
 // ============================================================================
 
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '2.05';
+const APP_VERSION = '3.02';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -198,7 +198,7 @@ const RANKS = [
   { from: 30,  to: 49,  title: 'Cendres',             color: '#ff6a3d' },
   { from: 50,  to: 74,  title: 'Renaissance',         color: '#ff6a3d' },
   { from: 75,  to: 99,  title: 'Phénix',              color: '#ffd86b' },
-  { from: 100, to: 999, title: 'Hélios',              color: '#ffd86b' }
+  { from: 100, to: 999, title: 'Orion',              color: '#ffd86b' }
 ];
 
 function getRank(level) {
@@ -298,12 +298,14 @@ const DEFAULT_SCHEDULE = [
 
 // 5 catégories de sport. Toutes correspondent à une séance hebdo régulière
 // (footing/fractionne/seuil/sortie-longue) ou à une sortie spécifique (trail).
+// L'`img` pointe vers le PNG extrait des planches d'icônes, l'`icon` (emoji)
+// reste comme fallback pour les contextes texte (titres, alt, etc.).
 const SPORT_TYPES = {
-  footing:        { label: 'Footing',         icon: '🏃',  desc: 'Endurance facile (zone E)',       zone: 'E' },
-  seuil:          { label: 'Seuil',           icon: '🔥',  desc: 'Tempo, allure seuil (zone T)',     zone: 'T' },
-  fractionne:     { label: 'Fractionné',      icon: '⚡',  desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
-  'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  desc: 'Volume long, allure E/M' },
-  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' }
+  footing:        { label: 'Footing',         icon: '🏃',  img: 'icons/ui/sport-footing.png',        desc: 'Endurance facile (zone E)',        zone: 'E' },
+  seuil:          { label: 'Seuil',           icon: '🔥',  img: 'icons/ui/ui-timer.png',             desc: 'Tempo, allure seuil (zone T)',     zone: 'T' },
+  fractionne:     { label: 'Fractionné',      icon: '⚡',  img: 'icons/ui/sport-fractionne.png',     desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
+  'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  img: 'icons/ui/sport-sortie-longue.png',  desc: 'Volume long, allure E/M' },
+  trail:          { label: 'Trail',           icon: '⛰️',  img: 'icons/ui/sport-trail.png',          desc: 'D+ et terrain technique' }
 };
 
 async function getTodayPlan() {
@@ -321,12 +323,12 @@ async function getTodayPlan() {
 // Une matière qui prend une grande part du temps a un mult faible (déjà bcp d'XP),
 // une matière minoritaire a un mult fort pour compenser.
 const SUBJECTS = {
-  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 1.10 },
-  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 1.30 },
-  si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 4.00 },
-  langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 4.00 },
-  francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 4.00 },
-  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.20 }
+  maths:    { label: 'Maths',     icon: '🧮', img: 'icons/ui/subj-maths.png',    skill: 'maths',      skillMult: 1.10 },
+  physique: { label: 'Physique',  icon: '⚛️', img: 'icons/ui/subj-physique.png', skill: 'physique',   skillMult: 1.30 },
+  si:       { label: 'SI / Info', icon: '🔬', img: 'icons/ui/subj-si.png',       skill: 'si',         skillMult: 4.00 },
+  langues:  { label: 'Anglais',   icon: '🌍', img: 'icons/ui/subj-anglais.png',  skill: 'langues',    skillMult: 4.00 },
+  francais: { label: 'Français',  icon: '✒️', img: 'icons/ui/subj-lettres.png',  skill: 'lettres',    skillMult: 4.00 },
+  autre:    { label: 'Autre',     icon: '📖', img: 'icons/ui/ui-travail.png',    skill: 'discipline', skillMult: 0.20 }
 };
 
 function baseXpForGoal(goalHours) {
@@ -955,6 +957,25 @@ function activityTypeIcon(type) {
     || (type === 'trail' ? '⛰️' : type === 'rando' ? '🥾' : '🏃');
 }
 
+// Rendu HTML d'une icône d'activité : <img> si dispo, sinon emoji fallback.
+// Pour usages dans des template strings (innerHTML).
+function activityTypeIconHtml(type, size = 28) {
+  const meta = SPORT_TYPES[type];
+  if (meta && meta.img) {
+    return `<img class="cat-icon" src="${meta.img}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;">`;
+  }
+  return `<span class="cat-icon emoji">${activityTypeIcon(type)}</span>`;
+}
+
+// Rendu HTML d'une icône matière (Sujets).
+function subjectIconHtml(key, size = 22) {
+  const meta = SUBJECTS[key];
+  if (meta && meta.img) {
+    return `<img class="cat-icon" src="${meta.img}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;">`;
+  }
+  return `<span class="cat-icon emoji">${meta?.icon || '📖'}</span>`;
+}
+
 // Analyse une trace de fractionné : segmente en phases d'effort et de récupération
 // par seuillage de la vitesse autour d'une médiane glissante. Renvoie la liste
 // des intervalles { kind: 'effort' | 'repos', duration: s, distance: m, avgPace: s/km }.
@@ -1466,7 +1487,7 @@ function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activit
       <div class="goal-session">
         <div class="goal-session-icon">⚡</div>
         <div class="goal-session-body">
-          <div class="goal-session-title">1× Tempo / seuil</div>
+          <div class="goal-session-title">1× Séance de seuil</div>
           <div class="goal-session-detail">Échauffement 2 km + ${tempoKm} km à <span class="mono">${formatPace(goalPaces.T)}</span> + retour calme · effort soutenu mais contrôlé</div>
         </div>
       </div>
@@ -2361,30 +2382,138 @@ function renderQuetes(root) {
   const dashWrap = el('div', { class: 'mb-5' });
   page.appendChild(dashWrap);
 
-  // Principaux — donnent des malus si pas faits
-  page.appendChild(el('h3', { class: 'mb-1' }, '🎯 Principaux'));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' },
-    arePenaltiesActive()
-      ? 'Malus appliqué la semaine prochaine si non atteints.'
-      : `À partir du ${formatDate(PENALTIES_START)}, malus si non atteints.`));
-  const mainWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(mainWrap);
+  // Mon objectif de course — carte cliquable qui ouvre une sous-page modale
+  const goalMeta = State._goalRace || null;
+  page.appendChild(el('h3', { class: 'mb-2' }, '🏁 Mon objectif de course'));
+  const goalCardWrap = el('div', { class: 'mb-5' });
+  goalCardWrap.innerHTML = goalMeta
+    ? `
+      <button class="goal-summary-card" id="open-goal-detail">
+        <div class="goal-summary-icon"><img src="icons/ui/ui-objectif.png" alt=""></div>
+        <div class="goal-summary-body">
+          <div class="goal-summary-title">${({ 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' })[goalMeta.distance] || (goalMeta.distance/1000+' km')} en ${formatDuration(goalMeta.timeS)}</div>
+          <div class="goal-summary-meta dim text-xs">Tape pour voir le plan d'entraînement</div>
+        </div>
+        <div class="goal-summary-chevron">›</div>
+      </button>
+    `
+    : `
+      <button class="goal-summary-card empty" id="open-goal-detail">
+        <div class="goal-summary-icon"><img src="icons/ui/ui-objectif.png" alt=""></div>
+        <div class="goal-summary-body">
+          <div class="goal-summary-title">Définir un objectif</div>
+          <div class="goal-summary-meta dim text-xs">Choisis une distance et un chrono cible</div>
+        </div>
+        <div class="goal-summary-chevron">›</div>
+      </button>
+    `;
+  page.appendChild(goalCardWrap);
+  setTimeout(() => {
+    goalCardWrap.querySelector('#open-goal-detail').addEventListener('click', () => showGoalDetailModal());
+  }, 0);
 
-  // Secondaires — donnent des bonus si dépassés
-  page.appendChild(el('h3', { class: 'mb-1' }, '✨ Secondaires'));
+  // ── 🏃 SPORT (quête sorties principales) ─────────────────────────────
+  page.appendChild(el('h3', { class: 'mb-1' }, '🏃 Sport'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Sorties de course de la semaine'));
+  const sportWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(sportWrap);
+
+  // ── 📚 TRAVAIL (quêtes travail + sommeil + secondaires) ──────────────
+  page.appendChild(el('h3', { class: 'mb-1' }, '📚 Travail & autres'));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' },
     arePenaltiesActive()
-      ? 'Bonus de XP si dépassés.'
-      : `À partir du ${formatDate(PENALTIES_START)}, bonus si dépassés.`));
-  const secWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(secWrap);
+      ? 'Malus si principaux non atteints · bonus si secondaires dépassés.'
+      : `À partir du ${formatDate(PENALTIES_START)}, malus si principaux ratés, bonus si secondaires dépassés.`));
+  const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(travailWrap);
 
   root.appendChild(page);
 
-  // Render async
+  // Render async, en filtrant par questId pour chaque section
   renderDayDashboard(dashWrap);
-  renderWeeklyQuests(mainWrap, 'main');
-  renderWeeklyQuests(secWrap, 'secondary');
+  renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']);
+  renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-sleep', 'wq-langues', 'wq-lettres', 'wq-si']);
+}
+
+// Sous-page modale pour configurer + visualiser le détail de l'objectif de course.
+async function showGoalDetailModal() {
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal goal-modal' });
+  const goal = State._goalRace || null;
+  const vdotInfo = currentVDOT(State.activities);
+  const currentVdot = vdotInfo ? vdotInfo.vdot : null;
+  const paces = currentVdot ? trainingPaces(currentVdot) : null;
+  const goalVdot = goal && goal.distance && goal.timeS
+    ? daniels_solveVDOTfromTime(goal.distance, goal.timeS)
+    : null;
+  const goalPaces = goalVdot ? trainingPaces(goalVdot) : null;
+
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title">
+        <span class="gpx-preview-icon">🏁</span>
+        <span>Mon objectif de course</span>
+      </div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 14px 18px; overflow-y: auto;">
+      <p class="dim text-sm mb-3">Définis une course cible pour voir le plan d'entraînement adapté.</p>
+      <div class="goal-form">
+        <select class="input" id="goal-distance">
+          <option value="">— Distance —</option>
+          <option value="5000" ${goal && goal.distance == 5000 ? 'selected' : ''}>5 km</option>
+          <option value="10000" ${goal && goal.distance == 10000 ? 'selected' : ''}>10 km</option>
+          <option value="15000" ${goal && goal.distance == 15000 ? 'selected' : ''}>15 km</option>
+          <option value="21097" ${goal && goal.distance == 21097 ? 'selected' : ''}>Semi-marathon</option>
+          <option value="42195" ${goal && goal.distance == 42195 ? 'selected' : ''}>Marathon</option>
+        </select>
+        <input class="input" id="goal-time" type="text" placeholder="Chrono (ex: 45:00, 1h30)" value="${goal && goal.timeS ? formatDuration(goal.timeS) : ''}" />
+        <button class="btn primary sm" id="goal-save">Définir</button>
+        ${goal ? `<button class="btn ghost sm" id="goal-clear">Effacer</button>` : ''}
+      </div>
+      <div id="goal-output">${goalPaces && goal ? renderGoalPacesHtml(goal, goalPaces, paces, currentVdot, State.activities) : ''}</div>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+
+  const close = () => overlay.remove();
+  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+
+  modal.querySelector('#goal-save').addEventListener('click', async () => {
+    const dist = parseInt(modal.querySelector('#goal-distance').value);
+    const timeStr = modal.querySelector('#goal-time').value.trim();
+    const timeS = parseGoalTimeInput(timeStr);
+    if (!dist || !timeS) {
+      showToast({ type: 'err', title: 'Incomplet', text: 'Choisis une distance et un chrono.' });
+      return;
+    }
+    await dbPut('meta', { key: 'goalRace', value: { distance: dist, timeS } });
+    State._goalRace = { distance: dist, timeS };
+    close();
+    render();
+    showToast({ type: 'xp', title: 'Objectif défini', text: `${(dist/1000)}K en ${formatDuration(timeS)}` });
+  });
+  const clearBtn = modal.querySelector('#goal-clear');
+  if (clearBtn) clearBtn.addEventListener('click', async () => {
+    await dbDelete('meta', 'goalRace');
+    State._goalRace = null;
+    close();
+    render();
+  });
+}
+
+// Variante de renderWeeklyQuests qui filtre par liste d'IDs (au lieu de catégorie main/secondary).
+async function renderWeeklyQuestsFiltered(root, questIds) {
+  const wks = State.quests.filter(q =>
+    (q.type === 'weekly-hours' || q.type === 'weekly-count') && questIds.includes(q.id)
+  );
+  // Réutilise la logique de renderWeeklyQuests mais avec un set explicite
+  root.innerHTML = '';
+  for (const q of wks) {
+    await _renderOneQuest(root, q, null);
+  }
 }
 
 async function renderDayDashboard(root) {
@@ -2415,7 +2544,7 @@ async function renderDayDashboard(root) {
         : 'Importe ton GPX quand c\'est fait';
     sportBlock = `
       <div class="block sport ${sportDone ? 'done' : ''}">
-        <div class="block-icon">${sportMeta.icon}</div>
+        <div class="block-icon">${sportMeta.img ? `<img src="${sportMeta.img}" alt="" style="width:36px;height:36px;object-fit:contain;">` : sportMeta.icon}</div>
         <div class="block-body">
           <div class="block-title">${sportMeta.label}<span class="pill warm" style="margin-left:8px;">${isWeekend ? 'Week-end' : 'Sport du jour'}</span></div>
           <div class="dim text-xs">${subtitle}</div>
@@ -2467,7 +2596,7 @@ async function renderDayDashboard(root) {
     for (const [key, meta] of Object.entries(SUBJECTS)) {
       const minutes = workLog?.bySubject?.[key] || 0;
       const sub = el('div', { class: 'sub' });
-      sub.innerHTML = `<label class="sub-label">${meta.icon} ${meta.label}</label>`;
+      sub.innerHTML = `<label class="sub-label">${subjectIconHtml(key, 22)} <span>${meta.label}</span></label>`;
       const input = el('input', {
         class: 'sub-input',
         type: 'text',
@@ -2497,103 +2626,107 @@ async function renderWeeklyQuests(root, category = null) {
   );
   root.innerHTML = '';
   for (const q of wks) {
-    const c = await getCurrentCompletion(q);
-    const actual = c?.actualValue || 0;
-    const xp = c?.lastXp || 0;
-    const ratio = c?.ratio || 0;
-    const isHours = q.type === 'weekly-hours';
-    const goal = isHours ? q.goalHours : q.goalCount;
-    const unit = isHours ? 'h' : (q.unit || 'fois');
-    const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
-    const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi;
-
-    // Aperçu malus/bonus, uniquement à partir de la rentrée.
-    let forecast = '';
-    if (arePenaltiesActive()) {
-      if (q.category === 'main') {
-        const f = malusFactorFromRatio(ratio);
-        if (f > 0) {
-          forecast = `<span class="hq-malus">−${Math.round(f * 100)}% XP semaine prévu</span>`;
-        }
-      } else if (q.category === 'secondary') {
-        const f = bonusFactorFromRatio(ratio);
-        if (f > 0) {
-          const fullXp = questFullXp(q);
-          const bonusXp = Math.round(fullXp * f);
-          forecast = `<span class="hq-bonus">+${bonusXp} XP bonus</span>`;
-        }
-      }
-    }
-
-    const div = el('div', {
-      class: 'hq' + (ratio >= 1 ? ' done' : ''),
-      style: `--hq-c: ${q.color || '#ffb547'};`
-    });
-    div.innerHTML = `
-      <div class="hq-head">
-        <span class="hq-icon">${q.icon}</span>
-        <div class="hq-titles">
-          <div class="hq-title">${escapeHtml(q.title)}</div>
-          <div class="hq-goal">Objectif : ${goal} ${unit}${isAuto ? '<span class="auto-tag">auto</span>' : ''}</div>
-        </div>
-        <div class="hq-pct" style="color:${q.color}">${Math.round(ratio * 100)}%</div>
-      </div>
-      <div class="hq-bar">
-        <div class="hq-fill" style="width:${Math.min(100, progress * 100)}%; background:${q.color};"></div>
-      </div>
-      <div class="hq-info">
-        ${isHours
-          ? `<span class="dim text-xs">${formatMinutes(actual)} / ${goal}h</span>`
-          : `<span class="dim text-xs">${actual} / ${goal} ${unit}</span>`}
-        ${xp > 0 ? `<span class="hq-xp">+${xp} XP</span>` : '<span></span>'}
-      </div>
-      ${forecast ? `<div class="hq-forecast">${forecast}</div>` : ''}
-    `;
-
-    if (!isAuto) {
-      if (isHours) {
-        const row = el('div', { class: 'hq-input-row' });
-        const input = el('input', {
-          class: 'input', type: 'text',
-          placeholder: 'ex: 2h30, 1.5',
-          value: actual ? formatMinutes(actual) : ''
-        });
-        const btn = el('button', { class: 'btn primary sm' }, 'Valider');
-        const save = async () => {
-          const min = parseTimeInput(input.value);
-          await setQuestValue(q, min);
-          await loadAll();
-          renderWeeklyQuests(root, category);
-          showToast({ type: 'xp', title: 'Mis à jour', text: q.title });
-        };
-        btn.addEventListener('click', save);
-        input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
-        row.appendChild(input);
-        row.appendChild(btn);
-        div.appendChild(row);
-      } else {
-        const row = el('div', { class: 'hq-count-row' });
-        const minus = el('button', { class: 'cnt-btn' }, '−');
-        const val = el('div', { class: 'cnt-val' }, String(actual));
-        const plus = el('button', { class: 'cnt-btn plus' }, '+');
-        minus.disabled = actual <= 0;
-        const change = async (delta) => {
-          const nv = Math.max(0, actual + delta);
-          await setQuestValue(q, nv);
-          await loadAll();
-          renderWeeklyQuests(root, category);
-        };
-        minus.addEventListener('click', () => change(-1));
-        plus.addEventListener('click', () => change(+1));
-        row.appendChild(minus);
-        row.appendChild(val);
-        row.appendChild(plus);
-        div.appendChild(row);
-      }
-    }
-
-    root.appendChild(div);
+    await _renderOneQuest(root, q, category);
   }
+}
+
+// Rendu d'une carte quête individuelle. Utilisé par renderWeeklyQuests et renderWeeklyQuestsFiltered.
+async function _renderOneQuest(root, q, category) {
+  const c = await getCurrentCompletion(q);
+  const actual = c?.actualValue || 0;
+  const xp = c?.lastXp || 0;
+  const ratio = c?.ratio || 0;
+  const isHours = q.type === 'weekly-hours';
+  const goal = isHours ? q.goalHours : q.goalCount;
+  const unit = isHours ? 'h' : (q.unit || 'fois');
+  const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
+  const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi;
+
+  let forecast = '';
+  if (arePenaltiesActive()) {
+    if (q.category === 'main') {
+      const f = malusFactorFromRatio(ratio);
+      if (f > 0) {
+        forecast = `<span class="hq-malus">−${Math.round(f * 100)}% XP semaine prévu</span>`;
+      }
+    } else if (q.category === 'secondary') {
+      const f = bonusFactorFromRatio(ratio);
+      if (f > 0) {
+        const fullXp = questFullXp(q);
+        const bonusXp = Math.round(fullXp * f);
+        forecast = `<span class="hq-bonus">+${bonusXp} XP bonus</span>`;
+      }
+    }
+  }
+
+  const div = el('div', {
+    class: 'hq' + (ratio >= 1 ? ' done' : ''),
+    style: `--hq-c: ${q.color || '#ffb547'};`
+  });
+  div.innerHTML = `
+    <div class="hq-head">
+      <span class="hq-icon">${q.icon}</span>
+      <div class="hq-titles">
+        <div class="hq-title">${escapeHtml(q.title)}</div>
+        <div class="hq-goal">Objectif : ${goal} ${unit}${isAuto ? '<span class="auto-tag">auto</span>' : ''}</div>
+      </div>
+      <div class="hq-pct" style="color:${q.color}">${Math.round(ratio * 100)}%</div>
+    </div>
+    <div class="hq-bar">
+      <div class="hq-fill" style="width:${Math.min(100, progress * 100)}%; background:${q.color};"></div>
+    </div>
+    <div class="hq-info">
+      ${isHours
+        ? `<span class="dim text-xs">${formatMinutes(actual)} / ${goal}h</span>`
+        : `<span class="dim text-xs">${actual} / ${goal} ${unit}</span>`}
+      ${xp > 0 ? `<span class="hq-xp">+${xp} XP</span>` : '<span></span>'}
+    </div>
+    ${forecast ? `<div class="hq-forecast">${forecast}</div>` : ''}
+  `;
+
+  if (!isAuto) {
+    if (isHours) {
+      const row = el('div', { class: 'hq-input-row' });
+      const input = el('input', {
+        class: 'input', type: 'text',
+        placeholder: 'ex: 2h30, 1.5',
+        value: actual ? formatMinutes(actual) : ''
+      });
+      const btn = el('button', { class: 'btn primary sm' }, 'Valider');
+      const save = async () => {
+        const min = parseTimeInput(input.value);
+        await setQuestValue(q, min);
+        await loadAll();
+        render();
+        showToast({ type: 'xp', title: 'Mis à jour', text: q.title });
+      };
+      btn.addEventListener('click', save);
+      input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
+      row.appendChild(input);
+      row.appendChild(btn);
+      div.appendChild(row);
+    } else {
+      const row = el('div', { class: 'hq-count-row' });
+      const minus = el('button', { class: 'cnt-btn' }, '−');
+      const val = el('div', { class: 'cnt-val' }, String(actual));
+      const plus = el('button', { class: 'cnt-btn plus' }, '+');
+      minus.disabled = actual <= 0;
+      const change = async (delta) => {
+        const nv = Math.max(0, actual + delta);
+        await setQuestValue(q, nv);
+        await loadAll();
+        render();
+      };
+      minus.addEventListener('click', () => change(-1));
+      plus.addEventListener('click', () => change(+1));
+      row.appendChild(minus);
+      row.appendChild(val);
+      row.appendChild(plus);
+      div.appendChild(row);
+    }
+  }
+
+  root.appendChild(div);
 }
 
 // ============================================================================
@@ -2643,11 +2776,11 @@ function renderSport(root) {
   // Selected activity card
   const sel = State.currentActivity;
   if (sel) {
-    const typeIcon = activityTypeIcon(sel.type);
+    const typeIcon = activityTypeIconHtml(sel.type, 28);
     const card = el('div', { class: 'card mb-4', html: `
       <div class="flex between mb-2">
         <div>
-          <div class="text-lg" style="font-weight:600;">${typeIcon} ${escapeHtml(sel.name)}</div>
+          <div class="text-lg" style="font-weight:600; display:flex; align-items:center; gap:8px;">${typeIcon} <span>${escapeHtml(sel.name)}</span></div>
           <div class="dim text-sm">${formatDate(sel.date)} · ${SPORT_TYPES[sel.type]?.label || sel.type}</div>
         </div>
         <div class="flex gap-2">
@@ -2682,7 +2815,7 @@ function renderSport(root) {
   const list = el('div', { class: 'flex col gap-2' });
   const sortedActs = [...State.activities].sort((a, b) => b.date.localeCompare(a.date));
   for (const a of sortedActs) {
-    const ti = activityTypeIcon(a.type);
+    const ti = activityTypeIconHtml(a.type, 32);
     const btn = el('button', {
       class: 'act' + (sel?.id === a.id ? ' sel' : ''),
       onclick: () => { State.currentActivity = a; render(); }
@@ -2705,13 +2838,13 @@ function renderSport(root) {
   setTimeout(() => renderMap(sel), 50);
 }
 
-// Style JSON MapLibre 100% custom Hélios. Couleurs alignées sur la palette
+// Style JSON MapLibre 100% custom Orion. Couleurs alignées sur la palette
 // de l'app (--bg-*, --accent-*) — fond charbon profond, eau bleu nuit, routes
 // violet pâle, parcs vert sombre. Source de tiles vectorielles : OpenFreeMap
 // (gratuit, sans clé, basé sur OpenMapTiles).
 const ORION_MAP_STYLE = {
   version: 8,
-  name: 'Hélios',
+  name: 'Orion',
   glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources: {
     openmaptiles: {
@@ -2775,7 +2908,7 @@ const ORION_MAP_STYLE = {
   ]
 };
 
-// Rend une carte Hélios-stylée dans un conteneur DOM. Renvoie l'instance MapLibre.
+// Rend une carte Orion-stylée dans un conteneur DOM. Renvoie l'instance MapLibre.
 function renderMapInto(mapEl, activity) {
   if (!activity || !window.maplibregl || !mapEl) return null;
   const map = new maplibregl.Map({
@@ -2853,7 +2986,7 @@ function renderMap(activity) {
 // Résout à `true` si l'utilisateur confirme l'import, `false` sinon.
 function showGpxPreview(parsed, type, splits, xp) {
   return new Promise((resolve) => {
-    const typeIcon = activityTypeIcon(type);
+    const typeIcon = activityTypeIconHtml(type, 32);
     const overlay = el('div', { class: 'gpx-preview-overlay' });
     const modal = el('div', { class: 'gpx-preview-modal' });
     modal.innerHTML = `
@@ -3298,130 +3431,6 @@ function renderStats(root) {
     </div>
   `}));
 
-  // ── Performance (VDOT + prédictions de chronos + allures cibles) ───────
-  const vdot = currentVDOT(acts);
-  const vo2Points = activityVO2maxPoints(acts);
-  if (vdot || vo2Points.length > 0) {
-    const vdotVal = vdot ? vdot.vdot.toFixed(1) : '—';
-    const confLabel = vdot ? ({ high: 'Haute', medium: 'Moyenne', low: 'Faible' }[vdot.confidence]) : '—';
-    const confColor = vdot ? ({ high: 'var(--accent)', medium: 'var(--gold)', low: 'var(--accent-warm)' }[vdot.confidence]) : 'var(--text-mute)';
-    const races = vdot ? predictRaceTimes(vdot.vdot) : null;
-    const paces = vdot ? trainingPaces(vdot.vdot) : null;
-
-    // Objectif personnalisé (stocké dans meta)
-    const goalMeta = State._goalRace || null;
-    const goalPaces = goalMeta && goalMeta.distance && goalMeta.timeS
-      ? trainingPaces(daniels_solveVDOTfromTime(goalMeta.distance, goalMeta.timeS))
-      : null;
-
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🎯 Performance'));
-    const perfCard = el('div', { class: 'card mb-3' });
-    const racesHtml = races ? Object.entries(races).map(([k, r]) => `
-      <div class="race-row">
-        <div class="race-dist">${k}</div>
-        <div class="race-time mono">${formatDuration(r.time)}</div>
-        <div class="race-pace dim mono">${formatPace(r.time / (r.distance / 1000))}</div>
-      </div>
-    `).join('') : '';
-    const pacesHtml = paces ? `
-      <div class="paces-grid">
-        <div class="pace-cell"><div class="pace-key">E</div><div class="pace-val mono">${formatPace(paces.E)}</div><div class="pace-desc">Footing facile</div></div>
-        <div class="pace-cell"><div class="pace-key">M</div><div class="pace-val mono">${formatPace(paces.M)}</div><div class="pace-desc">Allure marathon</div></div>
-        <div class="pace-cell"><div class="pace-key">T</div><div class="pace-val mono">${formatPace(paces.T)}</div><div class="pace-desc">Tempo / seuil</div></div>
-        <div class="pace-cell"><div class="pace-key">I</div><div class="pace-val mono">${formatPace(paces.I)}</div><div class="pace-desc">VMA / fractio</div></div>
-        <div class="pace-cell"><div class="pace-key">R</div><div class="pace-val mono">${formatPace(paces.R)}</div><div class="pace-desc">Sprint court</div></div>
-      </div>
-    ` : '';
-    perfCard.innerHTML = `
-      <div class="flex between mb-2">
-        <div class="dim text-xs">VDOT (Daniels) · indice de forme aérobie</div>
-        <button class="info-btn" id="perf-info-toggle" title="Plus d'infos">ℹ️</button>
-      </div>
-      <div class="vo2-hero">
-        <div>
-          <div class="vo2-val grad-text">${vdotVal}</div>
-          <div class="dim text-xs">VDOT · confiance <span style="color: ${confColor}">${confLabel}</span></div>
-        </div>
-        <div class="vo2-source dim text-xs">${vdot ? escapeHtml(vdot.source) : 'Pas assez de données'}</div>
-      </div>
-      ${vo2Points.length >= 2 ? '<div class="chart-wrap" style="height: 140px; margin-bottom: 12px;"><canvas id="chart-vo2"></canvas></div>' : ''}
-      ${races ? `
-        <div class="perf-section-title">⏱ Chronos prédits</div>
-        <div class="races-list">${racesHtml}</div>
-      ` : ''}
-      ${paces ? `
-        <div class="perf-section-title">🎯 Tes allures actuelles</div>
-        ${pacesHtml}
-      ` : ''}
-      <div class="perf-explainer hidden" id="perf-explainer">
-        <p><strong>Comment ça marche</strong></p>
-        <p>Le <strong>VDOT</strong> est un indice de Jack Daniels qui résume ta forme aérobie en un seul nombre. Il est calculé depuis tes meilleurs temps récents (5K/10K/semi) et calibré avec tes fractionnés (allure d'effort). Plus tu progresses, plus il monte.</p>
-        <p>Les <strong>chronos prédits</strong> sont ce que tu peux courir <em>aujourd'hui</em> sur chaque distance. Plus la distance est longue, plus la prédiction dépend de ton endurance accumulée (kilométrage hebdo). Pour un marathon réaliste, vise au moins 50-60 km/sem.</p>
-        <p>Les <strong>allures d'entraînement</strong> guident tes séances :</p>
-        <ul>
-          <li><strong>E</strong> (Easy) : footings de récup, 80% du volume</li>
-          <li><strong>M</strong> (Marathon) : alllure marathon, sortie longue tempo</li>
-          <li><strong>T</strong> (Threshold) : seuil lactique, ~20-30 min en tempo</li>
-          <li><strong>I</strong> (Interval) : VMA, fractios 3-5 min</li>
-          <li><strong>R</strong> (Repetition) : sprint court, 200-400m récup complète</li>
-        </ul>
-        <p class="dim text-xs">Confiance <strong>haute</strong> = splits + fractios récents. <strong>Moyenne</strong> = splits seuls. <strong>Faible</strong> = fractios seuls (moins fiable pour les longues distances).</p>
-      </div>
-    `;
-    page.appendChild(perfCard);
-    setTimeout(() => {
-      perfCard.querySelector('#perf-info-toggle').addEventListener('click', () => {
-        perfCard.querySelector('#perf-explainer').classList.toggle('hidden');
-      });
-    }, 0);
-
-    // ── Mon objectif (formulaire course cible) ─────────────────────────
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🏁 Mon objectif'));
-    const goalCard = el('div', { class: 'card mb-3' });
-    goalCard.innerHTML = `
-      <p class="dim text-sm mb-3">Définis une course cible pour voir les allures d'entraînement adaptées à ton objectif.</p>
-      <div class="goal-form">
-        <select class="input" id="goal-distance">
-          <option value="">— Distance —</option>
-          <option value="5000" ${goalMeta && goalMeta.distance == 5000 ? 'selected' : ''}>5 km</option>
-          <option value="10000" ${goalMeta && goalMeta.distance == 10000 ? 'selected' : ''}>10 km</option>
-          <option value="15000" ${goalMeta && goalMeta.distance == 15000 ? 'selected' : ''}>15 km</option>
-          <option value="21097" ${goalMeta && goalMeta.distance == 21097 ? 'selected' : ''}>Semi-marathon</option>
-          <option value="42195" ${goalMeta && goalMeta.distance == 42195 ? 'selected' : ''}>Marathon</option>
-        </select>
-        <input class="input" id="goal-time" type="text" placeholder="Chrono (ex: 45:00, 1h30)" value="${goalMeta && goalMeta.timeS ? formatDuration(goalMeta.timeS) : ''}" />
-        <button class="btn-gpx" id="goal-save">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <span>Définir</span>
-        </button>
-        ${goalMeta ? `<button class="btn ghost sm" id="goal-clear">Effacer</button>` : ''}
-      </div>
-      <div id="goal-output">${goalPaces && goalMeta ? renderGoalPacesHtml(goalMeta, goalPaces, paces, vdot ? vdot.vdot : null, acts) : ''}</div>
-    `;
-    page.appendChild(goalCard);
-    setTimeout(() => {
-      goalCard.querySelector('#goal-save').addEventListener('click', async () => {
-        const dist = parseInt(goalCard.querySelector('#goal-distance').value);
-        const timeStr = goalCard.querySelector('#goal-time').value.trim();
-        const timeS = parseGoalTimeInput(timeStr);
-        if (!dist || !timeS) {
-          showToast({ type: 'err', title: 'Incomplet', text: 'Choisis une distance et un chrono.' });
-          return;
-        }
-        await dbPut('meta', { key: 'goalRace', value: { distance: dist, timeS } });
-        State._goalRace = { distance: dist, timeS };
-        render();
-        showToast({ type: 'xp', title: 'Objectif défini', text: `${(dist/1000)}K en ${formatDuration(timeS)}` });
-      });
-      const clearBtn = goalCard.querySelector('#goal-clear');
-      if (clearBtn) clearBtn.addEventListener('click', async () => {
-        await dbDelete('meta', 'goalRace');
-        State._goalRace = null;
-        render();
-      });
-    }, 0);
-  }
-
   // ── Records absolus / 30j / 90j ────────────────────────────────────────
   const r30 = getRollingRecords(acts, 30);
   const r90 = getRollingRecords(acts, 90);
@@ -3493,7 +3502,7 @@ function renderStats(root) {
   setTimeout(() => renderStatsCharts(logs, acts), 30);
 }
 
-// Helpers de styling Chart.js cohérents avec la palette Hélios.
+// Helpers de styling Chart.js cohérents avec la palette Orion.
 const CHART_COLORS = {
   text: '#a0a4b8',
   textMute: '#5e6480',
@@ -3979,6 +3988,39 @@ function renderProfil(root) {
     });
   }, 0);
 
+  // ── Profil sportif (chronos prédits + allures Daniels actuelles) ──────
+  const vdot = currentVDOT(State.activities);
+  if (vdot) {
+    const races = predictRaceTimes(vdot.vdot);
+    const paces = trainingPaces(vdot.vdot);
+    page.appendChild(el('h3', { class: 'mb-2' }, '⚡ Profil sportif'));
+    const sportCard = el('div', { class: 'card mb-4' });
+    const racesHtml = races ? Object.entries(races).map(([k, r]) => `
+      <div class="race-row">
+        <div class="race-dist">${k}</div>
+        <div class="race-time mono">${formatDuration(r.time)}</div>
+        <div class="race-pace dim mono">${formatPace(r.time / (r.distance / 1000))}</div>
+      </div>
+    `).join('') : '';
+    const pacesHtml = paces ? `
+      <div class="paces-grid">
+        <div class="pace-cell"><div class="pace-key">E</div><div class="pace-val mono">${formatPace(paces.E)}</div><div class="pace-desc">Footing</div></div>
+        <div class="pace-cell"><div class="pace-key">M</div><div class="pace-val mono">${formatPace(paces.M)}</div><div class="pace-desc">Marathon</div></div>
+        <div class="pace-cell"><div class="pace-key">T</div><div class="pace-val mono">${formatPace(paces.T)}</div><div class="pace-desc">Seuil</div></div>
+        <div class="pace-cell"><div class="pace-key">I</div><div class="pace-val mono">${formatPace(paces.I)}</div><div class="pace-desc">VMA</div></div>
+        <div class="pace-cell"><div class="pace-key">R</div><div class="pace-val mono">${formatPace(paces.R)}</div><div class="pace-desc">Sprint</div></div>
+      </div>
+    ` : '';
+    sportCard.innerHTML = `
+      <div class="dim text-xs mb-2">Estimations basées sur tes meilleures sorties récentes</div>
+      <div class="perf-section-title" style="margin-top:0; padding-top:0; border-top:0;">⏱ Chronos prédits</div>
+      <div class="races-list">${racesHtml}</div>
+      <div class="perf-section-title">🎯 Allures actuelles</div>
+      ${pacesHtml}
+    `;
+    page.appendChild(sportCard);
+  }
+
   // Compétences
   page.appendChild(el('h3', { class: 'mb-2' }, '⭐ Compétences'));
   const skCard = el('div', { class: 'card mb-4' });
@@ -4092,7 +4134,7 @@ function renderProfil(root) {
   page.appendChild(el('div', {
     class: 'dim text-xs mt-5',
     style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);'
-  }, `Hélios v${APP_VERSION}`));
+  }, `Orion v${APP_VERSION}`));
 
   root.appendChild(page);
 }
@@ -4125,7 +4167,7 @@ async function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `helios-backup-${todayKey()}.json`;
+  a.download = `orion-backup-${todayKey()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -4166,7 +4208,7 @@ async function downloadAutoBackup(date) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `helios-backup-${date}.json`;
+  a.download = `orion-backup-${date}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);

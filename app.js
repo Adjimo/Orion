@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.07';
+const APP_VERSION = '3.09';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -2176,7 +2176,7 @@ function navigate(route) {
     const img = t.querySelector('.tab-icon');
     const iconName = t.dataset.icon;
     if (img && iconName) {
-      img.src = isActive ? `icons/ui/${iconName}.png` : `icons/ui/${iconName}-mono.png`;
+      img.src = isActive ? `icons/ui/${iconName}.png?v=2` : `icons/ui/${iconName}-mono.png?v=2`;
     }
   });
   render();
@@ -2736,6 +2736,9 @@ function renderSport(root) {
   const sel = State.currentActivity;
   if (sel) {
     const typeIcon = activityTypeIcon(sel.type);
+    const detailHtml = renderActivityDetailHtml(sel);
+    const hasDetail = !!detailHtml && detailHtml.trim().length > 0;
+    const isExpanded = !!State._detailsExpanded;
     const card = el('div', { class: 'card mb-4', html: `
       <div class="flex between mb-2">
         <div>
@@ -2753,7 +2756,15 @@ function renderSport(root) {
         <div class="metric"><div class="m-val grad-text">${formatDuration(sel.duration)}</div><div class="m-lbl">durée</div></div>
         <div class="metric"><div class="m-val grad-text">${formatPace(sel.avgPace)}</div><div class="m-lbl">allure</div></div>
       </div>
-      ${renderActivityDetailHtml(sel)}
+      ${hasDetail ? `
+        <button class="details-toggle" id="details-toggle">
+          <span>Détails</span>
+          <span class="details-chevron">${isExpanded ? '▴' : '▾'}</span>
+        </button>
+        <div class="details-content ${isExpanded ? '' : 'hidden'}" id="details-content">
+          ${detailHtml}
+        </div>
+      ` : ''}
     `});
     page.appendChild(card);
     setTimeout(() => {
@@ -2766,6 +2777,16 @@ function renderSport(root) {
         showToast({ type: 'xp', title: 'Sortie supprimée', text: `−${sel.xpAwarded || 0} XP rendus` });
         render();
       });
+      const toggle = card.querySelector('#details-toggle');
+      if (toggle) {
+        toggle.addEventListener('click', () => {
+          State._detailsExpanded = !State._detailsExpanded;
+          const content = card.querySelector('#details-content');
+          const chev = card.querySelector('.details-chevron');
+          content.classList.toggle('hidden', !State._detailsExpanded);
+          chev.textContent = State._detailsExpanded ? '▴' : '▾';
+        });
+      }
     }, 0);
   }
 
@@ -2777,7 +2798,17 @@ function renderSport(root) {
     const ti = activityTypeIcon(a.type);
     const btn = el('button', {
       class: 'act' + (sel?.id === a.id ? ' sel' : ''),
-      onclick: () => { State.currentActivity = a; render(); }
+      onclick: () => {
+        // Si on change de sortie, on referme le détail. Si on reclique sur la
+        // même, on bascule (geste naturel : tap pour déplier, retap pour replier).
+        if (State.currentActivity?.id === a.id) {
+          State._detailsExpanded = !State._detailsExpanded;
+        } else {
+          State._detailsExpanded = false;
+        }
+        State.currentActivity = a;
+        render();
+      }
     });
     btn.innerHTML = `
       <div class="act-icon">${ti}</div>

@@ -504,6 +504,36 @@ img[src*="icons/ui/"] {
 .route-comp-gap.gap-slow { color: var(--accent-warm); }
 
 /* ===== Splits km par km ===== */
+/* ===== Détails dépliables sur la fiche course ===== */
+.details-toggle {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 14px;
+  background: var(--bg-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+.details-toggle:hover {
+  background: var(--bg-2);
+  color: var(--gold);
+  border-color: var(--gold);
+}
+.details-chevron {
+  font-size: 0.9rem;
+  color: var(--text-mute);
+}
+.details-content {
+  margin-top: 8px;
+}
+
 .km-splits {
   margin-top: 14px;
   padding-top: 14px;

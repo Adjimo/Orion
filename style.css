@@ -98,18 +98,13 @@ h3 { font-size: 1.05rem; }
 }
 
 /* ===== Sécurité globale icônes UI =====
-   Les PNG dans icons/ui/ sont 256x256 transparent. Sans dimensions explicites,
-   ils prendraient leur taille naturelle (256px) et débordent.
-   - Hauteur max raisonnable de 48px en défaut (les usages courants : 22-44px).
-   - Les styles inline width/height ou les règles plus spécifiques (.tab-icon,
-     .block-icon img, .act-icon img, etc.) gagnent par cascade et passent au-delà.
-   - object-fit: contain → l'icône reste centrée sans déformer. */
+   Les PNG dans icons/ui/ sont 256x256 transparent. Seule la tabbar les
+   utilise désormais. On laisse un filet de sécurité au cas où, mais avec
+   une taille modeste. */
 img[src*="icons/ui/"] {
   max-width: 48px;
   max-height: 48px;
   object-fit: contain;
-  display: inline-block;
-  vertical-align: middle;
 }
 
 /* ===== Cards ===== */
@@ -870,13 +865,8 @@ img[src*="icons/ui/"] {
   height: 26px;
   object-fit: contain;
   transition: opacity 0.2s;
+  display: block;
 }
-/* Variantes mono/active : par défaut on affiche la mono, on cache l'active.
-   Quand .tab est .active, on inverse. !important pour résister à la règle
-   globale img[src*="icons/ui/"] qui force display:inline-block. */
-.tab .tab-icon-active { display: none !important; }
-.tab.active .tab-icon-mono { display: none !important; }
-.tab.active .tab-icon-active { display: inline-block !important; }
 
 /* ===== Carte résumé "Mon objectif" cliquable ===== */
 .goal-summary-card {
@@ -907,12 +897,7 @@ img[src*="icons/ui/"] {
   display: flex;
   align-items: center;
   justify-content: center;
-}
-.goal-summary-icon img {
-  width: 40px;
-  height: 40px;
-  object-fit: contain;
-  display: block;
+  font-size: 1.8rem;
 }
 .goal-summary-body { flex: 1; min-width: 0; }
 .goal-summary-title {
@@ -1398,13 +1383,13 @@ img[src*="icons/ui/"] {
 }
 .block {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 12px;
-  padding: 10px 14px;
+  padding: 12px;
   background: var(--bg-2);
   border: 1px solid var(--border);
   border-radius: var(--r-md);
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 .block.sport {
   border-color: rgba(255, 106, 61, 0.5);
@@ -1419,16 +1404,7 @@ img[src*="icons/ui/"] {
   background: linear-gradient(90deg, rgba(255, 181, 71, 0.12), var(--bg-2));
   box-shadow: 0 0 14px rgba(255, 181, 71, 0.18);
 }
-.block-icon {
-  font-size: 1.6rem;
-  flex-shrink: 0;
-  width: 36px;
-  height: 36px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.block-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.block-icon { font-size: 1.6rem; flex-shrink: 0; }
 .block-body { flex: 1; min-width: 0; }
 .block-title {
   font-weight: 600;
@@ -1475,15 +1451,7 @@ img[src*="icons/ui/"] {
   border-radius: var(--r-sm);
   border: 1px solid var(--border);
 }
-.sub-label {
-  flex: 1;
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-.sub-label img { width: 22px; height: 22px; object-fit: contain; display: block; flex-shrink: 0; }
+.sub-label { flex: 1; font-size: 0.78rem; color: var(--text-dim); }
 .sub-input {
   width: 60px;
   background: transparent;
@@ -1689,16 +1657,7 @@ img[src*="icons/ui/"] {
   border-color: var(--accent);
   box-shadow: 0 0 12px rgba(255,181,71,0.2);
 }
-.act-icon {
-  font-size: 1.4rem;
-  width: 38px;
-  height: 38px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-.act-icon img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.act-icon { font-size: 1.4rem; }
 .act-body { flex: 1; min-width: 0; }
 .act-title {
   font-weight: 500;

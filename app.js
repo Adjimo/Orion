@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.05';
+const APP_VERSION = '3.07';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -298,14 +298,12 @@ const DEFAULT_SCHEDULE = [
 
 // 5 catégories de sport. Toutes correspondent à une séance hebdo régulière
 // (footing/fractionne/seuil/sortie-longue) ou à une sortie spécifique (trail).
-// L'`img` pointe vers le PNG extrait des planches d'icônes, l'`icon` (emoji)
-// reste comme fallback pour les contextes texte (titres, alt, etc.).
 const SPORT_TYPES = {
-  footing:        { label: 'Footing',         icon: '🏃',  img: 'icons/ui/sport-footing.png',        desc: 'Endurance facile (zone E)',        zone: 'E' },
-  seuil:          { label: 'Seuil',           icon: '🔥',  img: 'icons/ui/ui-timer.png',             desc: 'Tempo, allure seuil (zone T)',     zone: 'T' },
-  fractionne:     { label: 'Fractionné',      icon: '⚡',  img: 'icons/ui/sport-fractionne.png',     desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
-  'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  img: 'icons/ui/sport-sortie-longue.png',  desc: 'Volume long, allure E/M' },
-  trail:          { label: 'Trail',           icon: '⛰️',  img: 'icons/ui/sport-trail.png',          desc: 'D+ et terrain technique' }
+  footing:        { label: 'Footing',         icon: '🏃',  desc: 'Endurance facile (zone E)',        zone: 'E' },
+  seuil:          { label: 'Seuil',           icon: '🔥',  desc: 'Tempo, allure seuil (zone T)',     zone: 'T' },
+  fractionne:     { label: 'Fractionné',      icon: '⚡',  desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
+  'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  desc: 'Volume long, allure E/M' },
+  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' }
 };
 
 async function getTodayPlan() {
@@ -323,12 +321,12 @@ async function getTodayPlan() {
 // Une matière qui prend une grande part du temps a un mult faible (déjà bcp d'XP),
 // une matière minoritaire a un mult fort pour compenser.
 const SUBJECTS = {
-  maths:    { label: 'Maths',     icon: '🧮', img: 'icons/ui/subj-maths.png',    skill: 'maths',      skillMult: 1.10 },
-  physique: { label: 'Physique',  icon: '⚛️', img: 'icons/ui/subj-physique.png', skill: 'physique',   skillMult: 1.30 },
-  si:       { label: 'SI / Info', icon: '🔬', img: 'icons/ui/subj-si.png',       skill: 'si',         skillMult: 4.00 },
-  langues:  { label: 'Anglais',   icon: '🌍', img: 'icons/ui/subj-anglais.png',  skill: 'langues',    skillMult: 4.00 },
-  francais: { label: 'Français',  icon: '✒️', img: 'icons/ui/subj-lettres.png',  skill: 'lettres',    skillMult: 4.00 },
-  autre:    { label: 'Autre',     icon: '📖', img: 'icons/ui/ui-travail.png',    skill: 'discipline', skillMult: 0.20 }
+  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 1.10 },
+  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 1.30 },
+  si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 4.00 },
+  langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 4.00 },
+  francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 4.00 },
+  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.20 }
 };
 
 function baseXpForGoal(goalHours) {
@@ -957,25 +955,6 @@ function activityTypeIcon(type) {
     || (type === 'trail' ? '⛰️' : type === 'rando' ? '🥾' : '🏃');
 }
 
-// Rendu HTML d'une icône d'activité : <img> si dispo, sinon emoji fallback.
-// Pour usages dans des template strings (innerHTML).
-function activityTypeIconHtml(type, size = 28) {
-  const meta = SPORT_TYPES[type];
-  if (meta && meta.img) {
-    return `<img class="cat-icon" src="${meta.img}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;">`;
-  }
-  return `<span class="cat-icon emoji">${activityTypeIcon(type)}</span>`;
-}
-
-// Rendu HTML d'une icône matière (Sujets).
-function subjectIconHtml(key, size = 22) {
-  const meta = SUBJECTS[key];
-  if (meta && meta.img) {
-    return `<img class="cat-icon" src="${meta.img}" alt="" style="width:${size}px;height:${size}px;object-fit:contain;vertical-align:middle;">`;
-  }
-  return `<span class="cat-icon emoji">${meta?.icon || '📖'}</span>`;
-}
-
 // Analyse une trace de fractionné : segmente en phases d'effort et de récupération
 // par seuillage de la vitesse autour d'une médiane glissante. Renvoie la liste
 // des intervalles { kind: 'effort' | 'repos', duration: s, distance: m, avgPace: s/km }.
@@ -1134,10 +1113,10 @@ function activityXp(parsed, category) {
 // ============================================================================
 
 const RECORD_TYPES = [
-  { id: 'longest',    label: 'Plus longue sortie', icon: '🛣️', metric: 'distanceKm', mode: 'max' },
-  { id: 'highest',    label: 'Plus gros D+',       icon: '🏔️', metric: 'elevGain',   mode: 'max' },
-  { id: 'fastest5k',  label: 'Meilleur 5K',        icon: '⚡', metric: 'best5k',     mode: 'min' },
-  { id: 'fastest10k', label: 'Meilleur 10K',       icon: '🏃', metric: 'best10k',    mode: 'min' },
+  { id: 'longest',    label: 'Plus longue sortie', icon: '🌄', metric: 'distanceKm', mode: 'max' },
+  { id: 'highest',    label: 'Plus gros D+',       icon: '⛰️', metric: 'elevGain',   mode: 'max' },
+  { id: 'fastest5k',  label: 'Meilleur 5K',        icon: '⏱️', metric: 'best5k',     mode: 'min' },
+  { id: 'fastest10k', label: 'Meilleur 10K',       icon: '⏱️', metric: 'best10k',    mode: 'min' },
   { id: 'longestDur', label: 'Plus long temps',    icon: '⏱️', metric: 'duration',   mode: 'max' }
 ];
 
@@ -1401,22 +1380,18 @@ function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activit
   const DIST_LABELS = { 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' };
   const distLabel = DIST_LABELS[goal.distance] || (goal.distance / 1000 + ' km');
   const goalPace = Math.round(goal.timeS / (goal.distance / 1000));
-  const goalVdot = daniels_solveVDOTfromTime(goal.distance, goal.timeS);
-  const vdotGap = currentVdot ? Math.round((goalVdot - currentVdot) * 10) / 10 : null;
 
   // Distance type pour chaque dimension d'entraînement (heuristique Daniels),
   // bornée pour rester sous ~30 km/sem en 4 sorties max.
   const km = goal.distance / 1000;
-  const longKm = Math.round(Math.min(km * 1.2, 14));               // sortie longue plafond 14 km
-  const tempoKm = km <= 10 ? 4 : km <= 21 ? 5 : 6;                  // tempo plus court (20-30 min max)
-  // Fractios : selon distance, format adapté (volume effort modeste)
+  const longKm = Math.round(Math.min(km * 1.2, 14));
+  const tempoKm = km <= 10 ? 4 : km <= 21 ? 5 : 6;
   let fractioFormat;
   if (km <= 5)        fractioFormat = `6 × 400 m allure ${formatPace(goalPaces.I)} · récup 200 m lent`;
   else if (km <= 10)  fractioFormat = `5 × 800 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
   else if (km <= 15)  fractioFormat = `4 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
   else if (km <= 21)  fractioFormat = `3 × 1500 m allure ${formatPace(goalPaces.I)} · récup 600 m lent`;
   else                fractioFormat = `4 × 1000 m allure ${formatPace(goalPaces.I)} · récup 400 m lent`;
-  // Footings courts pour un total maîtrisé
   const easyKm = km <= 10 ? 5 : 6;
 
   // Volume hebdo cible : volontairement modeste, plafonné à 30 km / 4 sorties.
@@ -1426,73 +1401,54 @@ function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activit
   else if (km <= 15)  weeklyKm = 28;
   else                weeklyKm = 30;
 
-  // Volume hebdo récent (4 dernières semaines)
+  // Volume hebdo récent (4 dernières semaines), juste pour la faisabilité courte.
   const fourWeeksAgo = Date.now() - 28 * 86400000;
   const recentActs = (activities || []).filter(a => new Date(a.date).getTime() >= fourWeeksAgo);
   const recentKm = recentActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
   const avgWeekKm = Math.round(recentKm / 4 * 10) / 10;
 
-  // Faisabilité
   let feasibility;
   if (avgWeekKm === 0) {
-    feasibility = { tone: 'cool', text: `Pas de données récentes. Vise progressivement ${weeklyKm} km/sem pour préparer cet objectif.` };
+    feasibility = { tone: 'cool', text: `Vise progressivement ${weeklyKm} km/sem pour préparer cet objectif.` };
   } else if (avgWeekKm >= weeklyKm * 0.85) {
-    feasibility = { tone: 'gold', text: `Volume actuel (~${avgWeekKm} km/sem) compatible avec cet objectif. Continue à ce rythme.` };
+    feasibility = { tone: 'gold', text: `Volume actuel (~${avgWeekKm} km/sem) compatible avec cet objectif.` };
   } else if (avgWeekKm >= weeklyKm * 0.6) {
-    const gap = Math.round(weeklyKm - avgWeekKm);
-    feasibility = { tone: 'warm', text: `Volume actuel ~${avgWeekKm} km/sem. Pour cet objectif, monte progressivement à ${weeklyKm} km/sem (+${gap} km, par paliers de 10% par semaine).` };
+    feasibility = { tone: 'warm', text: `Volume actuel ~${avgWeekKm} km/sem. Vise progressivement ${weeklyKm} km/sem.` };
   } else {
-    feasibility = { tone: 'warm', text: `Volume actuel ~${avgWeekKm} km/sem trop bas pour ${distLabel}. Construis ta base aérobie d'abord (vise ${Math.round(weeklyKm * 0.7)} km/sem avant de viser ce chrono).` };
+    feasibility = { tone: 'warm', text: `Volume ~${avgWeekKm} km/sem trop bas. Construis ta base avant de viser ce chrono.` };
   }
   const feasColor = feasibility.tone === 'gold' ? 'var(--gold)'
                   : feasibility.tone === 'warm' ? 'var(--accent-warm)'
                   : 'var(--accent-cool)';
 
-  // Indicateur de progression VDOT
-  let progressLine = '';
-  if (vdotGap != null) {
-    if (vdotGap <= 0) {
-      progressLine = `<div class="goal-progress" style="color: var(--gold)">✓ Tu as déjà le niveau pour cet objectif. Reste à courir la distance prête le jour J.</div>`;
-    } else if (vdotGap <= 2) {
-      progressLine = `<div class="goal-progress">Tu es proche : <strong>+${vdotGap} VDOT</strong> à gagner (~quelques semaines de bon entraînement).</div>`;
-    } else if (vdotGap <= 5) {
-      progressLine = `<div class="goal-progress">Écart modéré : <strong>+${vdotGap} VDOT</strong> à construire (~2-3 mois de progression régulière).</div>`;
-    } else {
-      progressLine = `<div class="goal-progress">Objectif ambitieux : <strong>+${vdotGap} VDOT</strong> à construire (plusieurs mois de travail soutenu).</div>`;
-    }
-  }
-
+  // Icônes emojis alignées sur SPORT_TYPES pour cohérence partout dans l'app.
   return `
     <div class="goal-output-head">
       <div>
         <div><strong>${distLabel} en ${formatDuration(goal.timeS)}</strong></div>
         <div class="dim text-xs">allure cible : <span class="mono">${formatPace(goalPace)}</span></div>
       </div>
-      <div class="dim text-xs" style="text-align: right;">
-        VDOT requis : <strong>${Math.round(goalVdot * 10) / 10}</strong>
-      </div>
     </div>
-    ${progressLine}
     <div class="goal-feas" style="border-left-color: ${feasColor}">${escapeHtml(feasibility.text)}</div>
 
-    <div class="goal-section-title">📋 Plan-type hebdomadaire (~${weeklyKm} km / 4 sorties)</div>
+    <div class="goal-section-title">Plan-type hebdomadaire (~${weeklyKm} km / 4 sorties)</div>
     <div class="goal-sessions">
       <div class="goal-session">
         <div class="goal-session-icon">🏃</div>
         <div class="goal-session-body">
           <div class="goal-session-title">1× Footing facile</div>
-          <div class="goal-session-detail">${easyKm} km à <span class="mono">${formatPace(goalPaces.E)}</span> · respiration confortable, tu peux parler</div>
+          <div class="goal-session-detail">${easyKm} km à <span class="mono">${formatPace(goalPaces.E)}</span></div>
+        </div>
+      </div>
+      <div class="goal-session">
+        <div class="goal-session-icon">🔥</div>
+        <div class="goal-session-body">
+          <div class="goal-session-title">1× Séance de seuil</div>
+          <div class="goal-session-detail">Échauffement 2 km + ${tempoKm} km à <span class="mono">${formatPace(goalPaces.T)}</span> + retour calme</div>
         </div>
       </div>
       <div class="goal-session">
         <div class="goal-session-icon">⚡</div>
-        <div class="goal-session-body">
-          <div class="goal-session-title">1× Séance de seuil</div>
-          <div class="goal-session-detail">Échauffement 2 km + ${tempoKm} km à <span class="mono">${formatPace(goalPaces.T)}</span> + retour calme · effort soutenu mais contrôlé</div>
-        </div>
-      </div>
-      <div class="goal-session">
-        <div class="goal-session-icon">💨</div>
         <div class="goal-session-body">
           <div class="goal-session-title">1× Fractionné VMA</div>
           <div class="goal-session-detail">Échauffement 2 km + ${fractioFormat} + retour calme</div>
@@ -1505,10 +1461,6 @@ function renderGoalPacesHtml(goal, goalPaces, currentPaces, currentVdot, activit
           <div class="goal-session-detail">${longKm} km à <span class="mono">${formatPace(goalPaces.E)}</span>${km >= 21 ? ` (avec ${Math.round(longKm/3)} km finaux à ${formatPace(goalPaces.M)} si possible)` : ''}</div>
         </div>
       </div>
-    </div>
-
-    <div class="goal-tip dim text-xs">
-      💡 <strong>80% du volume en E (footing facile)</strong> · 20% en intensité (tempo + fractios). C'est la règle qui fait progresser durablement.
     </div>
   `;
 }
@@ -2218,7 +2170,14 @@ function progressBar(value, height = 10) {
 function navigate(route) {
   State.currentRoute = route;
   document.querySelectorAll('.tab').forEach(t => {
-    t.classList.toggle('active', t.dataset.route === route);
+    const isActive = t.dataset.route === route;
+    t.classList.toggle('active', isActive);
+    // Swap entre version colorée (active) et version monochrome (inactive)
+    const img = t.querySelector('.tab-icon');
+    const iconName = t.dataset.icon;
+    if (img && iconName) {
+      img.src = isActive ? `icons/ui/${iconName}.png` : `icons/ui/${iconName}-mono.png`;
+    }
   });
   render();
 }
@@ -2389,7 +2348,7 @@ function renderQuetes(root) {
   goalCardWrap.innerHTML = goalMeta
     ? `
       <button class="goal-summary-card" id="open-goal-detail">
-        <div class="goal-summary-icon"><img src="icons/ui/ui-objectif.png" alt=""></div>
+        <div class="goal-summary-icon">🎯</div>
         <div class="goal-summary-body">
           <div class="goal-summary-title">${({ 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' })[goalMeta.distance] || (goalMeta.distance/1000+' km')} en ${formatDuration(goalMeta.timeS)}</div>
           <div class="goal-summary-meta dim text-xs">Tape pour voir le plan d'entraînement</div>
@@ -2399,7 +2358,7 @@ function renderQuetes(root) {
     `
     : `
       <button class="goal-summary-card empty" id="open-goal-detail">
-        <div class="goal-summary-icon"><img src="icons/ui/ui-objectif.png" alt=""></div>
+        <div class="goal-summary-icon">🎯</div>
         <div class="goal-summary-body">
           <div class="goal-summary-title">Définir un objectif</div>
           <div class="goal-summary-meta dim text-xs">Choisis une distance et un chrono cible</div>
@@ -2544,7 +2503,7 @@ async function renderDayDashboard(root) {
         : 'Importe ton GPX quand c\'est fait';
     sportBlock = `
       <div class="block sport ${sportDone ? 'done' : ''}">
-        <div class="block-icon">${sportMeta.img ? `<img src="${sportMeta.img}" alt="" style="width:36px;height:36px;object-fit:contain;">` : sportMeta.icon}</div>
+        <div class="block-icon">${sportMeta.icon}</div>
         <div class="block-body">
           <div class="block-title">${sportMeta.label}<span class="pill warm" style="margin-left:8px;">${isWeekend ? 'Week-end' : 'Sport du jour'}</span></div>
           <div class="dim text-xs">${subtitle}</div>
@@ -2558,7 +2517,7 @@ async function renderDayDashboard(root) {
     const workDone = wi.ratio >= 1;
     workBlock = `
       <div class="block work ${workDone ? 'done' : ''}">
-        <div class="block-icon"><img src="icons/ui/ui-travail.png" alt="" style="width:36px;height:36px;object-fit:contain;"></div>
+        <div class="block-icon">📚</div>
         <div class="block-body">
           <div class="flex between">
             <div class="block-title">Travail · objectif ${goalHours}h${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>
@@ -2596,7 +2555,7 @@ async function renderDayDashboard(root) {
     for (const [key, meta] of Object.entries(SUBJECTS)) {
       const minutes = workLog?.bySubject?.[key] || 0;
       const sub = el('div', { class: 'sub' });
-      sub.innerHTML = `<label class="sub-label">${subjectIconHtml(key, 22)} <span>${meta.label}</span></label>`;
+      sub.innerHTML = `<label class="sub-label">${meta.icon} ${meta.label}</label>`;
       const input = el('input', {
         class: 'sub-input',
         type: 'text',
@@ -2776,11 +2735,11 @@ function renderSport(root) {
   // Selected activity card
   const sel = State.currentActivity;
   if (sel) {
-    const typeIcon = activityTypeIconHtml(sel.type, 28);
+    const typeIcon = activityTypeIcon(sel.type);
     const card = el('div', { class: 'card mb-4', html: `
       <div class="flex between mb-2">
         <div>
-          <div class="text-lg" style="font-weight:600; display:flex; align-items:center; gap:8px;">${typeIcon} <span>${escapeHtml(sel.name)}</span></div>
+          <div class="text-lg" style="font-weight:600;">${typeIcon} ${escapeHtml(sel.name)}</div>
           <div class="dim text-sm">${formatDate(sel.date)} · ${SPORT_TYPES[sel.type]?.label || sel.type}</div>
         </div>
         <div class="flex gap-2">
@@ -2815,7 +2774,7 @@ function renderSport(root) {
   const list = el('div', { class: 'flex col gap-2' });
   const sortedActs = [...State.activities].sort((a, b) => b.date.localeCompare(a.date));
   for (const a of sortedActs) {
-    const ti = activityTypeIconHtml(a.type, 32);
+    const ti = activityTypeIcon(a.type);
     const btn = el('button', {
       class: 'act' + (sel?.id === a.id ? ' sel' : ''),
       onclick: () => { State.currentActivity = a; render(); }
@@ -2986,7 +2945,7 @@ function renderMap(activity) {
 // Résout à `true` si l'utilisateur confirme l'import, `false` sinon.
 function showGpxPreview(parsed, type, splits, xp) {
   return new Promise((resolve) => {
-    const typeIcon = activityTypeIconHtml(type, 32);
+    const typeIcon = activityTypeIcon(type);
     const overlay = el('div', { class: 'gpx-preview-overlay' });
     const modal = el('div', { class: 'gpx-preview-modal' });
     modal.innerHTML = `

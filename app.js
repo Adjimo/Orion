@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.04';
+const APP_VERSION = '3.05';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -2558,7 +2558,7 @@ async function renderDayDashboard(root) {
     const workDone = wi.ratio >= 1;
     workBlock = `
       <div class="block work ${workDone ? 'done' : ''}">
-        <div class="block-icon">📚</div>
+        <div class="block-icon"><img src="icons/ui/ui-travail.png" alt="" style="width:36px;height:36px;object-fit:contain;"></div>
         <div class="block-body">
           <div class="flex between">
             <div class="block-title">Travail · objectif ${goalHours}h${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>

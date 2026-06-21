@@ -97,6 +97,21 @@ h3 { font-size: 1.05rem; }
   margin-bottom: var(--s-5);
 }
 
+/* ===== Sécurité globale icônes UI =====
+   Les PNG dans icons/ui/ sont 256x256 transparent. Sans dimensions explicites,
+   ils prendraient leur taille naturelle (256px) et débordent.
+   - Hauteur max raisonnable de 48px en défaut (les usages courants : 22-44px).
+   - Les styles inline width/height ou les règles plus spécifiques (.tab-icon,
+     .block-icon img, .act-icon img, etc.) gagnent par cascade et passent au-delà.
+   - object-fit: contain → l'icône reste centrée sans déformer. */
+img[src*="icons/ui/"] {
+  max-width: 48px;
+  max-height: 48px;
+  object-fit: contain;
+  display: inline-block;
+  vertical-align: middle;
+}
+
 /* ===== Cards ===== */
 .card {
   background: var(--bg-2);
@@ -882,10 +897,19 @@ h3 { font-size: 1.05rem; }
   border-style: dashed;
   opacity: 0.85;
 }
+.goal-summary-icon {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
 .goal-summary-icon img {
   width: 40px;
   height: 40px;
   object-fit: contain;
+  display: block;
 }
 .goal-summary-body { flex: 1; min-width: 0; }
 .goal-summary-title {

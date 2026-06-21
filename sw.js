@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v33';
+const VERSION = 'orion-v35';
 const ASSETS = [
   './',
   './index.html',

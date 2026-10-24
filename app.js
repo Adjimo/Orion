@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.10';
+const APP_VERSION = '3.13';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -194,26 +194,26 @@ function deriveLevel(totalXp) {
 }
 
 const SKILL_META = {
-  endurance:  { label: 'Endurance',  icon: '🏃', color: '#5cc8ff', desc: 'Volume kilométrique.' },
-  allure:     { label: 'Allure',     icon: '⚡', color: '#ff6a3d', desc: 'Performance pure.' },
-  maths:      { label: 'Maths',      icon: '🧮', color: '#7c5cff', desc: 'DM, exos, démos.' },
-  physique:   { label: 'Physique',   icon: '⚛️', color: '#a78bfa', desc: 'Mécanique, thermo, ondes.' },
-  si:         { label: 'SI / Info',  icon: '🔬', color: '#f472b6', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Anglais',    icon: '🌍', color: '#5cc8ff', desc: 'Anglais.' },
-  lettres:    { label: 'Lettres',    icon: '✒️', color: '#ffd86b', desc: 'Français, philo.' },
-  discipline: { label: 'Discipline', icon: '🧘', color: '#ff6a3d', desc: 'Régularité, focus.' }
+  endurance:  { label: 'Endurance',  icon: '🏃', color: '#6fa58a', desc: 'Volume kilométrique.' },
+  allure:     { label: 'Allure',     icon: '⚡', color: '#c9703a', desc: 'Performance pure.' },
+  maths:      { label: 'Maths',      icon: '🧮', color: '#7fb596', desc: 'DM, exos, démos.' },
+  physique:   { label: 'Physique',   icon: '⚛️', color: '#8fae8a', desc: 'Mécanique, thermo, ondes.' },
+  si:         { label: 'SI / Info',  icon: '🔬', color: '#b5705f', desc: 'Sciences ingé / info.' },
+  langues:    { label: 'Anglais',    icon: '🌍', color: '#6fa58a', desc: 'Anglais.' },
+  lettres:    { label: 'Lettres',    icon: '✒️', color: '#e6c36a', desc: 'Français, philo.' },
+  discipline: { label: 'Discipline', icon: '🧘', color: '#c9703a', desc: 'Régularité, focus.' }
 };
 
 const RANKS = [
   { from: 1,   to: 4,   title: 'Mortel',              color: '#a0a4b8' },
-  { from: 5,   to: 9,   title: 'Initié',              color: '#5cc8ff' },
-  { from: 10,  to: 14,  title: 'Aspirant',            color: '#7c5cff' },
-  { from: 15,  to: 19,  title: 'Coureur',             color: '#ffb547' },
-  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#ffb547' },
-  { from: 30,  to: 49,  title: 'Cendres',             color: '#ff6a3d' },
-  { from: 50,  to: 74,  title: 'Renaissance',         color: '#ff6a3d' },
-  { from: 75,  to: 99,  title: 'Phénix',              color: '#ffd86b' },
-  { from: 100, to: 999, title: 'Orion',              color: '#ffd86b' }
+  { from: 5,   to: 9,   title: 'Initié',              color: '#6fa58a' },
+  { from: 10,  to: 14,  title: 'Aspirant',            color: '#7fb596' },
+  { from: 15,  to: 19,  title: 'Coureur',             color: '#d9a441' },
+  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#d9a441' },
+  { from: 30,  to: 49,  title: 'Cendres',             color: '#c9703a' },
+  { from: 50,  to: 74,  title: 'Renaissance',         color: '#c9703a' },
+  { from: 75,  to: 99,  title: 'Phénix',              color: '#e6c36a' },
+  { from: 100, to: 999, title: 'Orion',              color: '#e6c36a' }
 ];
 
 function getRank(level) {
@@ -469,13 +469,13 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
 
 const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
-  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#ff6a3d', autoFromActivities: true, category: 'main' },
-  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: '⏱️', color: '#ffb547', autoFromWorkLog: true, category: 'main' },
-  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#5cc8ff', category: 'main' },
+  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#c9703a', autoFromActivities: true, category: 'main' },
+  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: '⏱️', color: '#d9a441', autoFromWorkLog: true, category: 'main' },
+  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#6fa58a', category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
-  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#5cc8ff', autoFromLangues: true, category: 'secondary' },
-  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#ffd86b', autoFromLettres: true, category: 'secondary' },
-  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: '🔬', color: '#f472b6', autoFromSi: true, category: 'secondary' }
+  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#6fa58a', autoFromLangues: true, category: 'secondary' },
+  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#e6c36a', autoFromLettres: true, category: 'secondary' },
+  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: '🔬', color: '#b5705f', autoFromSi: true, category: 'secondary' }
 ];
 
 // XP de compétences d'une quête. Les quêtes « discipline » (heures de travail,
@@ -791,12 +791,23 @@ async function applyPendingPenalties() {
       const weekXp = await xpEarnedInWeek(wk);
 
       // Cumule les facteurs des principales ratées, capé à 80%.
+      // Une quête justifiée (malade / autre) pour cette semaine est ignorée.
+      const excuses = await getMalusExcuses();
       let totalMalusFactor = 0;
       const malusDetails = [];
       for (const q of quests.filter(x => x.category === 'main')) {
         const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
         const ratio = c?.ratio || 0;
         const f = malusFactorFromRatio(ratio);
+        const exKey = `${wk}|${q.id}`;
+        if (excuses[exKey]) {
+          // Le malus est déjà exclu du calcul : rien à rembourser.
+          if (excuses[exKey].refundedXp) {
+            excuses[exKey].refundedXp = 0;
+            await saveMalusExcuses(excuses);
+          }
+          continue;
+        }
         if (f > 0) {
           totalMalusFactor += f;
           malusDetails.push({ questId: q.id, factor: f, ratio });
@@ -807,6 +818,10 @@ async function applyPendingPenalties() {
         const malusXp = Math.round(weekXp * totalMalusFactor);
         await removeXp(malusXp, { discipline: Math.round(malusXp * 0.08) });
         applied.push({ kind: 'weekly-malus', week: wk, xp: malusXp, percent: totalMalusFactor, weekXp, details: malusDetails });
+        // Journal : permet de rembourser plus tard si une justification est ajoutée.
+        const log = (await dbGet('meta', 'malusLog'))?.value || {};
+        log[wk] = { xp: malusXp, weekXp, factors: Object.fromEntries(malusDetails.map(d => [d.questId, d.factor])) };
+        await dbPut('meta', { key: 'malusLog', value: log });
       }
 
       // Bonus secondaires : un par quête, sur le XP de référence de la quête.
@@ -828,6 +843,70 @@ async function applyPendingPenalties() {
   }
 
   return { applied };
+}
+
+// ── Justification des malus hebdo (ex : sorties manquées car malade) ─────────
+// Stockage : meta `malusExcuses` { 'YYYY-Www|questId': { reason, note, factor, refundedXp } }
+// et meta `malusLog` { 'YYYY-Www': { xp, weekXp, factors } } alimenté à chaque malus.
+async function getMalusExcuses() {
+  return (await dbGet('meta', 'malusExcuses'))?.value || {};
+}
+async function saveMalusExcuses(map) {
+  await dbPut('meta', { key: 'malusExcuses', value: map });
+}
+
+// Lundi de la semaine ISO `YYYY-Www` (Date locale).
+function weekStartDate(wk) {
+  const m = wk.match(/^(\d{4})-W(\d{2})$/);
+  if (!m) return new Date();
+  const jan4 = new Date(Date.UTC(parseInt(m[1]), 0, 4));
+  const jan4Day = jan4.getUTCDay() || 7;
+  const mon = new Date(jan4);
+  mon.setUTCDate(jan4.getUTCDate() - (jan4Day - 1) + (parseInt(m[2]) - 1) * 7);
+  return new Date(mon.getUTCFullYear(), mon.getUTCMonth(), mon.getUTCDate());
+}
+
+// Justifie une quête principale pour une semaine : son malus est supprimé.
+// Si le malus de la semaine a déjà été appliqué, l'XP correspondante est rendue.
+async function excuseQuestWeek(questId, wk, reason, note) {
+  const excuses = await getMalusExcuses();
+  const key = `${wk}|${questId}`;
+  if (excuses[key]) return { refund: 0 };
+  let refund = 0, factor = 0;
+  const logs = (await dbGet('meta', 'malusLog'))?.value || {};
+  const entry = logs[wk];
+  if (entry?.factors && entry.factors[questId] != null) {
+    factor = entry.factors[questId];
+    const rest = { ...entry.factors };
+    delete rest[questId];
+    const newTotal = Math.min(0.8, Object.values(rest).reduce((a, v) => a + v, 0));
+    const newMalus = Math.round(entry.weekXp * newTotal);
+    refund = Math.max(0, entry.xp - newMalus);
+    if (refund > 0) await awardXp(refund, { discipline: Math.round(refund * 0.08) });
+    logs[wk] = { ...entry, xp: newMalus, factors: rest };
+    await dbPut('meta', { key: 'malusLog', value: logs });
+  }
+  excuses[key] = { reason, note: note || '', factor, refundedXp: refund, createdAt: new Date().toISOString() };
+  await saveMalusExcuses(excuses);
+  return { refund };
+}
+
+// Annule une justification : le malus est ré-appliqué s'il avait été remboursé.
+async function cancelExcuse(questId, wk) {
+  const excuses = await getMalusExcuses();
+  const key = `${wk}|${questId}`;
+  const ex = excuses[key];
+  if (!ex) return;
+  if (ex.refundedXp > 0) {
+    await removeXp(ex.refundedXp, { discipline: Math.round(ex.refundedXp * 0.08) });
+    const logs = (await dbGet('meta', 'malusLog'))?.value || {};
+    if (logs[wk]) {
+      logs[wk] = { ...logs[wk], xp: logs[wk].xp + ex.refundedXp, factors: { ...logs[wk].factors, [questId]: ex.factor } };
+      await dbPut('meta', { key: 'malusLog', value: logs });
+    }
+  }
+  delete excuses[key];
+  await saveMalusExcuses(excuses);
 }
 
 // Helpers semaine ISO : passer à la suivante / précédente sur format `YYYY-Www`.
@@ -2238,7 +2317,7 @@ function navigate(route) {
     const img = t.querySelector('.tab-icon');
     const iconName = t.dataset.icon;
     if (img && iconName) {
-      img.src = isActive ? `icons/ui/${iconName}.png?v=2` : `icons/ui/${iconName}-mono.png?v=2`;
+      img.src = isActive ? `icons/ui/${iconName}.png?v=3` : `icons/ui/${iconName}-mono.png?v=3`;
     }
   });
   render();
@@ -2327,8 +2406,8 @@ function renderHome(root) {
   if (nextExam) {
     const yearProgress = computeYearProgress(nextExam.date);
     const yearPct = Math.round(yearProgress * 100);
-    const pctColor = yearPct < 25 ? '#7c5cff' : yearPct < 50 ? '#5cc8ff' : yearPct < 75 ? '#ffb547' : '#ff6a3d';
-    const urg = nextExam.days < 30 ? '#ff4d6d' : nextExam.days < 90 ? '#ff6a3d' : nextExam.days < 180 ? '#ffb547' : '#7c5cff';
+    const pctColor = yearPct < 25 ? '#7fb596' : yearPct < 50 ? '#6fa58a' : yearPct < 75 ? '#d9a441' : '#c9703a';
+    const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#c9703a' : nextExam.days < 180 ? '#d9a441' : '#7fb596';
 
     page.appendChild(el('div', { class: 'mb-4', html: `
       <div class="cd-card">
@@ -2552,7 +2631,7 @@ async function renderDayDashboard(root) {
   const todayActs = State.activities.filter(a => a.date.slice(0, 10) === dateKey);
   const sportDone = todayActs.length > 0;
 
-  const barColor = wi.ratio < 0.5 ? '#5e6480' : wi.ratio < 1 ? '#7c5cff' : '#ffb547';
+  const barColor = wi.ratio < 0.5 ? '#5e6480' : wi.ratio < 1 ? '#7fb596' : '#d9a441';
 
   let sportBlock = '';
   if (showSport) {
@@ -2682,7 +2761,7 @@ async function _renderOneQuest(root, q, category) {
 
   const div = el('div', {
     class: 'hq' + (ratio >= 1 ? ' done' : ''),
-    style: `--hq-c: ${q.color || '#ffb547'};`
+    style: `--hq-c: ${q.color || '#d9a441'};`
   });
   div.innerHTML = `
     <div class="hq-head">
@@ -2747,7 +2826,107 @@ async function _renderOneQuest(root, q, category) {
     }
   }
 
+  // Quête « Sorties course » : justification possible du malus (malade, autre).
+  if (q.id === 'wq-runs' && arePenaltiesActive()) {
+    const excuses = await getMalusExcuses();
+    const cur = excuses[`${weekKey()}|${q.id}`];
+    const row = el('div', { class: 'hq-excuse-row' });
+    row.innerHTML = cur
+      ? `<span class="hq-excused">✓ Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>`
+      : '<span></span>';
+    const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier un malus');
+    eb.addEventListener('click', () => showRunsExcuseModal(q));
+    row.appendChild(eb);
+    div.appendChild(row);
+  }
+
   root.appendChild(div);
+}
+
+// Modal : choisir une semaine, un motif (Malade / Autre) et une note facultative.
+async function showRunsExcuseModal(q) {
+  const startWk = weekKey(new Date(PENALTIES_START + 'T00:00:00'));
+  const weeks = [];
+  let wk = weekKey();
+  while (wk >= startWk && weeks.length < 10) { weeks.push(wk); wk = prevWeekKey(wk); }
+  if (!weeks.length) { showToast({ type: 'err', title: 'Aucune semaine', text: 'Les malus démarrent le ' + formatDate(PENALTIES_START) }); return; }
+
+  const excuses = await getMalusExcuses();
+  const logs = (await dbGet('meta', 'malusLog'))?.value || {};
+  const label = (w) => {
+    const d = weekStartDate(w);
+    const base = 'Sem. du ' + d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    const ex = excuses[`${w}|${q.id}`];
+    return base + (w === weekKey() ? ' (en cours)' : '') + (ex ? ' · justifié' : '');
+  };
+
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal' });
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">🩺</span><span>Justifier les sorties</span></div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 16px 18px;">
+      <label class="dim text-xs" style="display:block; margin-bottom:6px;">Semaine</label>
+      <select class="input" id="ex-week" style="width:100%;">
+        ${weeks.map(w => `<option value="${w}">${label(w)}</option>`).join('')}
+      </select>
+      <div id="ex-info" class="dim text-xs mt-2"></div>
+      <label class="dim text-xs" style="display:block; margin:14px 0 6px;">Motif</label>
+      <select class="input" id="ex-reason" style="width:100%;">
+        <option value="malade">🤒 Malade</option>
+        <option value="autre">✍️ Autre</option>
+      </select>
+      <label class="dim text-xs" style="display:block; margin:14px 0 6px;">Précision <span id="ex-req"></span></label>
+      <input class="input" id="ex-note" type="text" placeholder="ex : grippe, blessure, voyage…" style="width:100%;" />
+      <p class="dim text-xs mt-3">Le malus de cette quête est supprimé pour la semaine choisie. S'il a déjà été appliqué, l'XP est rendue.</p>
+    </div>
+    <div class="gpx-preview-actions">
+      <button class="btn ghost" id="ex-cancel-excuse">Annuler la justification</button>
+      <button class="btn primary" id="ex-save">Valider</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const $ = (id) => modal.querySelector(id);
+  const close = () => overlay.remove();
+  $('.gpx-preview-close').addEventListener('click', close);
+
+  const refresh = () => {
+    const w = $('#ex-week').value;
+    const ex = excuses[`${w}|${q.id}`];
+    const entry = logs[w];
+    const bits = [];
+    if (entry?.xp) bits.push(`Malus hebdo appliqué : −${entry.xp} XP`);
+    if (ex) bits.push(`Déjà justifié (${ex.reason}${ex.note ? ' : ' + escapeHtml(ex.note) : ''})`);
+    $('#ex-info').innerHTML = bits.join(' · ') || 'Aucun malus appliqué pour cette semaine.';
+    $('#ex-cancel-excuse').style.display = ex ? '' : 'none';
+    $('#ex-save').disabled = !!ex;
+    if (ex) { $('#ex-reason').value = ex.reason; $('#ex-note').value = ex.note || ''; }
+  };
+  const syncReq = () => { $('#ex-req').textContent = $('#ex-reason').value === 'autre' ? '(obligatoire)' : '(facultatif)'; };
+  $('#ex-week').addEventListener('change', refresh);
+  $('#ex-reason').addEventListener('change', syncReq);
+  syncReq(); refresh();
+
+  $('#ex-save').addEventListener('click', async () => {
+    const reason = $('#ex-reason').value;
+    const note = $('#ex-note').value.trim();
+    if (reason === 'autre' && !note) { showToast({ type: 'err', title: 'Précision requise', text: 'Explique le motif « Autre ».' }); return; }
+    const { refund } = await excuseQuestWeek(q.id, $('#ex-week').value, reason, note);
+    await loadAll();
+    close();
+    render();
+    showToast({ type: 'xp', title: 'Malus justifié', text: refund > 0 ? `+${refund} XP rendus` : 'Aucun malus pour cette semaine' });
+  });
+  $('#ex-cancel-excuse').addEventListener('click', async () => {
+    await cancelExcuse(q.id, $('#ex-week').value);
+    await loadAll();
+    close();
+    render();
+    showToast({ type: 'xp', title: 'Justification annulée', text: 'Le malus s\'applique de nouveau' });
+  });
 }
 
 // ============================================================================
@@ -2891,8 +3070,7 @@ function renderSport(root) {
 }
 
 // Style JSON MapLibre 100% custom Orion. Couleurs alignées sur la palette
-// de l'app (--bg-*, --accent-*) — fond charbon profond, eau bleu nuit, routes
-// violet pâle, parcs vert sombre. Source de tiles vectorielles : OpenFreeMap
+// de l'app (kaki / brun) — fond parchemin, eau vert-gris, routes crème, parcs olive. Source de tiles vectorielles : OpenFreeMap
 // (gratuit, sans clé, basé sur OpenMapTiles).
 const ORION_MAP_STYLE = {
   version: 8,
@@ -2905,44 +3083,44 @@ const ORION_MAP_STYLE = {
     }
   },
   layers: [
-    // Fond général (charbon profond — comme --bg-1)
-    { id: 'bg', type: 'background', paint: { 'background-color': '#0a0e1a' } },
+    // Fond « parchemin » : kaki clair, dans la teinte du fond de l'app.
+    { id: 'bg', type: 'background', paint: { 'background-color': '#cfbf8e' } },
 
-    // Eau (bleu nuit, légèrement plus clair que le fond)
+    // Eau : vert-gris sourd.
     { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
-      paint: { 'fill-color': '#1a2a4a', 'fill-opacity': 1 } },
+      paint: { 'fill-color': '#86a596', 'fill-opacity': 1 } },
 
-    // Zones boisées et parcs (vert sombre désaturé, palette froide)
+    // Forêts et parcs : verts olive désaturés.
     { id: 'wood', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
       filter: ['==', 'class', 'wood'],
-      paint: { 'fill-color': '#162420', 'fill-opacity': 0.7 } },
+      paint: { 'fill-color': '#b3ab6e', 'fill-opacity': 0.8 } },
     { id: 'grass', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
       filter: ['in', 'class', 'grass', 'park'],
-      paint: { 'fill-color': '#142028', 'fill-opacity': 0.6 } },
+      paint: { 'fill-color': '#bdb581', 'fill-opacity': 0.7 } },
 
-    // Bâti (très subtil, juste un nuance plus claire)
+    // Bâti : légèrement plus foncé que le fond.
     { id: 'buildings', type: 'fill', source: 'openmaptiles', 'source-layer': 'building',
       minzoom: 13,
-      paint: { 'fill-color': '#1a2238', 'fill-outline-color': '#2a3458' } },
+      paint: { 'fill-color': '#bfac7a', 'fill-outline-color': '#a89462' } },
 
-    // Routes — hiérarchie en violets/gris pâle, plus claires aux gros niveaux
+    // Routes : crème sur parchemin, les axes principaux en brun.
     { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'minor', 'service', 'track'],
       minzoom: 12,
-      paint: { 'line-color': '#3a4060', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.5, 18, 2] } },
+      paint: { 'line-color': '#e9dcb4', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 18, 2.5] } },
     { id: 'road-secondary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'secondary', 'tertiary'],
-      paint: { 'line-color': '#4d5478', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.5, 18, 3] } },
+      paint: { 'line-color': '#f4ead0', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 18, 3.5] } },
     { id: 'road-primary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'primary', 'trunk', 'motorway'],
-      paint: { 'line-color': '#7c5cff', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.6, 18, 4], 'line-opacity': 0.6 } },
+      paint: { 'line-color': '#8a6a2a', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 18, 4.5], 'line-opacity': 0.8 } },
 
-    // Frontières administratives (violet pâle, fines)
+    // Frontières administratives : brun fin en pointillés.
     { id: 'admin-bounds', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
       filter: ['<=', 'admin_level', 4],
-      paint: { 'line-color': '#7c5cff', 'line-width': 0.6, 'line-opacity': 0.4, 'line-dasharray': [2, 2] } },
+      paint: { 'line-color': '#5c4211', 'line-width': 0.7, 'line-opacity': 0.5, 'line-dasharray': [2, 2] } },
 
-    // Étiquettes des villes (or pâle, discret)
+    // Noms de lieux : encre brune avec halo parchemin.
     { id: 'place-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
       filter: ['in', 'class', 'city', 'town', 'village'],
       layout: {
@@ -2952,10 +3130,10 @@ const ORION_MAP_STYLE = {
         'text-anchor': 'center'
       },
       paint: {
-        'text-color': '#ffd86b',
-        'text-halo-color': '#0a0e1a',
+        'text-color': '#2b1f0a',
+        'text-halo-color': '#d9ca9c',
         'text-halo-width': 1.4,
-        'text-opacity': 0.85
+        'text-opacity': 0.9
       } }
   ]
 };
@@ -2986,26 +3164,26 @@ function renderMapInto(mapEl, activity) {
       data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
     });
 
-    // Halo doré large (glow extérieur)
+    // Liseré crème large : fait ressortir le tracé sur le parchemin
     map.addLayer({
       id: 'track-halo', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#ffd86b', 'line-width': 14, 'line-opacity': 0.30, 'line-blur': 4 }
+      paint: { 'line-color': '#f4ead0', 'line-width': 10, 'line-opacity': 0.9, 'line-blur': 1 }
     });
-    // Halo orange intermédiaire
+    // Contour brun foncé
     map.addLayer({
       id: 'track-glow', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#ff6a3d', 'line-width': 8, 'line-opacity': 0.5 }
+      paint: { 'line-color': '#2b1f0a', 'line-width': 6, 'line-opacity': 0.85 }
     });
-    // Trait principal or vif
+    // Trait principal vert profond (accent de la palette)
     map.addLayer({
       id: 'track-main', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#ffd86b', 'line-width': 3 }
+      paint: { 'line-color': '#3f8a63', 'line-width': 3 }
     });
 
-    // Markers départ (or sur orange) et arrivée (violet)
+    // Markers départ (crème) et arrivée (brun)
     if (coords.length > 0) {
       const startEl = document.createElement('div');
       startEl.className = 'orion-marker orion-marker-start';
@@ -3567,13 +3745,13 @@ const CHART_COLORS = {
   text: '#a0a4b8',
   textMute: '#5e6480',
   grid: 'rgba(31, 42, 68, 0.7)',
-  gold: '#ffd86b',
-  goldFade: 'rgba(255, 216, 107, 0.18)',
-  warm: '#ff6a3d',
-  cool: '#5cc8ff',
-  violet: '#7c5cff',
-  pink: '#f472b6',
-  bg: '#11172a'
+  gold: '#e6c36a',
+  goldFade: 'rgba(230,195,106, 0.18)',
+  warm: '#c9703a',
+  cool: '#6fa58a',
+  violet: '#7fb596',
+  pink: '#b5705f',
+  bg: '#5c4211'
 };
 
 function chartCommonOptions() {
@@ -3586,7 +3764,7 @@ function chartCommonOptions() {
         backgroundColor: 'rgba(10,14,26,0.95)',
         titleColor: CHART_COLORS.gold,
         bodyColor: '#f0eee6',
-        borderColor: 'rgba(255,216,107,0.2)',
+        borderColor: 'rgba(230,195,106,0.2)',
         borderWidth: 1,
         padding: 10,
         displayColors: true,
@@ -3633,8 +3811,8 @@ function renderVO2maxChart(acts) {
   const data = points.map(p => p.vo2);
   const ctxC = ctx.getContext('2d');
   const grad = ctxC.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, 'rgba(124, 92, 255, 0.4)');
-  grad.addColorStop(1, 'rgba(124, 92, 255, 0)');
+  grad.addColorStop(0, 'rgba(63,122,92, 0.4)');
+  grad.addColorStop(1, 'rgba(63,122,92, 0)');
   State.charts.vo2 = new Chart(ctx, {
     type: 'line',
     data: {
@@ -3648,7 +3826,7 @@ function renderVO2maxChart(acts) {
         tension: 0.35,
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointBackgroundColor: '#ffd86b',
+        pointBackgroundColor: '#e6c36a',
         pointBorderColor: CHART_COLORS.bg,
         pointBorderWidth: 1.5,
         fill: true
@@ -3750,8 +3928,8 @@ function showRouteCompare(route) {
     const paces = ordered.map(a => Number(((a.duration / a.distanceKm) / 60).toFixed(2)));
     const ctxC = ctx.getContext('2d');
     const grad = ctxC.createLinearGradient(0, 0, 0, 140);
-    grad.addColorStop(0, 'rgba(255, 216, 107, 0.4)');
-    grad.addColorStop(1, 'rgba(255, 216, 107, 0)');
+    grad.addColorStop(0, 'rgba(230,195,106, 0.4)');
+    grad.addColorStop(1, 'rgba(230,195,106, 0)');
     State._routeChart = new Chart(ctx, {
       type: 'line',
       data: {
@@ -3764,7 +3942,7 @@ function showRouteCompare(route) {
           borderWidth: 2.5,
           tension: 0.35,
           pointRadius: 4,
-          pointBackgroundColor: '#ffd86b',
+          pointBackgroundColor: '#e6c36a',
           pointBorderColor: CHART_COLORS.bg,
           pointBorderWidth: 1.5,
           fill: true
@@ -3966,7 +4144,7 @@ function renderSubjectsDonut(logs) {
   }
   const palette = {
     maths: CHART_COLORS.violet,
-    physique: '#a78bfa',
+    physique: '#8fae8a',
     si: CHART_COLORS.pink,
     langues: CHART_COLORS.cool,
     francais: CHART_COLORS.gold,

@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.09';
+const APP_VERSION = '3.10';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -106,6 +106,21 @@ async function dbClear(store) {
     r.onsuccess = () => resolve();
     r.onerror = () => reject(r.error);
   });
+}
+
+// ── Données « fantômes » : tout ce qui précède le 1er septembre 2026 reste
+// stocké en base (export, sauvegardes) mais n'est jamais affiché ni compté
+// (niveaux, XP, heures, stats, records, VDOT...). Les lectures « live » passent
+// par dbAllLive() ; seules les sauvegardes lisent la base complète.
+const GHOST_BEFORE = '2026-09-01';
+
+function isGhostDate(dateStr) {
+  return !!dateStr && String(dateStr).slice(0, 10) < GHOST_BEFORE;
+}
+
+async function dbAllLive(store) {
+  const rows = await dbAll(store);
+  return rows.filter(r => !isGhostDate(r.date));
 }
 
 async function fullReset() {
@@ -279,32 +294,38 @@ const DAYS = [
 
 // Schedule recalibré pour la rentrée :
 // - Travail : lun 4h / mar 4h / mer 2h30 / jeu 4h / ven 6h / sam 8h / dim 8h = 35h
-// - Sport (5 catégories alignées sur les zones Daniels qui ont une séance hebdo) :
+// - Sport (catégories alignées sur les zones Daniels qui ont une séance hebdo) :
 //   * lun footing (E)         → endurance facile, récup mentale
 //   * mar libre               → pas de séance course (renfo si tu veux, hors GPX)
 //   * mer fractionné (I)      → VMA, intervalles courts
 //   * jeu libre
-//   * ven seuil (T)           → tempo, allure soutenue contrôlée
+//   * ven footing (E)         → endurance facile
 //   * sam OU dim sortie longue → volume, allure E/M
 const DEFAULT_SCHEDULE = [
   { id: 'mon', sport: 'required', sportType: 'footing',       workHours: 4   },
   { id: 'tue', sport: 'free',     sportType: null,            workHours: 4   },
   { id: 'wed', sport: 'required', sportType: 'fractionne',    workHours: 2.5 },
   { id: 'thu', sport: 'free',     sportType: null,            workHours: 4   },
-  { id: 'fri', sport: 'required', sportType: 'seuil',         workHours: 6   },
+  { id: 'fri', sport: 'required', sportType: 'footing',       workHours: 6   },
   { id: 'sat', sport: 'weekend',  sportType: 'sortie-longue', workHours: 8   },
   { id: 'sun', sport: 'weekend',  sportType: 'sortie-longue', workHours: 8   }
 ];
 
 // 5 catégories de sport. Toutes correspondent à une séance hebdo régulière
-// (footing/fractionne/seuil/sortie-longue) ou à une sortie spécifique (trail).
+// (footing/fractionne/sortie-longue) ou à une sortie spécifique (trail).
 const SPORT_TYPES = {
   footing:        { label: 'Footing',         icon: '🏃',  desc: 'Endurance facile (zone E)',        zone: 'E' },
-  seuil:          { label: 'Seuil',           icon: '🔥',  desc: 'Tempo, allure seuil (zone T)',     zone: 'T' },
   fractionne:     { label: 'Fractionné',      icon: '⚡',  desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
   'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  desc: 'Volume long, allure E/M' },
-  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' }
+  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' },
+  rando:          { label: 'Randonnée',       icon: '🥾',  desc: 'Marche en terrain varié, D+' }
 };
+
+// Une randonnée est de la marche : elle donne de l'endurance mais ne compte ni
+// comme « sortie course », ni pour les records, le VDOT ou l'allure de référence.
+function isRunActivity(a) {
+  return !!a && a.type !== 'rando';
+}
 
 async function getTodayPlan() {
   const sched = await dbAll('schedule');
@@ -378,6 +399,16 @@ async function setSubjectMinutes(dateKey, subjectKey, newMinutes, goalHours) {
 }
 
 async function commitWorkLog(dateKey, bySubject, goalHours) {
+  // Jour fantôme (avant le 1er sept.) : on stocke sans aucune XP.
+  if (isGhostDate(dateKey)) {
+    const totalMinutes = Object.values(bySubject).reduce((s, m) => s + m, 0);
+    await dbPut('workLog', {
+      date: dateKey, totalMinutes, bySubject, goalHours,
+      lastXpAwarded: 0, lastSkillsAwarded: {}, ratio: 0,
+      timestamp: new Date().toISOString()
+    });
+    return { totalMinutes, xp: 0, xpDelta: 0, ratio: 0 };
+  }
   const existing = await dbGet('workLog', dateKey);
   const lastXp = existing?.lastXpAwarded || 0;
   const lastSkillsXp = existing?.lastSkillsAwarded || {};
@@ -447,6 +478,21 @@ const SEED_WEEKLY_QUESTS = [
   { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: '🔬', color: '#f472b6', autoFromSi: true, category: 'secondary' }
 ];
 
+// XP de compétences d'une quête. Les quêtes « discipline » (heures de travail,
+// sommeil) ne donnent que 20 % de leur XP en Discipline (avant : 70 %), sinon
+// cette compétence dépassait largement les matières. Les autres : 70 % sur la
+// compétence de la quête + 3 % de nudge Discipline.
+function questSkillXp(quest, xp) {
+  const out = {};
+  if (quest.skill === 'discipline') {
+    out.discipline = Math.round(xp * 0.2);
+    return out;
+  }
+  if (quest.skill) out[quest.skill] = Math.round(xp * 0.7);
+  out.discipline = Math.round(xp * 0.03);
+  return out;
+}
+
 function computeCountXp(actualCount, goalCount) {
   if (!goalCount) return { xp: 0, ratio: 0 };
   const base = 60 + goalCount * 36;
@@ -482,9 +528,7 @@ async function setQuestValue(quest, newValue) {
     newXp = r.xp; ratio = r.ratio;
   }
 
-  const newSkillsXp = {};
-  if (quest.skill) newSkillsXp[quest.skill] = Math.round(newXp * 0.7);
-  newSkillsXp.discipline = (newSkillsXp.discipline || 0) + Math.round(newXp * 0.03);
+  const newSkillsXp = questSkillXp(quest, newXp);
 
   const xpDelta = newXp - lastXp;
   const skillsDelta = {};
@@ -527,16 +571,16 @@ async function recomputeAutoQuests() {
   // Sans ça, lun 00:30 local renvoie un timestamp dimanche en UTC et la
   // quête de la nouvelle semaine pioche les workLogs de la semaine d'avant.
   const weekStart = todayKey(ws);
-  const acts = await dbAll('activities');
-  const logs = await dbAll('workLog');
+  const acts = await dbAllLive('activities');
+  const logs = await dbAllLive('workLog');
   const quests = await dbAll('quests');
 
   const sortiesQ = quests.find(q => q.id === 'wq-runs');
   if (sortiesQ) {
     const weekActs = acts.filter(a => new Date(a.date) >= ws);
-    // On compte toutes les sorties de course (renforcement n'en est pas une).
+    // On compte les sorties de course (ni renforcement ni randonnée).
     const courseCount = weekActs.filter(a =>
-      ['footing', 'seuil', 'fractionne', 'sortie-longue', 'trail', 'course'].includes(a.type)
+      ['footing', 'fractionne', 'sortie-longue', 'trail', 'course'].includes(a.type)
     ).length;
     await setQuestValue(sortiesQ, courseCount);
   }
@@ -672,9 +716,9 @@ async function xpEarnedOnDay(dateKey) {
 
 // XP gagné dans une semaine ISO donnée : workLogs + completions hebdo + activités.
 async function xpEarnedInWeek(wk) {
-  const logs = await dbAll('workLog');
-  const completions = await dbAll('completions');
-  const acts = await dbAll('activities');
+  const logs = await dbAllLive('workLog');
+  const completions = await dbAllLive('completions');
+  const acts = await dbAllLive('activities');
   let total = 0;
   for (const l of logs) {
     if (weekKey(new Date(l.date + 'T00:00:00')) === wk) total += l.lastXpAwarded || 0;
@@ -724,7 +768,7 @@ async function applyPendingPenalties() {
           const dayXp = log?.lastXpAwarded || 0;
           const malusXp = Math.round(dayXp * factor);
           if (malusXp > 0) {
-            await removeXp(malusXp, { discipline: Math.round(malusXp * 0.20) });
+            await removeXp(malusXp, { discipline: Math.round(malusXp * 0.08) });
             applied.push({ kind: 'daily-work', date: dk, xp: malusXp, percent: factor, ratio });
           }
         }
@@ -761,7 +805,7 @@ async function applyPendingPenalties() {
       totalMalusFactor = Math.min(0.8, totalMalusFactor);
       if (totalMalusFactor > 0 && weekXp > 0) {
         const malusXp = Math.round(weekXp * totalMalusFactor);
-        await removeXp(malusXp, { discipline: Math.round(malusXp * 0.20) });
+        await removeXp(malusXp, { discipline: Math.round(malusXp * 0.08) });
         applied.push({ kind: 'weekly-malus', week: wk, xp: malusXp, percent: totalMalusFactor, weekXp, details: malusDetails });
       }
 
@@ -773,9 +817,7 @@ async function applyPendingPenalties() {
         if (f > 0) {
           const fullXp = questFullXp(q);
           const bonusXp = Math.round(fullXp * f);
-          const skills = {};
-          if (q.skill) skills[q.skill] = Math.round(bonusXp * 0.7);
-          skills.discipline = (skills.discipline || 0) + Math.round(bonusXp * 0.03);
+          const skills = questSkillXp(q, bonusXp);
           await awardXp(bonusXp, skills);
           applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, xp: bonusXp, percent: f, ratio });
         }
@@ -884,13 +926,16 @@ function haversine(lat1, lon1, lat2, lon2) {
 
 // Détecte la catégorie d'une sortie. Combine la date (week-end ?) à l'analyse
 // de la trace (D+/km pour le trail, variance d'allure pour le fractionné).
-// Retourne 'footing' | 'trail' | 'fractionne' | 'sortie-longue'.
+// Retourne 'footing' | 'trail' | 'rando' | 'fractionne' | 'sortie-longue'.
 function detectActivityType(parsed) {
   const date = new Date(parsed.date);
   const dayOfWeek = date.getDay(); // 0 = dimanche, 6 = samedi
   const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
   const dPlusPerKm = parsed.distanceKm > 0 ? parsed.elevGain / parsed.distanceKm : 0;
   const isLong = parsed.distanceKm >= 12; // sortie longue typique du week-end
+
+  // Randonnée : allure de marche (≥ 10:00/km) sur une distance significative.
+  if (parsed.avgPace >= 600 && parsed.distanceKm >= 3) return 'rando';
 
   // Trail : beaucoup de D+ par km, prioritaire (peut être un trail le dimanche).
   if (dPlusPerKm > 25) return 'trail';
@@ -952,7 +997,7 @@ function defaultActivityName(category, date) {
 // Icône d'une activité selon son type (toutes catégories : nouvelles + legacy).
 function activityTypeIcon(type) {
   return SPORT_TYPES[type]?.icon
-    || (type === 'trail' ? '⛰️' : type === 'rando' ? '🥾' : '🏃');
+    || '🏃';
 }
 
 // Analyse une trace de fractionné : segmente en phases d'effort et de récupération
@@ -1065,6 +1110,16 @@ function activityXp(parsed, category) {
   // Endurance : 25 XP/km de base
   let enduranceXp = Math.round(km * 25);
 
+  // Randonnée : marche, donc aucune XP d'allure ; endurance réduite + bonus D+.
+  if (cat === 'rando') {
+    const hikeEndurance = Math.round(km * 12);
+    const hikeBonus = Math.round(dPlus * 0.6);
+    return {
+      xp: hikeEndurance + hikeBonus,
+      skills: { endurance: hikeEndurance + hikeBonus, allure: 0, discipline: 4 }
+    };
+  }
+
   // Allure : intensité (0 = ref, 1 = élite, négatif = en deçà ref)
   let intensity = 0;
   if (avgPaceSec > 0) {
@@ -1085,9 +1140,6 @@ function activityXp(parsed, category) {
   if (cat === 'trail') {
     enduranceXp = Math.round(enduranceXp * 1.1);
     categoryBonus = Math.round(dPlus * 1.2); // bonus D+ exclusif au trail
-  } else if (cat === 'seuil') {
-    // Zone T : tempo, allure soutenue contrôlée
-    allureXp = Math.round(allureXp * 1.30);
   } else if (cat === 'fractionne') {
     // Zone I : VMA
     allureXp = Math.round(allureXp * 1.5);
@@ -1097,13 +1149,20 @@ function activityXp(parsed, category) {
   }
   // 'footing' (E) : pas de modulation, baseline
 
+  // XP de la compétence Allure (indépendante de l'XP globale ci-dessous) :
+  //  - une base de 5 XP/km pour toute sortie de course (la régularité compte) ;
+  //  - la partie « intensité » multipliée par 4 (avant : ×1) ;
+  //  - fractionné / seuil / sortie longue gardent leur modulation via allureXp.
+  const ALLURE_SKILL_MULT = 4;
+  const allureSkillXp = Math.round(km * 5 + Math.max(0, allureXp) * ALLURE_SKILL_MULT);
+
   const totalXp = Math.max(0, enduranceXp + Math.max(0, allureXp) + categoryBonus);
   return {
     xp: totalXp,
     skills: {
       endurance: enduranceXp,
-      allure: Math.max(0, allureXp),
-      discipline: 8
+      allure: allureSkillXp,
+      discipline: 4
     }
   };
 }
@@ -1233,7 +1292,7 @@ function estimateVO2max(distanceM, timeS) {
 function currentVO2max(activities) {
   if (!activities || activities.length === 0) return null;
   const cutoff = Date.now() - 90 * 86400000;
-  const recent = activities.filter(a => new Date(a.date).getTime() >= cutoff);
+  const recent = activities.filter(a => isRunActivity(a) && new Date(a.date).getTime() >= cutoff);
   let best = null;
   for (const a of recent) {
     const candidates = [
@@ -1268,6 +1327,7 @@ function currentVDOT(activities) {
   // 1) VDOT depuis splits récents
   let bestPerf = null; // { vdot, distance, time, date }
   for (const a of activities) {
+    if (!isRunActivity(a)) continue;
     if (new Date(a.date).getTime() < cutoffPerf) continue;
     const candidates = [
       { d: 5000, t: a.best5k },
@@ -1723,7 +1783,7 @@ function trainingLoadStats(activities, refDate = new Date()) {
   const ctlCutoff = ref - 28 * 86400000;
   const atlCutoff = ref - 7 * 86400000;
   // Seuil personnalisé sur les 60 derniers jours pour suivre la progression.
-  const recent60 = activities.filter(a => new Date(a.date).getTime() >= ref - 60 * 86400000);
+  const recent60 = activities.filter(a => isRunActivity(a) && new Date(a.date).getTime() >= ref - 60 * 86400000);
   const thresholdS = thresholdPaceFor(recent60);
   let ctlSum = 0, atlSum = 0;
   for (const a of activities) {
@@ -1757,7 +1817,7 @@ function trainingLoadStats(activities, refDate = new Date()) {
 // Renvoie { best1k, best5k, best10k, bestSemi } en secondes (null si rien).
 function getRollingRecords(activities, windowDays) {
   const cutoff = Date.now() - windowDays * 86400000;
-  const recent = activities.filter(a => new Date(a.date).getTime() >= cutoff);
+  const recent = activities.filter(a => isRunActivity(a) && new Date(a.date).getTime() >= cutoff);
   const fields = ['best1k', 'best5k', 'best10k', 'bestSemi'];
   const out = {};
   for (const f of fields) {
@@ -1780,7 +1840,7 @@ function renderActivityDetailHtml(activity) {
   if (type === 'fractionne') {
     return renderFractionneIntervalsHtml(activity);
   }
-  if (type === 'trail') {
+  if (type === 'trail' || type === 'rando') {
     return renderTrailElevHtml(activity);
   }
   // footing, sortie-longue, course (legacy), renforcement avec splits si dispo
@@ -1945,6 +2005,7 @@ function renderKmSplitsHtml(splits) {
 
 async function checkAndUpdateRecords(activity) {
   const broken = [];
+  if (!isRunActivity(activity)) return broken;
   for (const t of RECORD_TYPES) {
     const newValue = activity[t.metric];
     if (newValue == null || newValue === 0) continue;
@@ -2074,7 +2135,8 @@ async function migrateData() {
       dirty = true;
     }
     // Catégories supprimées (v2.04 → v2.05) : on rebascule sur footing.
-    if (a.type === 'endurance' || a.type === 'vitesse' || a.type === 'renforcement') {
+    // Catégorie « seuil » supprimée (v3.10) : les anciennes sorties deviennent des footings.
+    if (a.type === 'endurance' || a.type === 'vitesse' || a.type === 'renforcement' || a.type === 'seuil') {
       a.type = 'footing';
       dirty = true;
     }
@@ -2105,9 +2167,9 @@ async function migrateData() {
 async function loadAll() {
   State.profile = await dbGet('profile', 'me');
   State.quests = await dbAll('quests');
-  State.completions = await dbAll('completions');
-  State.activities = await dbAll('activities');
-  State.workLogs = await dbAll('workLog');
+  State.completions = await dbAllLive('completions');
+  State.activities = await dbAllLive('activities');
+  State.workLogs = await dbAllLive('workLog');
   State.exams = await dbAll('exams');
   State.schedule = await dbAll('schedule');
   const recs = await dbAll('records');
@@ -3059,6 +3121,15 @@ async function onGpxFile(e) {
       xpAwarded: xp,
       skillsAwarded: skills
     };
+    if (isGhostDate(activity.date)) {
+      activity.xpAwarded = 0;
+      activity.skillsAwarded = {};
+      await dbPut('activities', activity);
+      showToast({ type: 'xp', title: 'Sortie archivée', text: 'Antérieure au 1er septembre : stockée mais non comptée.' }, 4000);
+      await loadAll();
+      render();
+      return;
+    }
     await dbPut('activities', activity);
     const result = await awardXp(xp, skills);
     const broken = await checkAndUpdateRecords(activity);
@@ -3097,11 +3168,12 @@ function showPRCelebration(records) {
 
 async function recomputeAllRecords() {
   // Re-scanne toutes les activités et reconstruit le store records (utile après une suppression).
-  const acts = await dbAll('activities');
+  const acts = await dbAllLive('activities');
   await dbClear('records');
   for (const t of RECORD_TYPES) {
     let best = null;
     for (const a of acts) {
+      if (!isRunActivity(a)) continue;
       const v = a[t.metric];
       if (v == null || v === 0) continue;
       if (!best
@@ -3150,7 +3222,7 @@ async function recomputeAllXp() {
 
   // 2) Activités : on recalcule l'XP pour chaque, on met à jour la fiche
   //    en base, puis on applique l'XP au profil.
-  const acts = await dbAll('activities');
+  const acts = await dbAllLive('activities');
   // Trie chronologiquement pour que les level-ups soient cohérents.
   acts.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   for (const a of acts) {
@@ -3168,7 +3240,7 @@ async function recomputeAllXp() {
 
   // 3) Work logs : on recalcule chaque jour avec computeWorkXp +
   //    pondération par matière. On stocke le nouveau lastXpAwarded.
-  const logs = await dbAll('workLog');
+  const logs = await dbAllLive('workLog');
   logs.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
   for (const l of logs) {
     const bySubject = l.bySubject || {};
@@ -3202,7 +3274,7 @@ async function recomputeAllXp() {
 
   // 4) Completions hebdo : on recalcule chacune et on applique l'XP.
   //    On les trie par weekKey + questId pour stabilité.
-  const completions = await dbAll('completions');
+  const completions = await dbAllLive('completions');
   const quests = await dbAll('quests');
   completions.sort((a, b) => (a.weekKey || '').localeCompare(b.weekKey || ''));
   for (const c of completions) {
@@ -3217,9 +3289,7 @@ async function recomputeAllXp() {
       const r = computeCountXp(value, q.goalCount);
       xp = r.xp; ratio = r.ratio;
     }
-    const skillsXp = {};
-    if (q.skill) skillsXp[q.skill] = Math.round(xp * 0.7);
-    skillsXp.discipline = (skillsXp.discipline || 0) + Math.round(xp * 0.03);
+    const skillsXp = questSkillXp(q, xp);
     // Met à jour la completion en base avec les nouvelles valeurs.
     c.lastXp = xp;
     c.lastSkillsXp = skillsXp;
@@ -3280,8 +3350,8 @@ async function deleteActivity(activity) {
 async function editActivity(activity) {
   const overlay = el('div', { class: 'gpx-preview-overlay' });
   const modal = el('div', { class: 'gpx-preview-modal' });
-  // Liste des 5 catégories de sport.
-  const cats = ['footing', 'seuil', 'fractionne', 'sortie-longue', 'trail'];
+  // Liste des catégories de sport.
+  const cats = ['footing', 'fractionne', 'sortie-longue', 'trail', 'rando'];
   modal.innerHTML = `
     <div class="gpx-preview-head">
       <div class="gpx-preview-title">
@@ -4246,6 +4316,18 @@ async function init() {
   showSplash();
   await initSeed();
   await loadAll();
+
+  // Bascule « données fantômes » : une seule fois, on recalcule XP, niveaux et
+  // records en ignorant tout ce qui précède GHOST_BEFORE (rien n'est supprimé).
+  const ghostFlag = await dbGet('meta', 'ghostCutoffApplied');
+  if (ghostFlag?.value !== GHOST_BEFORE) {
+    try {
+      await recomputeAllXp();
+      await recomputeAllRecords();
+      await dbPut('meta', { key: 'ghostCutoffApplied', value: GHOST_BEFORE });
+      await loadAll();
+    } catch (err) { console.error('Ghost recompute failed', err); }
+  }
   await recomputeAutoQuests();
 
   // Applique les malus/bonus pour les jours/semaines déjà passés depuis la rentrée.

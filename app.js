@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.13';
+const APP_VERSION = '3.14';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -194,24 +194,24 @@ function deriveLevel(totalXp) {
 }
 
 const SKILL_META = {
-  endurance:  { label: 'Endurance',  icon: '🏃', color: '#6fa58a', desc: 'Volume kilométrique.' },
-  allure:     { label: 'Allure',     icon: '⚡', color: '#c9703a', desc: 'Performance pure.' },
-  maths:      { label: 'Maths',      icon: '🧮', color: '#7fb596', desc: 'DM, exos, démos.' },
-  physique:   { label: 'Physique',   icon: '⚛️', color: '#8fae8a', desc: 'Mécanique, thermo, ondes.' },
-  si:         { label: 'SI / Info',  icon: '🔬', color: '#b5705f', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Anglais',    icon: '🌍', color: '#6fa58a', desc: 'Anglais.' },
+  endurance:  { label: 'Endurance',  icon: '🏃', color: '#bba677', desc: 'Volume kilométrique.' },
+  allure:     { label: 'Allure',     icon: '⚡', color: '#a8742a', desc: 'Performance pure.' },
+  maths:      { label: 'Maths',      icon: '🧮', color: '#d8c797', desc: 'DM, exos, démos.' },
+  physique:   { label: 'Physique',   icon: '⚛️', color: '#cdbb8a', desc: 'Mécanique, thermo, ondes.' },
+  si:         { label: 'SI / Info',  icon: '🔬', color: '#a98a52', desc: 'Sciences ingé / info.' },
+  langues:    { label: 'Anglais',    icon: '🌍', color: '#bba677', desc: 'Anglais.' },
   lettres:    { label: 'Lettres',    icon: '✒️', color: '#e6c36a', desc: 'Français, philo.' },
-  discipline: { label: 'Discipline', icon: '🧘', color: '#c9703a', desc: 'Régularité, focus.' }
+  discipline: { label: 'Discipline', icon: '🧘', color: '#a8742a', desc: 'Régularité, focus.' }
 };
 
 const RANKS = [
-  { from: 1,   to: 4,   title: 'Mortel',              color: '#a0a4b8' },
-  { from: 5,   to: 9,   title: 'Initié',              color: '#6fa58a' },
-  { from: 10,  to: 14,  title: 'Aspirant',            color: '#7fb596' },
+  { from: 1,   to: 4,   title: 'Mortel',              color: '#a79f8b' },
+  { from: 5,   to: 9,   title: 'Initié',              color: '#bba677' },
+  { from: 10,  to: 14,  title: 'Aspirant',            color: '#d8c797' },
   { from: 15,  to: 19,  title: 'Coureur',             color: '#d9a441' },
   { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#d9a441' },
-  { from: 30,  to: 49,  title: 'Cendres',             color: '#c9703a' },
-  { from: 50,  to: 74,  title: 'Renaissance',         color: '#c9703a' },
+  { from: 30,  to: 49,  title: 'Cendres',             color: '#a8742a' },
+  { from: 50,  to: 74,  title: 'Renaissance',         color: '#a8742a' },
   { from: 75,  to: 99,  title: 'Phénix',              color: '#e6c36a' },
   { from: 100, to: 999, title: 'Orion',              color: '#e6c36a' }
 ];
@@ -469,13 +469,13 @@ async function commitWorkLog(dateKey, bySubject, goalHours) {
 
 const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
-  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#c9703a', autoFromActivities: true, category: 'main' },
+  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#a8742a', autoFromActivities: true, category: 'main' },
   { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: '⏱️', color: '#d9a441', autoFromWorkLog: true, category: 'main' },
-  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#6fa58a', category: 'main' },
+  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#bba677', category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
-  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#6fa58a', autoFromLangues: true, category: 'secondary' },
+  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#bba677', autoFromLangues: true, category: 'secondary' },
   { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#e6c36a', autoFromLettres: true, category: 'secondary' },
-  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: '🔬', color: '#b5705f', autoFromSi: true, category: 'secondary' }
+  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: '🔬', color: '#a98a52', autoFromSi: true, category: 'secondary' }
 ];
 
 // XP de compétences d'une quête. Les quêtes « discipline » (heures de travail,
@@ -2406,8 +2406,8 @@ function renderHome(root) {
   if (nextExam) {
     const yearProgress = computeYearProgress(nextExam.date);
     const yearPct = Math.round(yearProgress * 100);
-    const pctColor = yearPct < 25 ? '#7fb596' : yearPct < 50 ? '#6fa58a' : yearPct < 75 ? '#d9a441' : '#c9703a';
-    const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#c9703a' : nextExam.days < 180 ? '#d9a441' : '#7fb596';
+    const pctColor = yearPct < 25 ? '#d8c797' : yearPct < 50 ? '#bba677' : yearPct < 75 ? '#d9a441' : '#a8742a';
+    const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#a8742a' : nextExam.days < 180 ? '#d9a441' : '#d8c797';
 
     page.appendChild(el('div', { class: 'mb-4', html: `
       <div class="cd-card">
@@ -2631,7 +2631,7 @@ async function renderDayDashboard(root) {
   const todayActs = State.activities.filter(a => a.date.slice(0, 10) === dateKey);
   const sportDone = todayActs.length > 0;
 
-  const barColor = wi.ratio < 0.5 ? '#5e6480' : wi.ratio < 1 ? '#7fb596' : '#d9a441';
+  const barColor = wi.ratio < 0.5 ? '#7d7664' : wi.ratio < 1 ? '#d8c797' : '#d9a441';
 
   let sportBlock = '';
   if (showSport) {
@@ -3070,57 +3070,48 @@ function renderSport(root) {
 }
 
 // Style JSON MapLibre 100% custom Orion. Couleurs alignées sur la palette
-// de l'app (kaki / brun) — fond parchemin, eau vert-gris, routes crème, parcs olive. Source de tiles vectorielles : OpenFreeMap
+// de l'app (sombre, accents brun/khaki). Source de tiles vectorielles : OpenFreeMap
 // (gratuit, sans clé, basé sur OpenMapTiles).
 const ORION_MAP_STYLE = {
   version: 8,
   name: 'Orion',
   glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
   sources: {
-    openmaptiles: {
-      type: 'vector',
-      url: 'https://tiles.openfreemap.org/planet'
-    }
+    openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' }
   },
   layers: [
-    // Fond « parchemin » : kaki clair, dans la teinte du fond de l'app.
-    { id: 'bg', type: 'background', paint: { 'background-color': '#cfbf8e' } },
-
-    // Eau : vert-gris sourd.
+    // Fond sombre neutre
+    { id: 'bg', type: 'background', paint: { 'background-color': '#1a1917' } },
+    // Eau : gris-brun plus profond que la terre
     { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
-      paint: { 'fill-color': '#86a596', 'fill-opacity': 1 } },
-
-    // Forêts et parcs : verts olive désaturés.
+      paint: { 'fill-color': '#0f0f0e', 'fill-opacity': 1 } },
+    // Forêts et parcs : brun-olive très discret
     { id: 'wood', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
       filter: ['==', 'class', 'wood'],
-      paint: { 'fill-color': '#b3ab6e', 'fill-opacity': 0.8 } },
+      paint: { 'fill-color': '#2a2719', 'fill-opacity': 0.8 } },
     { id: 'grass', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
       filter: ['in', 'class', 'grass', 'park'],
-      paint: { 'fill-color': '#bdb581', 'fill-opacity': 0.7 } },
-
-    // Bâti : légèrement plus foncé que le fond.
+      paint: { 'fill-color': '#25231a', 'fill-opacity': 0.7 } },
+    // Bâti
     { id: 'buildings', type: 'fill', source: 'openmaptiles', 'source-layer': 'building',
       minzoom: 13,
-      paint: { 'fill-color': '#bfac7a', 'fill-outline-color': '#a89462' } },
-
-    // Routes : crème sur parchemin, les axes principaux en brun.
+      paint: { 'fill-color': '#2b2a26', 'fill-outline-color': '#3b3935' } },
+    // Routes : de gris-brun à khaki selon l'importance
     { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'minor', 'service', 'track'],
       minzoom: 12,
-      paint: { 'line-color': '#e9dcb4', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 18, 2.5] } },
+      paint: { 'line-color': '#3d3a33', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 18, 2.5] } },
     { id: 'road-secondary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'secondary', 'tertiary'],
-      paint: { 'line-color': '#f4ead0', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 18, 3.5] } },
+      paint: { 'line-color': '#5a5446', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 18, 3.5] } },
     { id: 'road-primary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'primary', 'trunk', 'motorway'],
-      paint: { 'line-color': '#8a6a2a', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 18, 4.5], 'line-opacity': 0.8 } },
-
-    // Frontières administratives : brun fin en pointillés.
+      paint: { 'line-color': '#8a7a4c', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 18, 4.5], 'line-opacity': 0.9 } },
+    // Frontières
     { id: 'admin-bounds', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
       filter: ['<=', 'admin_level', 4],
-      paint: { 'line-color': '#5c4211', 'line-width': 0.7, 'line-opacity': 0.5, 'line-dasharray': [2, 2] } },
-
-    // Noms de lieux : encre brune avec halo parchemin.
+      paint: { 'line-color': '#bba677', 'line-width': 0.7, 'line-opacity': 0.35, 'line-dasharray': [2, 2] } },
+    // Noms de lieux : khaki
     { id: 'place-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
       filter: ['in', 'class', 'city', 'town', 'village'],
       layout: {
@@ -3129,12 +3120,7 @@ const ORION_MAP_STYLE = {
         'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 12, 14],
         'text-anchor': 'center'
       },
-      paint: {
-        'text-color': '#2b1f0a',
-        'text-halo-color': '#d9ca9c',
-        'text-halo-width': 1.4,
-        'text-opacity': 0.9
-      } }
+      paint: { 'text-color': '#bba677', 'text-halo-color': '#121211', 'text-halo-width': 1.4, 'text-opacity': 0.9 } }
   ]
 };
 
@@ -3164,23 +3150,23 @@ function renderMapInto(mapEl, activity) {
       data: { type: 'Feature', geometry: { type: 'LineString', coordinates: coords } }
     });
 
-    // Liseré crème large : fait ressortir le tracé sur le parchemin
+    // Halo doré diffus
     map.addLayer({
       id: 'track-halo', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#f4ead0', 'line-width': 10, 'line-opacity': 0.9, 'line-blur': 1 }
+      paint: { 'line-color': '#dcc98f', 'line-width': 12, 'line-opacity': 0.28, 'line-blur': 4 }
     });
-    // Contour brun foncé
+    // Halo brun intermédiaire
     map.addLayer({
       id: 'track-glow', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#2b1f0a', 'line-width': 6, 'line-opacity': 0.85 }
+      paint: { 'line-color': '#a8742a', 'line-width': 7, 'line-opacity': 0.55 }
     });
-    // Trait principal vert profond (accent de la palette)
+    // Trait principal khaki clair
     map.addLayer({
       id: 'track-main', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#3f8a63', 'line-width': 3 }
+      paint: { 'line-color': '#e3d3a2', 'line-width': 3 }
     });
 
     // Markers départ (crème) et arrivée (brun)
@@ -3742,16 +3728,16 @@ function renderStats(root) {
 
 // Helpers de styling Chart.js cohérents avec la palette Orion.
 const CHART_COLORS = {
-  text: '#a0a4b8',
-  textMute: '#5e6480',
+  text: '#a79f8b',
+  textMute: '#7d7664',
   grid: 'rgba(31, 42, 68, 0.7)',
   gold: '#e6c36a',
   goldFade: 'rgba(230,195,106, 0.18)',
-  warm: '#c9703a',
-  cool: '#6fa58a',
-  violet: '#7fb596',
-  pink: '#b5705f',
-  bg: '#5c4211'
+  warm: '#a8742a',
+  cool: '#bba677',
+  violet: '#d8c797',
+  pink: '#a98a52',
+  bg: '#242422'
 };
 
 function chartCommonOptions() {
@@ -3761,7 +3747,7 @@ function chartCommonOptions() {
     plugins: {
       legend: { labels: { color: CHART_COLORS.text, font: { family: 'system-ui, -apple-system, sans-serif', size: 11 } } },
       tooltip: {
-        backgroundColor: 'rgba(10,14,26,0.95)',
+        backgroundColor: 'rgba(20,20,19,0.95)',
         titleColor: CHART_COLORS.gold,
         bodyColor: '#f0eee6',
         borderColor: 'rgba(230,195,106,0.2)',
@@ -3811,8 +3797,8 @@ function renderVO2maxChart(acts) {
   const data = points.map(p => p.vo2);
   const ctxC = ctx.getContext('2d');
   const grad = ctxC.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, 'rgba(63,122,92, 0.4)');
-  grad.addColorStop(1, 'rgba(63,122,92, 0)');
+  grad.addColorStop(0, 'rgba(187,166,119, 0.4)');
+  grad.addColorStop(1, 'rgba(187,166,119, 0)');
   State.charts.vo2 = new Chart(ctx, {
     type: 'line',
     data: {
@@ -4144,11 +4130,11 @@ function renderSubjectsDonut(logs) {
   }
   const palette = {
     maths: CHART_COLORS.violet,
-    physique: '#8fae8a',
+    physique: '#cdbb8a',
     si: CHART_COLORS.pink,
     langues: CHART_COLORS.cool,
     francais: CHART_COLORS.gold,
-    autre: '#5e6480'
+    autre: '#7d7664'
   };
   const totalH = entries.reduce((s, [_, m]) => s + m, 0) / 60;
   State.charts.subjects = new Chart(ctx, {

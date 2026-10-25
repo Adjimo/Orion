@@ -4,14 +4,15 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v47';
+const VERSION = 'orion-v48';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './icons/favicon.svg',
+  './icons/favicon.png',
+  './icons/logo.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
 ];

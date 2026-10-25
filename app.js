@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.16';
+const APP_VERSION = '3.17';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL

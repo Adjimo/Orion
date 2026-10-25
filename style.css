@@ -1774,3 +1774,6 @@ img[src*="icons/ui/"] {
 .rg-inputs .input { width: 62px; text-align: center; }
 .rg-inputs .btn { margin-left: auto; }
 .rg-chips { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+/* Logo du splash */
+.splash-logo { display: block; width: 132px; height: 132px; margin: 0 auto 18px; object-fit: contain; }

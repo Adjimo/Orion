@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.14';
+const APP_VERSION = '3.16';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -195,25 +195,25 @@ function deriveLevel(totalXp) {
 
 const SKILL_META = {
   endurance:  { label: 'Endurance',  icon: '🏃', color: '#bba677', desc: 'Volume kilométrique.' },
-  allure:     { label: 'Allure',     icon: '⚡', color: '#a8742a', desc: 'Performance pure.' },
-  maths:      { label: 'Maths',      icon: '🧮', color: '#d8c797', desc: 'DM, exos, démos.' },
-  physique:   { label: 'Physique',   icon: '⚛️', color: '#cdbb8a', desc: 'Mécanique, thermo, ondes.' },
-  si:         { label: 'SI / Info',  icon: '🔬', color: '#a98a52', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Anglais',    icon: '🌍', color: '#bba677', desc: 'Anglais.' },
-  lettres:    { label: 'Lettres',    icon: '✒️', color: '#e6c36a', desc: 'Français, philo.' },
-  discipline: { label: 'Discipline', icon: '🧘', color: '#a8742a', desc: 'Régularité, focus.' }
+  allure:     { label: 'Allure',     icon: '⚡', color: '#d9a441', desc: 'Performance pure.' },
+  maths:      { label: 'Maths',      icon: '🧮', color: '#e6d9b0', desc: 'DM, exos, démos.' },
+  physique:   { label: 'Physique',   icon: '⚛️', color: '#b0705a', desc: 'Mécanique, thermo, ondes.' },
+  si:         { label: 'SI / Info',  icon: '🔬', color: '#a8742a', desc: 'Sciences ingé / info.' },
+  langues:    { label: 'Anglais',    icon: '🌍', color: '#d8c797', desc: 'Anglais.' },
+  lettres:    { label: 'Lettres',    icon: '✒️', color: '#c8975a', desc: 'Français, philo.' },
+  discipline: { label: 'Discipline', icon: '🧘', color: '#9c7424', desc: 'Régularité, focus.' }
 };
 
 const RANKS = [
-  { from: 1,   to: 4,   title: 'Mortel',              color: '#a79f8b' },
-  { from: 5,   to: 9,   title: 'Initié',              color: '#bba677' },
-  { from: 10,  to: 14,  title: 'Aspirant',            color: '#d8c797' },
-  { from: 15,  to: 19,  title: 'Coureur',             color: '#d9a441' },
-  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#d9a441' },
-  { from: 30,  to: 49,  title: 'Cendres',             color: '#a8742a' },
-  { from: 50,  to: 74,  title: 'Renaissance',         color: '#a8742a' },
-  { from: 75,  to: 99,  title: 'Phénix',              color: '#e6c36a' },
-  { from: 100, to: 999, title: 'Orion',              color: '#e6c36a' }
+  { from: 1,   to: 4,   title: 'Mortel',              color: '#8a8270' },
+  { from: 5,   to: 9,   title: 'Initié',              color: '#a8956a' },
+  { from: 10,  to: 14,  title: 'Aspirant',            color: '#bba677' },
+  { from: 15,  to: 19,  title: 'Coureur',             color: '#d8c797' },
+  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#e6c36a' },
+  { from: 30,  to: 49,  title: 'Cendres',             color: '#b0705a' },
+  { from: 50,  to: 74,  title: 'Renaissance',         color: '#d9a441' },
+  { from: 75,  to: 99,  title: 'Phénix',              color: '#e89a3c' },
+  { from: 100, to: 999, title: 'Orion',               color: '#f3e3ab' }
 ];
 
 function getRank(level) {
@@ -471,7 +471,7 @@ const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
   { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#a8742a', autoFromActivities: true, category: 'main' },
   { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: '⏱️', color: '#d9a441', autoFromWorkLog: true, category: 'main' },
-  { id: 'wq-sleep',   title: 'Nuits ≥ 7h', type: 'weekly-count', goalCount: 7, unit: 'nuits', skill: 'discipline', icon: '🌙', color: '#bba677', category: 'main' },
+  { id: 'wq-sleep',   title: 'Couché avant 23h30', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: '🌙', color: '#bba677', category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
   { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#bba677', autoFromLangues: true, category: 'secondary' },
   { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#e6c36a', autoFromLettres: true, category: 'secondary' },
@@ -627,10 +627,11 @@ async function recomputeAutoQuests() {
 // ============================================================================
 
 const SEED_EXAMS = [
-  { id: 'exam-x-ens',       name: 'X — ENS',         short: 'X/ENS',      date: '2027-04-19', icon: '🏛️', enabled: true },
-  { id: 'exam-mines-ponts', name: 'Mines-Ponts',     short: 'Mines-Ponts',date: '2027-04-26', icon: '⛏️', enabled: true },
+  // Écrits 2027 : X/ENS en premier (12-16 avril), puis CCINP, Centrale et Mines-Ponts à la suite.
+  { id: 'exam-x-ens',       name: 'X — ENS',         short: 'X/ENS',      date: '2027-04-12', endDate: '2027-04-16', icon: '🏛️', enabled: true },
+  { id: 'exam-ccinp',       name: 'CCINP',           short: 'CCINP',      date: '2027-04-26', icon: '🔬', enabled: true },
   { id: 'exam-centrale',    name: 'Centrale-Supélec',short: 'Centrale',   date: '2027-05-03', icon: '⚡', enabled: true },
-  { id: 'exam-ccinp',       name: 'CCINP',           short: 'CCINP',      date: '2027-05-10', icon: '🔬', enabled: true }
+  { id: 'exam-mines-ponts', name: 'Mines-Ponts',     short: 'Mines-Ponts',date: '2027-05-10', icon: '⛏️', enabled: true }
 ];
 
 function daysUntil(dateStr) {
@@ -790,6 +791,16 @@ async function applyPendingPenalties() {
       const quests = await dbAll('quests');
       const weekXp = await xpEarnedInWeek(wk);
 
+      // Rigueur : auto-sanctions + temps d'écran (% de l'XP de la semaine).
+      {
+        const extra = await computeSelfWeekPenalty(wk);
+        if (extra.total > 0 && weekXp > 0) {
+          const lossXp = Math.round(weekXp * extra.total);
+          await removeXp(lossXp, { discipline: Math.round(lossXp * 0.08) });
+          applied.push({ kind: 'weekly-self', week: wk, xp: lossXp, percent: extra.total, weekXp, details: extra });
+        }
+      }
+
       // Cumule les facteurs des principales ratées, capé à 80%.
       // Une quête justifiée (malade / autre) pour cette semaine est ignorée.
       const excuses = await getMalusExcuses();
@@ -843,6 +854,36 @@ async function applyPendingPenalties() {
   }
 
   return { applied };
+}
+
+// ── Rigueur : auto-sanctions + temps d'écran (appliqués en fin de semaine) ──
+// meta `selfMalus`  : { 'YYYY-Www': [ { id, percent, reason, createdAt } ] }
+// meta `screenTime` : { perDayMin, weeks: { 'YYYY-Www': minutes } }
+// Les deux retirent un % de l'XP gagnée dans la semaine, au passage de la semaine.
+const SCREEN_PCT_PER_HOUR = 5;   // % d'XP retiré par heure au-dessus du seuil
+const SCREEN_PCT_CAP = 40;       // plafond du malus d'écran
+const SELF_PCT_CAP = 60;         // plafond cumulé des auto-sanctions
+
+async function getSelfMalus() { return (await dbGet('meta', 'selfMalus'))?.value || {}; }
+async function saveSelfMalus(m) { await dbPut('meta', { key: 'selfMalus', value: m }); }
+async function getScreenData() {
+  const v = (await dbGet('meta', 'screenTime'))?.value || {};
+  return { perDayMin: v.perDayMin ?? 60, weeks: v.weeks || {} };
+}
+async function saveScreenData(d) { await dbPut('meta', { key: 'screenTime', value: d }); }
+
+function screenPenaltyPercent(minutes, perDayMin) {
+  const excessH = Math.max(0, minutes - perDayMin * 7) / 60;
+  return Math.min(SCREEN_PCT_CAP, Math.round(excessH * SCREEN_PCT_PER_HOUR * 10) / 10);
+}
+
+// Pourcentage total (0-1) retiré à la fin de la semaine `wk`.
+async function computeSelfWeekPenalty(wk) {
+  const entries = (await getSelfMalus())[wk] || [];
+  const selfPct = Math.min(SELF_PCT_CAP, entries.reduce((a, e) => a + (e.percent || 0), 0));
+  const sd = await getScreenData();
+  const screenPct = screenPenaltyPercent(sd.weeks[wk] || 0, sd.perDayMin);
+  return { selfPct, screenPct, total: (selfPct + screenPct) / 100 };
 }
 
 // ── Justification des malus hebdo (ex : sorties manquées car malade) ─────────
@@ -2151,6 +2192,18 @@ async function initSeed() {
 // ============================================================================
 
 async function migrateData() {
+  // Calendrier des écrits (v3.15) + quête sommeil « couché avant 23h30 ».
+  for (const seed of SEED_EXAMS) {
+    const cur = await dbGet('exams', seed.id);
+    if (!cur) { await dbPut('exams', seed); continue; }
+    if (cur.date !== seed.date || cur.endDate !== seed.endDate) {
+      await dbPut('exams', { ...cur, date: seed.date, endDate: seed.endDate });
+    }
+  }
+  const sleepQ = await dbGet('quests', 'wq-sleep');
+  if (sleepQ && sleepQ.title !== 'Couché avant 23h30') {
+    await dbPut('quests', { ...sleepQ, title: 'Couché avant 23h30', unit: 'soirs' });
+  }
   // Profil : structure des skills + nettoyage streak.
   const profile = await dbGet('profile', 'me');
   if (profile) {
@@ -2415,7 +2468,7 @@ function renderHome(root) {
           <div class="cd-info">
             <div class="cd-label">Prochaine échéance</div>
             <div class="cd-name">${nextExam.icon} ${escapeHtml(nextExam.short)}</div>
-            <div class="cd-date">${formatDate(nextExam.date)}</div>
+            <div class="cd-date">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
           </div>
           <div class="cd-stats">
             <div class="cd-pct" style="color: ${pctColor};">${yearPct}<span class="pct-sign">%</span></div>
@@ -2482,36 +2535,6 @@ function renderQuetes(root) {
   const dashWrap = el('div', { class: 'mb-5' });
   page.appendChild(dashWrap);
 
-  // Mon objectif de course — carte cliquable qui ouvre une sous-page modale
-  const goalMeta = State._goalRace || null;
-  page.appendChild(el('h3', { class: 'mb-2' }, '🏁 Mon objectif de course'));
-  const goalCardWrap = el('div', { class: 'mb-5' });
-  goalCardWrap.innerHTML = goalMeta
-    ? `
-      <button class="goal-summary-card" id="open-goal-detail">
-        <div class="goal-summary-icon">🎯</div>
-        <div class="goal-summary-body">
-          <div class="goal-summary-title">${({ 5000: '5 km', 10000: '10 km', 15000: '15 km', 21097: 'Semi-marathon', 42195: 'Marathon' })[goalMeta.distance] || (goalMeta.distance/1000+' km')} en ${formatDuration(goalMeta.timeS)}</div>
-          <div class="goal-summary-meta dim text-xs">Tape pour voir le plan d'entraînement</div>
-        </div>
-        <div class="goal-summary-chevron">›</div>
-      </button>
-    `
-    : `
-      <button class="goal-summary-card empty" id="open-goal-detail">
-        <div class="goal-summary-icon">🎯</div>
-        <div class="goal-summary-body">
-          <div class="goal-summary-title">Définir un objectif</div>
-          <div class="goal-summary-meta dim text-xs">Choisis une distance et un chrono cible</div>
-        </div>
-        <div class="goal-summary-chevron">›</div>
-      </button>
-    `;
-  page.appendChild(goalCardWrap);
-  setTimeout(() => {
-    goalCardWrap.querySelector('#open-goal-detail').addEventListener('click', () => showGoalDetailModal());
-  }, 0);
-
   // ── 🏃 SPORT (quête sorties principales) ─────────────────────────────
   page.appendChild(el('h3', { class: 'mb-1' }, '🏃 Sport'));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Sorties de course de la semaine'));
@@ -2527,7 +2550,14 @@ function renderQuetes(root) {
   const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(travailWrap);
 
+  // ── ⚖️ RIGUEUR (auto-sanctions + temps d'écran) ─────────────────────
+  page.appendChild(el('h3', { class: 'mb-1' }, '⚖️ Rigueur'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
+  const rigueurWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(rigueurWrap);
+
   root.appendChild(page);
+  renderRigueurSection(rigueurWrap);
 
   // Render async, en filtrant par questId pour chaque section
   renderDayDashboard(dashWrap);
@@ -2841,6 +2871,141 @@ async function _renderOneQuest(root, q, category) {
   }
 
   root.appendChild(div);
+}
+
+// Section « Rigueur » : carte auto-sanctions + carte temps d'écran.
+async function renderRigueurSection(root) {
+  root.innerHTML = '';
+  const wk = weekKey();
+  const weekXp = await xpEarnedInWeek(wk);
+  const selfAll = await getSelfMalus();
+  const entries = selfAll[wk] || [];
+  const sd = await getScreenData();
+  const screenMin = sd.weeks[wk] || 0;
+  const thresholdWeek = sd.perDayMin * 7;
+  const selfPct = Math.min(SELF_PCT_CAP, entries.reduce((a, e) => a + (e.percent || 0), 0));
+  const screenPct = screenPenaltyPercent(screenMin, sd.perDayMin);
+  const fmtH = (m) => `${Math.floor(m / 60)}h${String(Math.round(m % 60)).padStart(2, '0')}`;
+  const xpOf = (pct) => Math.round(weekXp * pct / 100);
+
+  // ── Carte 1 : mes écarts ──
+  const c1 = el('div', { class: 'card rg-card' });
+  c1.innerHTML = `
+    <div class="rg-head">
+      <div><div class="rg-title">🩹 Mes écarts</div>
+      <div class="dim text-xs">Une mauvaise action ? Inflige-toi un malus.</div></div>
+      <div class="rg-total">${selfPct ? '−' + selfPct + '%' : '—'}</div>
+    </div>
+    <div class="rg-list">
+      ${entries.length ? entries.map(e => `
+        <div class="rg-row" data-id="${e.id}">
+          <span class="rg-reason">${escapeHtml(e.reason)}</span>
+          <span class="rg-pct">−${e.percent}%</span>
+          <button class="rg-del" aria-label="Supprimer">✕</button>
+        </div>`).join('') : '<div class="dim text-xs">Aucun écart déclaré cette semaine.</div>'}
+    </div>
+    ${selfPct ? `<div class="dim text-xs mt-2">Impact estimé : −${xpOf(selfPct)} XP (sur ${weekXp} XP gagnés cette semaine)</div>` : ''}
+    <button class="btn ghost sm mt-2" id="rg-add">+ Ajouter un écart</button>
+  `;
+  root.appendChild(c1);
+
+  // ── Carte 2 : temps d'écran ──
+  const over = Math.max(0, screenMin - thresholdWeek);
+  const barPct = Math.min(100, Math.round(screenMin / Math.max(1, thresholdWeek) * 100));
+  const c2 = el('div', { class: 'card rg-card' });
+  c2.innerHTML = `
+    <div class="rg-head">
+      <div><div class="rg-title">📱 Temps d'écran</div>
+      <div class="dim text-xs">Réseaux sociaux · seuil ${fmtH(sd.perDayMin)}/jour (${fmtH(thresholdWeek)}/semaine)</div></div>
+      <div class="rg-total">${screenPct ? '−' + screenPct + '%' : '0%'}</div>
+    </div>
+    <div class="progress"><div class="fill" style="width:${barPct}%; ${over ? 'background: var(--danger);' : ''}"></div></div>
+    <div class="flex between text-xs dim mt-1">
+      <span>${fmtH(screenMin)} cette semaine</span>
+      <span>${over ? '+' + fmtH(over) + ' au-dessus' : 'sous le seuil'}</span>
+    </div>
+    <div class="rg-inputs">
+      <input class="input" id="rg-h" type="number" min="0" inputmode="numeric" placeholder="h" value="${Math.floor(screenMin / 60)}" />
+      <span class="dim">h</span>
+      <input class="input" id="rg-m" type="number" min="0" max="59" inputmode="numeric" placeholder="min" value="${screenMin % 60}" />
+      <span class="dim">min</span>
+      <button class="btn primary sm" id="rg-save">Enregistrer</button>
+    </div>
+    <div class="dim text-xs mt-2">−${SCREEN_PCT_PER_HOUR}% d'XP par heure au-dessus du seuil (max −${SCREEN_PCT_CAP}%).
+      ${screenPct ? ` Impact estimé : −${xpOf(screenPct)} XP.` : ''}</div>
+    <button class="btn ghost sm mt-2" id="rg-thr">Changer le seuil quotidien</button>
+  `;
+  root.appendChild(c2);
+
+  // Événements
+  c1.querySelectorAll('.rg-del').forEach(b => b.addEventListener('click', async () => {
+    const id = b.closest('.rg-row').dataset.id;
+    const all = await getSelfMalus();
+    all[wk] = (all[wk] || []).filter(e => e.id !== id);
+    await saveSelfMalus(all);
+    renderRigueurSection(root);
+  }));
+  c1.querySelector('#rg-add').addEventListener('click', () => showSelfMalusModal(wk, () => renderRigueurSection(root)));
+  c2.querySelector('#rg-save').addEventListener('click', async () => {
+    const h = Math.max(0, parseInt(c2.querySelector('#rg-h').value) || 0);
+    const m = Math.min(59, Math.max(0, parseInt(c2.querySelector('#rg-m').value) || 0));
+    const d = await getScreenData();
+    d.weeks[wk] = h * 60 + m;
+    await saveScreenData(d);
+    showToast({ type: 'xp', title: 'Temps d\'écran enregistré', text: fmtH(h * 60 + m) });
+    renderRigueurSection(root);
+  });
+  c2.querySelector('#rg-thr').addEventListener('click', async () => {
+    const v = prompt('Seuil quotidien en minutes (ex : 60 pour 1h)', String(sd.perDayMin));
+    if (v === null) return;
+    const n = parseInt(v);
+    if (!(n >= 0 && n <= 600)) return;
+    const d = await getScreenData();
+    d.perDayMin = n;
+    await saveScreenData(d);
+    renderRigueurSection(root);
+  });
+}
+
+// Modal : déclarer un écart (motif + pourcentage).
+function showSelfMalusModal(wk, onDone) {
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal' });
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">🩹</span><span>Déclarer un écart</span></div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 16px 18px;">
+      <label class="dim text-xs" style="display:block; margin-bottom:6px;">Qu'est-ce qui n'allait pas ?</label>
+      <input class="input" id="sm-reason" type="text" maxlength="80" placeholder="ex : soirée jeux au lieu de réviser" style="width:100%;" />
+      <label class="dim text-xs" style="display:block; margin:14px 0 6px;">Malus : <b id="sm-val">10</b> % de l'XP de la semaine</label>
+      <input id="sm-pct" type="range" min="1" max="30" value="10" style="width:100%;" />
+      <div class="rg-chips">
+        ${[5, 10, 15, 20, 30].map(v => `<button class="btn ghost sm" data-v="${v}">${v}%</button>`).join('')}
+      </div>
+      <p class="dim text-xs mt-3">Appliqué à la fin de la semaine. Tu peux le supprimer d'ici là.</p>
+    </div>
+    <div class="gpx-preview-actions">
+      <button class="btn primary" id="sm-save">Ajouter</button>
+    </div>
+  `;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
+  const range = modal.querySelector('#sm-pct'), val = modal.querySelector('#sm-val');
+  range.addEventListener('input', () => { val.textContent = range.value; });
+  modal.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => { range.value = b.dataset.v; val.textContent = b.dataset.v; }));
+  modal.querySelector('#sm-save').addEventListener('click', async () => {
+    const reason = modal.querySelector('#sm-reason').value.trim();
+    if (!reason) { showToast({ type: 'err', title: 'Motif requis', text: 'Décris brièvement l\'écart.' }); return; }
+    const all = await getSelfMalus();
+    (all[wk] = all[wk] || []).push({ id: Date.now().toString(36), percent: parseInt(range.value), reason, createdAt: new Date().toISOString() });
+    await saveSelfMalus(all);
+    close();
+    onDone && onDone();
+  });
 }
 
 // Modal : choisir une semaine, un motif (Malade / Autre) et une note facultative.
@@ -3728,15 +3893,15 @@ function renderStats(root) {
 
 // Helpers de styling Chart.js cohérents avec la palette Orion.
 const CHART_COLORS = {
-  text: '#a79f8b',
-  textMute: '#7d7664',
-  grid: 'rgba(31, 42, 68, 0.7)',
+  text: '#bdb49b',
+  textMute: '#8a8270',
+  grid: 'rgba(187, 166, 119, 0.12)',
   gold: '#e6c36a',
   goldFade: 'rgba(230,195,106, 0.18)',
-  warm: '#a8742a',
+  warm: '#d9a441',
   cool: '#bba677',
-  violet: '#d8c797',
-  pink: '#a98a52',
+  violet: '#b0705a',
+  pink: '#a8742a',
   bg: '#242422'
 };
 
@@ -4311,47 +4476,6 @@ function renderProfil(root) {
         });
       });
     }
-  }, 0);
-
-  // Outils avancés (recalcul total, etc.)
-  page.appendChild(el('h3', { class: 'mb-2' }, '⚙️ Outils'));
-  const toolsCard = el('div', { class: 'card mb-4' });
-  toolsCard.innerHTML = `
-    <p class="dim text-sm mb-3">
-      Recalcule l'XP total et les niveaux à partir de l'historique complet (sorties, work logs, quêtes), avec les barèmes courants.
-      Utile après une mise à jour des compétences ou des règles XP. Aucune donnée n'est perdue, seuls les niveaux sont recalculés.
-    </p>
-    <button class="btn-gpx" id="btn-recompute" style="width:100%; justify-content:center;">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
-      <span>Recalculer XP totale</span>
-    </button>
-  `;
-  page.appendChild(toolsCard);
-  setTimeout(() => {
-    toolsCard.querySelector('#btn-recompute').addEventListener('click', async () => {
-      if (!confirm('Recalculer XP et niveaux depuis l\'historique complet ?\n\nTes données restent intactes, seul le calcul est refait avec les barèmes courants. Cette opération peut prendre quelques secondes.')) return;
-      const btn = toolsCard.querySelector('#btn-recompute');
-      btn.disabled = true;
-      btn.querySelector('span').textContent = 'Recalcul…';
-      try {
-        const r = await recomputeAllXp();
-        if (r.success) {
-          showToast({
-            type: 'levelup',
-            title: 'Recalcul terminé',
-            text: `${r.totalActivities} sorties · ${r.totalWorkLogs} work logs · ${r.totalCompletions} quêtes · ${r.finalXp} XP`
-          }, 5000);
-          render();
-        } else {
-          showToast({ type: 'err', title: 'Échec', text: r.reason || 'Erreur inconnue' });
-        }
-      } catch (err) {
-        showToast({ type: 'err', title: 'Erreur', text: err.message });
-      } finally {
-        btn.disabled = false;
-        btn.querySelector('span').textContent = 'Recalculer XP totale';
-      }
-    });
   }, 0);
 
   // Footer version : juste l'info, discret.

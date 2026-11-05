@@ -1777,3 +1777,25 @@ img[src*="icons/ui/"] {
 
 /* Logo du splash */
 .splash-logo { display: block; width: 132px; height: 132px; margin: 0 auto 18px; object-fit: contain; }
+
+/* Sélecteur de jour (saisie du travail) */
+.day-picker { display: flex; align-items: center; gap: 8px; margin: 4px 0 12px; }
+.day-picker .input { flex: 1; min-width: 0; text-align: center; color-scheme: dark; }
+.day-picker .btn[disabled] { opacity: 0.35; pointer-events: none; }
+.day-warn { margin: -4px 0 12px; line-height: 1.4; color: var(--clay); }
+
+/* Sommeil : une case par soir */
+.sleep-wrap { margin-top: 12px; }
+.sleep-row { display: flex; align-items: center; gap: 6px; }
+.sleep-days { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+.sleep-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0;
+  background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-sm);
+  color: var(--text-dim); cursor: pointer; font-family: inherit; }
+.sleep-day .sd-l { font-size: 0.62rem; letter-spacing: 0.04em; color: var(--text-mute); }
+.sleep-day .sd-n { font-size: 0.85rem; font-weight: 600; }
+.sleep-day .sd-c { height: 14px; font-size: 0.8rem; line-height: 14px; }
+.sleep-day.on { background: var(--grad); border-color: var(--accent); color: #14100a; }
+.sleep-day.on .sd-l { color: #3f2c0b; }
+.sleep-day[disabled] { opacity: 0.3; pointer-events: none; }
+.sleep-wrap .btn[disabled] { opacity: 0.3; pointer-events: none; }
+.sleep-cap { margin-top: 8px; text-align: center; }

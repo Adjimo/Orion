@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.17';
+const APP_VERSION = '3.21';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -471,7 +471,7 @@ const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
   { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: '🏃', color: '#a8742a', autoFromActivities: true, category: 'main' },
   { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: '⏱️', color: '#d9a441', autoFromWorkLog: true, category: 'main' },
-  { id: 'wq-sleep',   title: 'Couché avant 23h30', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: '🌙', color: '#bba677', category: 'main' },
+  { id: 'wq-sleep',   title: 'Couché avant 23h30', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: '🌙', color: '#bba677', autoFromSleep: true, category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
   { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: '🌍', color: '#bba677', autoFromLangues: true, category: 'secondary' },
   { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: '✒️', color: '#e6c36a', autoFromLettres: true, category: 'secondary' },
@@ -507,15 +507,13 @@ function computeHoursXp(actualMinutes, goalHours) {
   return computeWorkXp(actualMinutes, goalHours);
 }
 
-async function getCurrentCompletion(quest) {
-  const wk = weekKey();
+async function getCurrentCompletion(quest, wk = weekKey()) {
   const all = await dbAll('completions');
   return all.find(c => c.questId === quest.id && c.weekKey === wk);
 }
 
-async function setQuestValue(quest, newValue) {
-  const wk = weekKey();
-  const existing = await getCurrentCompletion(quest);
+async function setQuestValue(quest, newValue, wk = weekKey()) {
+  const existing = await getCurrentCompletion(quest, wk);
   const lastXp = existing?.lastXp || 0;
   const lastSkillsXp = existing?.lastSkillsXp || {};
 
@@ -550,7 +548,7 @@ async function setQuestValue(quest, newValue) {
 
   const record = {
     questId: quest.id,
-    date: todayKey(),
+    date: existing?.date || (wk === weekKey() ? todayKey() : todayKey(new Date(weekStartDate(wk).getTime() + 6 * 86400000))),
     weekKey: wk,
     actualValue: newValue,
     lastXp: newXp,
@@ -565,8 +563,11 @@ async function setQuestValue(quest, newValue) {
   return { newXp, xpDelta, ratio };
 }
 
-async function recomputeAutoQuests() {
-  const ws = startOfWeek();
+async function recomputeAutoQuests(wk = weekKey()) {
+  const isCurrent = wk === weekKey();
+  const ws = isCurrent ? startOfWeek() : weekStartDate(wk);
+  const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 7);
+  const weekEnd = todayKey(we);
   // todayKey() respecte la timezone locale, contrairement à toISOString().
   // Sans ça, lun 00:30 local renvoie un timestamp dimanche en UTC et la
   // quête de la nouvelle semaine pioche les workLogs de la semaine d'avant.
@@ -577,48 +578,54 @@ async function recomputeAutoQuests() {
 
   const sortiesQ = quests.find(q => q.id === 'wq-runs');
   if (sortiesQ) {
-    const weekActs = acts.filter(a => new Date(a.date) >= ws);
+    const weekActs = acts.filter(a => new Date(a.date) >= ws && new Date(a.date) < we);
     // On compte les sorties de course (ni renforcement ni randonnée).
     const courseCount = weekActs.filter(a =>
       ['footing', 'fractionne', 'sortie-longue', 'trail', 'course'].includes(a.type)
     ).length;
-    await setQuestValue(sortiesQ, courseCount);
+    await setQuestValue(sortiesQ, courseCount, wk);
   }
   const workQ = quests.find(q => q.id === 'wq-work');
   if (workQ) {
-    const weekLogs = logs.filter(l => l.date >= weekStart);
+    const weekLogs = logs.filter(l => l.date >= weekStart && l.date < weekEnd);
     const totalMin = weekLogs.reduce((s, l) => s + (l.totalMinutes || 0), 0);
-    await setQuestValue(workQ, totalMin);
+    await setQuestValue(workQ, totalMin, wk);
   }
   const langQ = quests.find(q => q.id === 'wq-langues');
   if (langQ) {
-    const weekLogs = logs.filter(l => l.date >= weekStart);
+    const weekLogs = logs.filter(l => l.date >= weekStart && l.date < weekEnd);
     let langMin = 0;
     for (const l of weekLogs) {
       const bs = l.bySubject || {};
       langMin += (bs.langues || 0);
     }
-    await setQuestValue(langQ, langMin);
+    await setQuestValue(langQ, langMin, wk);
   }
   const lettresQ = quests.find(q => q.id === 'wq-lettres');
   if (lettresQ) {
-    const weekLogs = logs.filter(l => l.date >= weekStart);
+    const weekLogs = logs.filter(l => l.date >= weekStart && l.date < weekEnd);
     let lettresMin = 0;
     for (const l of weekLogs) {
       const bs = l.bySubject || {};
       lettresMin += (bs.francais || 0);
     }
-    await setQuestValue(lettresQ, lettresMin);
+    await setQuestValue(lettresQ, lettresMin, wk);
+  }
+  const sleepQ = quests.find(q => q.id === 'wq-sleep');
+  if (sleepQ) {
+    const sleepLog = await getSleepLog();
+    const nights = Object.keys(sleepLog).filter(d => sleepLog[d] && d >= weekStart && d < weekEnd && d >= GHOST_BEFORE).length;
+    await setQuestValue(sleepQ, nights, wk);
   }
   const siQ = quests.find(q => q.id === 'wq-si');
   if (siQ) {
-    const weekLogs = logs.filter(l => l.date >= weekStart);
+    const weekLogs = logs.filter(l => l.date >= weekStart && l.date < weekEnd);
     let siMin = 0;
     for (const l of weekLogs) {
       const bs = l.bySubject || {};
       siMin += (bs.si || 0);
     }
-    await setQuestValue(siQ, siMin);
+    await setQuestValue(siQ, siMin, wk);
   }
 }
 
@@ -733,6 +740,178 @@ async function xpEarnedInWeek(wk) {
   return total;
 }
 
+// ── Sommeil : une case par soir (« couché avant 23h30 ») ─────────────────────
+// meta `sleepLog` : { 'YYYY-MM-DD': true } — le soir du jour indiqué.
+async function getSleepLog() { return (await dbGet('meta', 'sleepLog'))?.value || {}; }
+async function saveSleepLog(m) { await dbPut('meta', { key: 'sleepLog', value: m }); }
+
+// Exécute `fn` (qui modifie des données d'une semaine) puis recalcule les quêtes
+// de cette semaine et ajuste malus / rigueur / bonus si elle était déjà évaluée.
+async function withWeekRecalc(wk, fn) {
+  const startWk = weekKey(new Date(PENALTIES_START + 'T00:00:00'));
+  const lastWeekly = (await dbGet('meta', 'lastWeeklyPenalty'))?.value || '';
+  const weekFinal = arePenaltiesActive() && wk >= startWk && lastWeekly >= wk;
+  const before = weekFinal ? await computeWeekPenalties(wk) : null;
+  await fn();
+  await recomputeAutoQuests(wk);
+  if (!weekFinal) return;
+  const after = await computeWeekPenalties(wk);
+  const penDelta = (after.malusXp + after.selfXp) - (before.malusXp + before.selfXp);
+  if (penDelta > 0) await removeXp(penDelta, { discipline: Math.round(penDelta * 0.08) });
+  else if (penDelta < 0) await awardXp(-penDelta, { discipline: Math.round(-penDelta * 0.08) });
+  const sumB = (p) => p.bonuses.reduce((a, b) => a + b.xp, 0);
+  const skillsB = (p) => { const o = {}; for (const b of p.bonuses) for (const [k, v] of Object.entries(b.skills)) o[k] = (o[k] || 0) + v; return o; };
+  const sa = skillsB(after), sb = skillsB(before), sd = {};
+  for (const k of new Set([...Object.keys(sa), ...Object.keys(sb)])) sd[k] = (sa[k] || 0) - (sb[k] || 0);
+  await applyXpDelta(sumB(after) - sumB(before), sd);
+  await saveMalusLogEntry(wk, after);
+}
+
+async function toggleSleepNight(dateKey) {
+  if (dateKey > todayKey() || dateKey < GHOST_BEFORE) return;
+  const wk = weekKey(new Date(dateKey + 'T12:00:00'));
+  await withWeekRecalc(wk, async () => {
+    const log = await getSleepLog();
+    if (log[dateKey]) delete log[dateKey]; else log[dateKey] = true;
+    await saveSleepLog(log);
+  });
+}
+
+// Import unique : l'ancien compteur de la semaine en cours devient des soirs cochés
+// (les premiers soirs de la semaine), pour ne rien perdre au passage aux cases.
+async function migrateSleepCounter() {
+  if ((await dbGet('meta', 'sleepLogImported'))?.value) return;
+  const q = (await dbAll('quests')).find(x => x.id === 'wq-sleep');
+  const c = q ? await getCurrentCompletion(q) : null;
+  const n = Math.min(7, Math.round(c?.actualValue || 0));
+  if (n > 0) {
+    const log = await getSleepLog();
+    const ws = startOfWeek();
+    for (let i = 0; i < n; i++) {
+      const d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i);
+      const k = todayKey(d);
+      if (k <= todayKey() && k >= GHOST_BEFORE) log[k] = true;
+    }
+    await saveSleepLog(log);
+  }
+  await dbPut('meta', { key: 'sleepLogImported', value: true });
+}
+
+// Calcule (sans rien modifier) les malus / bonus d'une semaine à partir de l'état
+// courant de la base : malus principaux, rigueur (écarts + écran) et bonus secondaires.
+async function computeWeekPenalties(wk) {
+  const completions = await dbAll('completions');
+  const quests = await dbAll('quests');
+  const weekXp = await xpEarnedInWeek(wk);
+  const extra = await computeSelfWeekPenalty(wk);
+  const selfXp = (extra.total > 0 && weekXp > 0) ? Math.round(weekXp * extra.total) : 0;
+
+  // Principales ratées, cumul capé à 80 %. Une quête justifiée est ignorée.
+  const excuses = await getMalusExcuses();
+  const excusedKeys = [];
+  let malusFactor = 0;
+  const malusDetails = [];
+  for (const q of quests.filter(x => x.category === 'main')) {
+    const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
+    const ratio = c?.ratio || 0;
+    const exKey = `${wk}|${q.id}`;
+    if (excuses[exKey]) { excusedKeys.push(exKey); continue; }
+    const f = malusFactorFromRatio(ratio);
+    if (f > 0) { malusFactor += f; malusDetails.push({ questId: q.id, factor: f, ratio }); }
+  }
+  malusFactor = Math.min(0.8, malusFactor);
+  const malusXp = (malusFactor > 0 && weekXp > 0) ? Math.round(weekXp * malusFactor) : 0;
+
+  // Bonus des secondaires : un par quête, sur l'XP de référence de la quête.
+  const bonuses = [];
+  for (const q of quests.filter(x => x.category === 'secondary')) {
+    const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
+    const ratio = c?.ratio || 0;
+    const f = bonusFactorFromRatio(ratio);
+    if (f > 0) {
+      const bonusXp = Math.round(questFullXp(q) * f);
+      bonuses.push({ questId: q.id, xp: bonusXp, skills: questSkillXp(q, bonusXp), percent: f, ratio });
+    }
+  }
+  return {
+    weekXp, selfXp, selfPercent: extra.total, selfDetails: extra,
+    malusXp, malusFactor, malusDetails, excusedKeys, bonuses
+  };
+}
+
+// Journal des malus (sert aux justifications et aux recalculs).
+async function saveMalusLogEntry(wk, pen) {
+  const log = (await dbGet('meta', 'malusLog'))?.value || {};
+  if (pen.malusXp > 0) {
+    log[wk] = { xp: pen.malusXp, weekXp: pen.weekXp, factors: Object.fromEntries(pen.malusDetails.map(d => [d.questId, d.factor])) };
+  } else {
+    delete log[wk];
+  }
+  await dbPut('meta', { key: 'malusLog', value: log });
+}
+
+// Applique une variation d'XP (positive ou négative) avec ses compétences.
+async function applyXpDelta(xpDelta, skillsDelta) {
+  const pos = Object.fromEntries(Object.entries(skillsDelta).filter(([_, v]) => v > 0));
+  const neg = Object.fromEntries(Object.entries(skillsDelta).filter(([_, v]) => v < 0).map(([k, v]) => [k, -v]));
+  if (xpDelta > 0) { await awardXp(xpDelta, pos); if (Object.keys(neg).length) await removeXp(0, neg); }
+  else if (xpDelta < 0) { await removeXp(-xpDelta, neg); if (Object.keys(pos).length) await awardXp(0, pos); }
+  else {
+    if (Object.keys(pos).length) await awardXp(0, pos);
+    if (Object.keys(neg).length) await removeXp(0, neg);
+  }
+}
+
+// Malus quotidien d'un jour de travail, d'après son journal.
+function dailyWorkMalusXp(log, goalHours) {
+  if (!goalHours || goalHours <= 0) return 0;
+  const f = malusFactorFromRatio((log?.totalMinutes || 0) / (goalHours * 60));
+  return f > 0 ? Math.round((log?.lastXpAwarded || 0) * f) : 0;
+}
+
+// Modifie le temps d'une matière sur un jour quelconque et met tout à jour :
+// XP du jour, quêtes de la semaine concernée et malus / bonus déjà appliqués.
+async function setSubjectMinutesSmart(dateKey, subjectKey, newMinutes, goalHours) {
+  const wk = weekKey(new Date(dateKey + 'T12:00:00'));
+  const isPast = wk !== weekKey();
+  const startWk = weekKey(new Date(PENALTIES_START + 'T00:00:00'));
+  const lastWeekly = (await dbGet('meta', 'lastWeeklyPenalty'))?.value || '';
+  const lastDaily = (await dbGet('meta', 'lastDailyPenalty'))?.value || '';
+  const weekFinal = arePenaltiesActive() && wk >= startWk && lastWeekly >= wk;
+  const dayFinal = arePenaltiesActive() && dateKey >= PENALTIES_START && lastDaily >= dateKey;
+
+  const before = weekFinal ? await computeWeekPenalties(wk) : null;
+  const oldLog = await dbGet('workLog', dateKey);
+
+  const res = await setSubjectMinutes(dateKey, subjectKey, newMinutes, goalHours);
+  await recomputeAutoQuests(wk);
+
+  // Jour déjà évalué : on ajuste son malus quotidien.
+  if (dayFinal) {
+    const newLog = await dbGet('workLog', dateKey);
+    const delta = dailyWorkMalusXp(newLog, goalHours) - dailyWorkMalusXp(oldLog, goalHours);
+    if (delta > 0) await removeXp(delta, { discipline: Math.round(delta * 0.08) });
+    else if (delta < 0) await awardXp(-delta, { discipline: Math.round(-delta * 0.08) });
+  }
+
+  // Semaine déjà évaluée : on ajuste malus, rigueur et bonus.
+  if (weekFinal) {
+    const after = await computeWeekPenalties(wk);
+    const penDelta = (after.malusXp + after.selfXp) - (before.malusXp + before.selfXp);
+    if (penDelta > 0) await removeXp(penDelta, { discipline: Math.round(penDelta * 0.08) });
+    else if (penDelta < 0) await awardXp(-penDelta, { discipline: Math.round(-penDelta * 0.08) });
+
+    const sumB = (p) => p.bonuses.reduce((a, b) => a + b.xp, 0);
+    const skillsB = (p) => { const o = {}; for (const b of p.bonuses) for (const [k, v] of Object.entries(b.skills)) o[k] = (o[k] || 0) + v; return o; };
+    const sa = skillsB(after), sb = skillsB(before);
+    const sd = {};
+    for (const k of new Set([...Object.keys(sa), ...Object.keys(sb)])) sd[k] = (sa[k] || 0) - (sb[k] || 0);
+    await applyXpDelta(sumB(after) - sumB(before), sd);
+    await saveMalusLogEntry(wk, after);
+  }
+  return { ...res, recalculatedPastWeek: isPast && weekFinal };
+}
+
 // Tick : à chaque chargement de l'app, on regarde si on a passé une frontière
 // jour/semaine et on applique malus + bonus pour les périodes terminées.
 // Les ID de période traités sont stockés dans `meta` pour idempotence.
@@ -787,66 +966,33 @@ async function applyPendingPenalties() {
   let wk = nextWeekKey(lastWeekly);
   while (wk < currentWk) {
     if (wk >= startWk) {
-      const completions = await dbAll('completions');
-      const quests = await dbAll('quests');
-      const weekXp = await xpEarnedInWeek(wk);
+      const pen = await computeWeekPenalties(wk);
+
+      // Les quêtes justifiées n'ont plus rien à rembourser : on remet le compteur à zéro.
+      if (pen.excusedKeys.length) {
+        const excuses = await getMalusExcuses();
+        let dirty = false;
+        for (const k of pen.excusedKeys) if (excuses[k]?.refundedXp) { excuses[k].refundedXp = 0; dirty = true; }
+        if (dirty) await saveMalusExcuses(excuses);
+      }
 
       // Rigueur : auto-sanctions + temps d'écran (% de l'XP de la semaine).
-      {
-        const extra = await computeSelfWeekPenalty(wk);
-        if (extra.total > 0 && weekXp > 0) {
-          const lossXp = Math.round(weekXp * extra.total);
-          await removeXp(lossXp, { discipline: Math.round(lossXp * 0.08) });
-          applied.push({ kind: 'weekly-self', week: wk, xp: lossXp, percent: extra.total, weekXp, details: extra });
-        }
+      if (pen.selfXp > 0) {
+        await removeXp(pen.selfXp, { discipline: Math.round(pen.selfXp * 0.08) });
+        applied.push({ kind: 'weekly-self', week: wk, xp: pen.selfXp, percent: pen.selfPercent, weekXp: pen.weekXp, details: pen.selfDetails });
       }
 
-      // Cumule les facteurs des principales ratées, capé à 80%.
-      // Une quête justifiée (malade / autre) pour cette semaine est ignorée.
-      const excuses = await getMalusExcuses();
-      let totalMalusFactor = 0;
-      const malusDetails = [];
-      for (const q of quests.filter(x => x.category === 'main')) {
-        const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
-        const ratio = c?.ratio || 0;
-        const f = malusFactorFromRatio(ratio);
-        const exKey = `${wk}|${q.id}`;
-        if (excuses[exKey]) {
-          // Le malus est déjà exclu du calcul : rien à rembourser.
-          if (excuses[exKey].refundedXp) {
-            excuses[exKey].refundedXp = 0;
-            await saveMalusExcuses(excuses);
-          }
-          continue;
-        }
-        if (f > 0) {
-          totalMalusFactor += f;
-          malusDetails.push({ questId: q.id, factor: f, ratio });
-        }
+      // Malus des quêtes principales ratées.
+      if (pen.malusXp > 0) {
+        await removeXp(pen.malusXp, { discipline: Math.round(pen.malusXp * 0.08) });
+        applied.push({ kind: 'weekly-malus', week: wk, xp: pen.malusXp, percent: pen.malusFactor, weekXp: pen.weekXp, details: pen.malusDetails });
       }
-      totalMalusFactor = Math.min(0.8, totalMalusFactor);
-      if (totalMalusFactor > 0 && weekXp > 0) {
-        const malusXp = Math.round(weekXp * totalMalusFactor);
-        await removeXp(malusXp, { discipline: Math.round(malusXp * 0.08) });
-        applied.push({ kind: 'weekly-malus', week: wk, xp: malusXp, percent: totalMalusFactor, weekXp, details: malusDetails });
-        // Journal : permet de rembourser plus tard si une justification est ajoutée.
-        const log = (await dbGet('meta', 'malusLog'))?.value || {};
-        log[wk] = { xp: malusXp, weekXp, factors: Object.fromEntries(malusDetails.map(d => [d.questId, d.factor])) };
-        await dbPut('meta', { key: 'malusLog', value: log });
-      }
+      await saveMalusLogEntry(wk, pen);
 
-      // Bonus secondaires : un par quête, sur le XP de référence de la quête.
-      for (const q of quests.filter(x => x.category === 'secondary')) {
-        const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
-        const ratio = c?.ratio || 0;
-        const f = bonusFactorFromRatio(ratio);
-        if (f > 0) {
-          const fullXp = questFullXp(q);
-          const bonusXp = Math.round(fullXp * f);
-          const skills = questSkillXp(q, bonusXp);
-          await awardXp(bonusXp, skills);
-          applied.push({ kind: 'weekly-bonus', questId: q.id, week: wk, xp: bonusXp, percent: f, ratio });
-        }
+      // Bonus des quêtes secondaires dépassées.
+      for (const bn of pen.bonuses) {
+        await awardXp(bn.xp, bn.skills);
+        applied.push({ kind: 'weekly-bonus', questId: bn.questId, week: wk, xp: bn.xp, percent: bn.percent, ratio: bn.ratio });
       }
     }
     await dbPut('meta', { key: 'lastWeeklyPenalty', value: wk });
@@ -2226,7 +2372,7 @@ async function migrateData() {
   // un objectif (ex: anglais 3h → 2h) sans laisser des incohérences en base.
   const quests = await dbAll('quests');
   const seedFields = ['title', 'type', 'goalHours', 'goalCount', 'unit', 'skill', 'icon', 'color',
-                      'autoFromActivities', 'autoFromWorkLog', 'autoFromLangues', 'autoFromLettres', 'autoFromSi', 'category'];
+                      'autoFromActivities', 'autoFromWorkLog', 'autoFromLangues', 'autoFromLettres', 'autoFromSi', 'autoFromSleep', 'category'];
   for (const q of quests) {
     const seed = SEED_WEEKLY_QUESTS.find(s => s.id === q.id);
     if (!seed) continue;
@@ -2647,17 +2793,25 @@ async function renderWeeklyQuestsFiltered(root, questIds) {
 }
 
 async function renderDayDashboard(root) {
-  const todayPlan = await getTodayPlan();
+  // Jour affiché : aujourd'hui par défaut, ou un jour choisi (entre GHOST_BEFORE et aujourd'hui).
+  let dateKey = State.dashDate || todayKey();
+  if (dateKey > todayKey() || dateKey < GHOST_BEFORE) dateKey = todayKey();
+  State.dashDate = dateKey === todayKey() ? null : dateKey;
+  const isToday = dateKey === todayKey();
+  const dayDate = new Date(dateKey + 'T12:00:00');
+  const sched = await dbAll('schedule');
+  const todayPlan = sched.find(s => s.id === dayKeyFromDate(dayDate));
   if (!todayPlan) return;
-  const dateKey = todayKey();
-  const dayLabel = DAYS.find(d => d.key === dayKeyFromDate())?.label || '';
+  const inCurrentWeek = weekKey(dayDate) === weekKey();
+  const dayName = DAYS.find(d => d.key === dayKeyFromDate(dayDate))?.label || '';
+  const dayLabel = isToday ? dayName : `${dayName} ${dayDate.getDate()} ${dayDate.toLocaleDateString('fr-FR', { month: 'long' })}`;
   const workLog = await dbGet('workLog', dateKey);
   const actualMinutes = workLog?.totalMinutes || 0;
   const goalHours = todayPlan.workHours || 0;
   const wi = computeWorkXp(actualMinutes, goalHours);
   const progress = goalHours > 0 ? Math.min(1, actualMinutes / (goalHours * 60)) : 0;
   // On affiche le sport du jour pour required ET weekend (sortie longue flexible).
-  const showSport = todayPlan.sport === 'required' || todayPlan.sport === 'weekend';
+  const showSport = isToday && (todayPlan.sport === 'required' || todayPlan.sport === 'weekend');
   const todayActs = State.activities.filter(a => a.date.slice(0, 10) === dateKey);
   const sportDone = todayActs.length > 0;
 
@@ -2713,13 +2867,37 @@ async function renderDayDashboard(root) {
   root.innerHTML = `
     <div class="dash">
       <div class="dash-head">
-        <div class="dim text-xs">Aujourd'hui · ${dayLabel}</div>
+        <div class="dim text-xs">${isToday ? 'Aujourd\'hui' : 'Jour modifié'} · ${dayLabel}</div>
         ${wi.ratio >= 1 ? '<span class="text-xs" style="color:var(--accent);">Objectif atteint ✓</span>' : ''}
       </div>
+      <div class="day-picker">
+        <button class="btn ghost sm" id="dp-prev" aria-label="Jour précédent" ${dateKey <= GHOST_BEFORE ? 'disabled' : ''}>‹</button>
+        <input class="input" id="dp-date" type="date" min="${GHOST_BEFORE}" max="${todayKey()}" value="${dateKey}" />
+        <button class="btn ghost sm" id="dp-next" aria-label="Jour suivant" ${isToday ? 'disabled' : ''}>›</button>
+        ${isToday ? '' : '<button class="btn ghost sm" id="dp-today">Aujourd\'hui</button>'}
+      </div>
+      ${!isToday && !inCurrentWeek ? '<div class="dim text-xs day-warn">Semaine passée : quêtes, malus et bonus de cette semaine sont recalculés automatiquement.</div>' : ''}
       ${sportBlock}
       ${workBlock}
     </div>
   `;
+
+  // Sélecteur de jour
+  const gotoDay = async (key) => {
+    State.dashDate = key >= todayKey() ? null : key;
+    await renderDayDashboard(root);
+  };
+  const shiftDay = (n) => {
+    const d = new Date(dateKey + 'T12:00:00'); d.setDate(d.getDate() + n);
+    return todayKey(d);
+  };
+  root.querySelector('#dp-prev')?.addEventListener('click', () => gotoDay(shiftDay(-1)));
+  root.querySelector('#dp-next')?.addEventListener('click', () => gotoDay(shiftDay(1)));
+  root.querySelector('#dp-today')?.addEventListener('click', () => gotoDay(todayKey()));
+  root.querySelector('#dp-date')?.addEventListener('change', (e) => {
+    const v = e.target.value;
+    if (v && v >= GHOST_BEFORE && v <= todayKey()) gotoDay(v);
+  });
 
   if (goalHours > 0) {
     const grid = root.querySelector('#subjects-grid');
@@ -2735,7 +2913,7 @@ async function renderDayDashboard(root) {
       });
       input.addEventListener('blur', async () => {
         const newMin = parseTimeInput(input.value);
-        await setSubjectMinutes(dateKey, key, newMin, goalHours);
+        await setSubjectMinutesSmart(dateKey, key, newMin, goalHours);
         await recomputeAutoQuests();
         await loadAll();
         // Re-render entier de la vue : maintient header + sections principales/secondaires.
@@ -2770,7 +2948,7 @@ async function _renderOneQuest(root, q, category) {
   const goal = isHours ? q.goalHours : q.goalCount;
   const unit = isHours ? 'h' : (q.unit || 'fois');
   const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
-  const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi;
+  const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi || q.autoFromSleep;
 
   let forecast = '';
   if (arePenaltiesActive()) {
@@ -2854,6 +3032,45 @@ async function _renderOneQuest(root, q, category) {
       row.appendChild(plus);
       div.appendChild(row);
     }
+  }
+
+  // Quête « Couché avant 23h30 » : une case par soir, navigation de semaine en semaine.
+  if (q.id === 'wq-sleep') {
+    const sleepLog = await getSleepLog();
+    const offset = State.sleepOffset || 0;
+    const base = startOfWeek();
+    const ws = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset * 7);
+    const wkKey = weekKey(ws);
+    const firstWs = startOfWeek(new Date(GHOST_BEFORE + 'T12:00:00'));
+    const canPrev = ws.getTime() > firstWs.getTime();
+    const letters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
+    let ticked = 0;
+    const cells = letters.map((ltr, i) => {
+      const d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i);
+      const k = todayKey(d);
+      const on = !!sleepLog[k];
+      if (on) ticked++;
+      const disabled = k > todayKey() || k < GHOST_BEFORE;
+      return `<button class="sleep-day ${on ? 'on' : ''}" data-d="${k}" ${disabled ? 'disabled' : ''} aria-pressed="${on}">
+        <span class="sd-l">${ltr}</span><span class="sd-n">${d.getDate()}</span><span class="sd-c">${on ? '✓' : ''}</span></button>`;
+    }).join('');
+    const weekLabel = offset === 0 ? 'Cette semaine' : 'Sem. du ' + ws.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+    const row = el('div', { class: 'sleep-wrap' });
+    row.innerHTML = `
+      <div class="sleep-row">
+        <button class="btn ghost sm" id="sl-prev" ${canPrev ? '' : 'disabled'} aria-label="Semaine précédente">‹</button>
+        <div class="sleep-days">${cells}</div>
+        <button class="btn ghost sm" id="sl-next" ${offset >= 0 ? 'disabled' : ''} aria-label="Semaine suivante">›</button>
+      </div>
+      <div class="dim text-xs sleep-cap">${weekLabel} · ${ticked}/7 soirs couché avant 23h30 · touche un soir pour le cocher</div>`;
+    row.querySelectorAll('.sleep-day').forEach(b => b.addEventListener('click', async () => {
+      await toggleSleepNight(b.dataset.d);
+      await loadAll();
+      render();
+    }));
+    row.querySelector('#sl-prev').addEventListener('click', () => { State.sleepOffset = offset - 1; render(); });
+    row.querySelector('#sl-next').addEventListener('click', () => { State.sleepOffset = Math.min(0, offset + 1); render(); });
+    div.appendChild(row);
   }
 
   // Quête « Sorties course » : justification possible du malus (malade, autre).
@@ -4616,6 +4833,7 @@ async function init() {
       await loadAll();
     } catch (err) { console.error('Ghost recompute failed', err); }
   }
+  await migrateSleepCounter();
   await recomputeAutoQuests();
 
   // Applique les malus/bonus pour les jours/semaines déjà passés depuis la rentrée.

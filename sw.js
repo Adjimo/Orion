@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v52';
+const VERSION = 'orion-v59';
 const ASSETS = [
   './',
   './index.html',
@@ -119,3 +119,13 @@ async function staleWhileRevalidate(req) {
   // Sert le cache si dispo (rapide), sinon attend le réseau.
   return cached || (await networkPromise) || Response.error();
 }
+
+// ── Clic sur une notification : on ramène l'app au premier plan.
+self.addEventListener('notificationclick', (e) => {
+  e.notification.close();
+  e.waitUntil((async () => {
+    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    if (all.length) return all[0].focus();
+    return self.clients.openWindow('./');
+  })());
+});

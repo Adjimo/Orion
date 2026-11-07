@@ -1760,7 +1760,7 @@ img[src*="icons/ui/"] {
 .hq-excuse-row { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; gap: 8px; }
 .hq-excused { font-size: 12px; color: var(--accent); }
 
-/* ===== Rigueur (écarts + temps d'écran) ===== */
+/* ===== Rigueur (écarts) ===== */
 .rg-card { padding: 14px 16px; }
 .rg-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
 .rg-title { font-weight: 600; font-size: 0.95rem; }
@@ -1787,15 +1787,27 @@ img[src*="icons/ui/"] {
 /* Sommeil : une case par soir */
 .sleep-wrap { margin-top: 12px; }
 .sleep-row { display: flex; align-items: center; gap: 6px; }
-.sleep-days { flex: 1; display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
-.sleep-day { display: flex; flex-direction: column; align-items: center; gap: 1px; padding: 6px 0;
   background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-sm);
   color: var(--text-dim); cursor: pointer; font-family: inherit; }
-.sleep-day .sd-l { font-size: 0.62rem; letter-spacing: 0.04em; color: var(--text-mute); }
-.sleep-day .sd-n { font-size: 0.85rem; font-weight: 600; }
-.sleep-day .sd-c { height: 14px; font-size: 0.8rem; line-height: 14px; }
-.sleep-day.on { background: var(--grad); border-color: var(--accent); color: #14100a; }
-.sleep-day.on .sd-l { color: #3f2c0b; }
-.sleep-day[disabled] { opacity: 0.3; pointer-events: none; }
 .sleep-wrap .btn[disabled] { opacity: 0.3; pointer-events: none; }
 .sleep-cap { margin-top: 8px; text-align: center; }
+
+.rem-row .rem-time { width: 124px; min-width: 0; padding: 6px 8px; }
+.rem-row .rem-on { width: 22px; height: 22px; accent-color: var(--khaki-400); }
+
+.wr-net { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; text-align: center; }
+.wr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-top: 12px; }
+.wr-title { font-weight: 600; font-size: 0.85rem; margin: 16px 0 8px; }
+.wr-quest .wr-ico { width: 22px; text-align: center; }
+.wr-ok { color: var(--khaki-400); }
+.wr-ko { color: var(--danger); }
+
+.month-group { margin-bottom: 10px; }
+.month-head { width: 100%; display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: var(--bg-3); border: 1px solid var(--border); border-radius: var(--r-sm); color: var(--text); font: inherit; cursor: pointer; text-align: left; }
+.month-head .month-name { flex: 1; font-weight: 600; font-size: 0.9rem; }
+.month-head .month-chev { color: var(--khaki-400); }
+.month-body { margin-top: 8px; }
+.hq-goal-pick { margin-top: 12px; }
+.hq-goal-pick .hq-count-row { margin-top: 6px; }
+
+.sleep-counter { margin: 0; justify-content: center; flex: 1; }

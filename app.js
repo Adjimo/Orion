@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.21';
+const APP_VERSION = '3.28';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -295,20 +295,20 @@ const DAYS = [
 // Schedule recalibré pour la rentrée :
 // - Travail : lun 4h / mar 4h / mer 2h30 / jeu 4h / ven 6h / sam 8h / dim 8h = 35h
 // - Sport (catégories alignées sur les zones Daniels qui ont une séance hebdo) :
-//   * lun footing (E)         → endurance facile, récup mentale
+//   * lun : libre (plus d'objectif imposé)
 //   * mar libre               → pas de séance course (renfo si tu veux, hors GPX)
-//   * mer fractionné (I)      → VMA, intervalles courts
+//   * mer : libre (plus d'objectif imposé)
 //   * jeu libre
-//   * ven footing (E)         → endurance facile
-//   * sam OU dim sortie longue → volume, allure E/M
+//   * ven : libre
+//   * sam / dim : libres (c'est toi qui choisis tes sorties)
 const DEFAULT_SCHEDULE = [
-  { id: 'mon', sport: 'required', sportType: 'footing',       workHours: 4   },
+  { id: 'mon', sport: 'free',     sportType: null,            workHours: 4   },
   { id: 'tue', sport: 'free',     sportType: null,            workHours: 4   },
-  { id: 'wed', sport: 'required', sportType: 'fractionne',    workHours: 2.5 },
+  { id: 'wed', sport: 'free',     sportType: null,            workHours: 2.5 },
   { id: 'thu', sport: 'free',     sportType: null,            workHours: 4   },
-  { id: 'fri', sport: 'required', sportType: 'footing',       workHours: 6   },
-  { id: 'sat', sport: 'weekend',  sportType: 'sortie-longue', workHours: 8   },
-  { id: 'sun', sport: 'weekend',  sportType: 'sortie-longue', workHours: 8   }
+  { id: 'fri', sport: 'free',     sportType: null,            workHours: 6 },
+  { id: 'sat', sport: 'free',     sportType: null,            workHours: 8 },
+  { id: 'sun', sport: 'free',     sportType: null,            workHours: 8 }
 ];
 
 // 5 catégories de sport. Toutes correspondent à une séance hebdo régulière
@@ -522,7 +522,8 @@ async function setQuestValue(quest, newValue, wk = weekKey()) {
     const r = computeHoursXp(newValue, quest.goalHours);
     newXp = r.xp; ratio = r.ratio;
   } else {
-    const r = computeCountXp(newValue, quest.goalCount);
+    const goalCount = quest.id === 'wq-runs' ? await runsGoalFor(wk, quest) : quest.goalCount;
+    const r = computeCountXp(newValue, goalCount);
     newXp = r.xp; ratio = r.ratio;
   }
 
@@ -634,11 +635,11 @@ async function recomputeAutoQuests(wk = weekKey()) {
 // ============================================================================
 
 const SEED_EXAMS = [
-  // Écrits 2027 : X/ENS en premier (12-16 avril), puis CCINP, Centrale et Mines-Ponts à la suite.
+  // Écrits 2027 (dates confirmées) : X/ENS 12-16 avril, CCINP 19-23 avril, Centrale 26-29 avril, Mines-Ponts 30 avril puis 3-5 mai.
   { id: 'exam-x-ens',       name: 'X — ENS',         short: 'X/ENS',      date: '2027-04-12', endDate: '2027-04-16', icon: '🏛️', enabled: true },
-  { id: 'exam-ccinp',       name: 'CCINP',           short: 'CCINP',      date: '2027-04-26', icon: '🔬', enabled: true },
-  { id: 'exam-centrale',    name: 'Centrale-Supélec',short: 'Centrale',   date: '2027-05-03', icon: '⚡', enabled: true },
-  { id: 'exam-mines-ponts', name: 'Mines-Ponts',     short: 'Mines-Ponts',date: '2027-05-10', icon: '⛏️', enabled: true }
+  { id: 'exam-ccinp',       name: 'CCINP',           short: 'CCINP',      date: '2027-04-19', endDate: '2027-04-23', icon: '🔬', enabled: true },
+  { id: 'exam-centrale',    name: 'Centrale-Supélec',short: 'Centrale',   date: '2027-04-26', endDate: '2027-04-29', icon: '⚡', enabled: true },
+  { id: 'exam-mines-ponts', name: 'Mines-Ponts',     short: 'Mines-Ponts',date: '2027-04-30', endDate: '2027-05-05', icon: '⛏️', enabled: true }
 ];
 
 function daysUntil(dateStr) {
@@ -742,6 +743,23 @@ async function xpEarnedInWeek(wk) {
 
 // ── Sommeil : une case par soir (« couché avant 23h30 ») ─────────────────────
 // meta `sleepLog` : { 'YYYY-MM-DD': true } — le soir du jour indiqué.
+// ── Objectif « Sorties course » choisi chaque semaine ───────────────────────
+// meta `runsGoal` : { 'YYYY-Www': n } ; sans choix, l'objectif par défaut de la quête (3) s'applique.
+const RUNS_GOAL_MAX = 7;
+async function getRunsGoals() { return (await dbGet('meta', 'runsGoal'))?.value || {}; }
+async function runsGoalFor(wk, quest) {
+  const g = (await getRunsGoals())[wk];
+  return g >= 1 ? g : (quest?.goalCount || 3);
+}
+async function setRunsGoal(wk, n) {
+  const goal = Math.max(1, Math.min(RUNS_GOAL_MAX, Math.round(n) || 1));
+  await withWeekRecalc(wk, async () => {
+    const all = await getRunsGoals();
+    all[wk] = goal;
+    await dbPut('meta', { key: 'runsGoal', value: all });
+  });
+}
+
 async function getSleepLog() { return (await dbGet('meta', 'sleepLog'))?.value || {}; }
 async function saveSleepLog(m) { await dbPut('meta', { key: 'sleepLog', value: m }); }
 
@@ -798,7 +816,7 @@ async function migrateSleepCounter() {
 }
 
 // Calcule (sans rien modifier) les malus / bonus d'une semaine à partir de l'état
-// courant de la base : malus principaux, rigueur (écarts + écran) et bonus secondaires.
+// courant de la base : malus principaux, rigueur (écarts) et bonus secondaires.
 async function computeWeekPenalties(wk) {
   const completions = await dbAll('completions');
   const quests = await dbAll('quests');
@@ -976,7 +994,7 @@ async function applyPendingPenalties() {
         if (dirty) await saveMalusExcuses(excuses);
       }
 
-      // Rigueur : auto-sanctions + temps d'écran (% de l'XP de la semaine).
+      // Rigueur : auto-sanctions (% de l'XP de la semaine).
       if (pen.selfXp > 0) {
         await removeXp(pen.selfXp, { discipline: Math.round(pen.selfXp * 0.08) });
         applied.push({ kind: 'weekly-self', week: wk, xp: pen.selfXp, percent: pen.selfPercent, weekXp: pen.weekXp, details: pen.selfDetails });
@@ -1002,34 +1020,24 @@ async function applyPendingPenalties() {
   return { applied };
 }
 
-// ── Rigueur : auto-sanctions + temps d'écran (appliqués en fin de semaine) ──
+// ── Rigueur : auto-sanctions (appliquées en fin de semaine) ──
 // meta `selfMalus`  : { 'YYYY-Www': [ { id, percent, reason, createdAt } ] }
-// meta `screenTime` : { perDayMin, weeks: { 'YYYY-Www': minutes } }
 // Les deux retirent un % de l'XP gagnée dans la semaine, au passage de la semaine.
-const SCREEN_PCT_PER_HOUR = 5;   // % d'XP retiré par heure au-dessus du seuil
-const SCREEN_PCT_CAP = 40;       // plafond du malus d'écran
 const SELF_PCT_CAP = 60;         // plafond cumulé des auto-sanctions
 
 async function getSelfMalus() { return (await dbGet('meta', 'selfMalus'))?.value || {}; }
 async function saveSelfMalus(m) { await dbPut('meta', { key: 'selfMalus', value: m }); }
-async function getScreenData() {
-  const v = (await dbGet('meta', 'screenTime'))?.value || {};
-  return { perDayMin: v.perDayMin ?? 60, weeks: v.weeks || {} };
-}
-async function saveScreenData(d) { await dbPut('meta', { key: 'screenTime', value: d }); }
-
-function screenPenaltyPercent(minutes, perDayMin) {
-  const excessH = Math.max(0, minutes - perDayMin * 7) / 60;
-  return Math.min(SCREEN_PCT_CAP, Math.round(excessH * SCREEN_PCT_PER_HOUR * 10) / 10);
+// Les 7 dates (YYYY-MM-DD) d'une semaine, du lundi au dimanche.
+function weekDateKeys(wk) {
+  const ws = weekStartDate(wk);
+  return Array.from({ length: 7 }, (_, i) => todayKey(new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i)));
 }
 
 // Pourcentage total (0-1) retiré à la fin de la semaine `wk`.
 async function computeSelfWeekPenalty(wk) {
   const entries = (await getSelfMalus())[wk] || [];
   const selfPct = Math.min(SELF_PCT_CAP, entries.reduce((a, e) => a + (e.percent || 0), 0));
-  const sd = await getScreenData();
-  const screenPct = screenPenaltyPercent(sd.weeks[wk] || 0, sd.perDayMin);
-  return { selfPct, screenPct, total: (selfPct + screenPct) / 100 };
+  return { selfPct, screenPct: 0, total: selfPct / 100 };
 }
 
 // ── Justification des malus hebdo (ex : sorties manquées car malade) ─────────
@@ -2696,7 +2704,7 @@ function renderQuetes(root) {
   const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(travailWrap);
 
-  // ── ⚖️ RIGUEUR (auto-sanctions + temps d'écran) ─────────────────────
+  // ── ⚖️ RIGUEUR (auto-sanctions) ─────────────────────
   page.appendChild(el('h3', { class: 'mb-1' }, '⚖️ Rigueur'));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
   const rigueurWrap = el('div', { class: 'flex col gap-2 mb-5' });
@@ -2945,7 +2953,7 @@ async function _renderOneQuest(root, q, category) {
   const xp = c?.lastXp || 0;
   const ratio = c?.ratio || 0;
   const isHours = q.type === 'weekly-hours';
-  const goal = isHours ? q.goalHours : q.goalCount;
+  const goal = isHours ? q.goalHours : (q.id === 'wq-runs' ? await runsGoalFor(weekKey(), q) : q.goalCount);
   const unit = isHours ? 'h' : (q.unit || 'fois');
   const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
   const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi || q.autoFromSleep;
@@ -3043,37 +3051,63 @@ async function _renderOneQuest(root, q, category) {
     const wkKey = weekKey(ws);
     const firstWs = startOfWeek(new Date(GHOST_BEFORE + 'T12:00:00'));
     const canPrev = ws.getTime() > firstWs.getTime();
-    const letters = ['L', 'M', 'M', 'J', 'V', 'S', 'D'];
-    let ticked = 0;
-    const cells = letters.map((ltr, i) => {
-      const d = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + i);
-      const k = todayKey(d);
-      const on = !!sleepLog[k];
-      if (on) ticked++;
-      const disabled = k > todayKey() || k < GHOST_BEFORE;
-      return `<button class="sleep-day ${on ? 'on' : ''}" data-d="${k}" ${disabled ? 'disabled' : ''} aria-pressed="${on}">
-        <span class="sd-l">${ltr}</span><span class="sd-n">${d.getDate()}</span><span class="sd-c">${on ? '✓' : ''}</span></button>`;
-    }).join('');
+    const dayKeys = weekDateKeys(wkKey);
+    const eligible = dayKeys.filter(k => k <= todayKey() && k >= GHOST_BEFORE);
+    const ticked = eligible.filter(k => sleepLog[k]);
+    const free = eligible.filter(k => !sleepLog[k]);
     const weekLabel = offset === 0 ? 'Cette semaine' : 'Sem. du ' + ws.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     const row = el('div', { class: 'sleep-wrap' });
     row.innerHTML = `
       <div class="sleep-row">
         <button class="btn ghost sm" id="sl-prev" ${canPrev ? '' : 'disabled'} aria-label="Semaine précédente">‹</button>
-        <div class="sleep-days">${cells}</div>
+        <div class="hq-count-row sleep-counter">
+          <button class="cnt-btn" id="sl-minus" ${ticked.length ? '' : 'disabled'} aria-label="Retirer une nuit">−</button>
+          <div class="cnt-val">${ticked.length}/7</div>
+          <button class="cnt-btn plus" id="sl-plus" ${free.length ? '' : 'disabled'} aria-label="Ajouter une nuit">+</button>
+        </div>
         <button class="btn ghost sm" id="sl-next" ${offset >= 0 ? 'disabled' : ''} aria-label="Semaine suivante">›</button>
       </div>
-      <div class="dim text-xs sleep-cap">${weekLabel} · ${ticked}/7 soirs couché avant 23h30 · touche un soir pour le cocher</div>`;
-    row.querySelectorAll('.sleep-day').forEach(b => b.addEventListener('click', async () => {
-      await toggleSleepNight(b.dataset.d);
+      <div class="dim text-xs sleep-cap">${weekLabel} · appuie sur + pour ajouter une nuit couché avant 23h30</div>`;
+    // + ajoute la nuit la plus récente encore non cochée ; − retire la dernière cochée.
+    row.querySelector('#sl-plus').addEventListener('click', async () => {
+      if (!free.length) return;
+      await toggleSleepNight(free[free.length - 1]);
       await loadAll();
       render();
-    }));
+    });
+    row.querySelector('#sl-minus').addEventListener('click', async () => {
+      if (!ticked.length) return;
+      await toggleSleepNight(ticked[ticked.length - 1]);
+      await loadAll();
+      render();
+    });
     row.querySelector('#sl-prev').addEventListener('click', () => { State.sleepOffset = offset - 1; render(); });
     row.querySelector('#sl-next').addEventListener('click', () => { State.sleepOffset = Math.min(0, offset + 1); render(); });
     div.appendChild(row);
   }
 
-  // Quête « Sorties course » : justification possible du malus (malade, autre).
+  // Quête « Sorties course » : je choisis mon nombre de sorties de la semaine ;
+  // si je n'en fais aucune, le malus ne saute qu'avec une justification (malade, autre).
+  if (q.id === 'wq-runs') {
+    const gRow = el('div', { class: 'hq-goal-pick' });
+    gRow.innerHTML = '<div class="dim text-xs">Mon objectif de la semaine (sorties)</div>';
+    const ctr = el('div', { class: 'hq-count-row' });
+    const minus = el('button', { class: 'cnt-btn' }, '−');
+    const val = el('div', { class: 'cnt-val' }, String(goal));
+    const plus = el('button', { class: 'cnt-btn plus' }, '+');
+    minus.disabled = goal <= 1;
+    plus.disabled = goal >= RUNS_GOAL_MAX;
+    const changeGoal = async (delta) => {
+      await setRunsGoal(weekKey(), goal + delta);
+      await loadAll();
+      render();
+    };
+    minus.addEventListener('click', () => changeGoal(-1));
+    plus.addEventListener('click', () => changeGoal(+1));
+    ctr.appendChild(minus); ctr.appendChild(val); ctr.appendChild(plus);
+    gRow.appendChild(ctr);
+    div.appendChild(gRow);
+  }
   if (q.id === 'wq-runs' && arePenaltiesActive()) {
     const excuses = await getMalusExcuses();
     const cur = excuses[`${weekKey()}|${q.id}`];
@@ -3081,7 +3115,7 @@ async function _renderOneQuest(root, q, category) {
     row.innerHTML = cur
       ? `<span class="hq-excused">✓ Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>`
       : '<span></span>';
-    const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier un malus');
+    const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier une semaine sans sortie');
     eb.addEventListener('click', () => showRunsExcuseModal(q));
     row.appendChild(eb);
     div.appendChild(row);
@@ -3090,19 +3124,14 @@ async function _renderOneQuest(root, q, category) {
   root.appendChild(div);
 }
 
-// Section « Rigueur » : carte auto-sanctions + carte temps d'écran.
+// Section « Rigueur » : carte auto-sanctions.
 async function renderRigueurSection(root) {
   root.innerHTML = '';
   const wk = weekKey();
   const weekXp = await xpEarnedInWeek(wk);
   const selfAll = await getSelfMalus();
   const entries = selfAll[wk] || [];
-  const sd = await getScreenData();
-  const screenMin = sd.weeks[wk] || 0;
-  const thresholdWeek = sd.perDayMin * 7;
   const selfPct = Math.min(SELF_PCT_CAP, entries.reduce((a, e) => a + (e.percent || 0), 0));
-  const screenPct = screenPenaltyPercent(screenMin, sd.perDayMin);
-  const fmtH = (m) => `${Math.floor(m / 60)}h${String(Math.round(m % 60)).padStart(2, '0')}`;
   const xpOf = (pct) => Math.round(weekXp * pct / 100);
 
   // ── Carte 1 : mes écarts ──
@@ -3126,34 +3155,6 @@ async function renderRigueurSection(root) {
   `;
   root.appendChild(c1);
 
-  // ── Carte 2 : temps d'écran ──
-  const over = Math.max(0, screenMin - thresholdWeek);
-  const barPct = Math.min(100, Math.round(screenMin / Math.max(1, thresholdWeek) * 100));
-  const c2 = el('div', { class: 'card rg-card' });
-  c2.innerHTML = `
-    <div class="rg-head">
-      <div><div class="rg-title">📱 Temps d'écran</div>
-      <div class="dim text-xs">Réseaux sociaux · seuil ${fmtH(sd.perDayMin)}/jour (${fmtH(thresholdWeek)}/semaine)</div></div>
-      <div class="rg-total">${screenPct ? '−' + screenPct + '%' : '0%'}</div>
-    </div>
-    <div class="progress"><div class="fill" style="width:${barPct}%; ${over ? 'background: var(--danger);' : ''}"></div></div>
-    <div class="flex between text-xs dim mt-1">
-      <span>${fmtH(screenMin)} cette semaine</span>
-      <span>${over ? '+' + fmtH(over) + ' au-dessus' : 'sous le seuil'}</span>
-    </div>
-    <div class="rg-inputs">
-      <input class="input" id="rg-h" type="number" min="0" inputmode="numeric" placeholder="h" value="${Math.floor(screenMin / 60)}" />
-      <span class="dim">h</span>
-      <input class="input" id="rg-m" type="number" min="0" max="59" inputmode="numeric" placeholder="min" value="${screenMin % 60}" />
-      <span class="dim">min</span>
-      <button class="btn primary sm" id="rg-save">Enregistrer</button>
-    </div>
-    <div class="dim text-xs mt-2">−${SCREEN_PCT_PER_HOUR}% d'XP par heure au-dessus du seuil (max −${SCREEN_PCT_CAP}%).
-      ${screenPct ? ` Impact estimé : −${xpOf(screenPct)} XP.` : ''}</div>
-    <button class="btn ghost sm mt-2" id="rg-thr">Changer le seuil quotidien</button>
-  `;
-  root.appendChild(c2);
-
   // Événements
   c1.querySelectorAll('.rg-del').forEach(b => b.addEventListener('click', async () => {
     const id = b.closest('.rg-row').dataset.id;
@@ -3163,25 +3164,6 @@ async function renderRigueurSection(root) {
     renderRigueurSection(root);
   }));
   c1.querySelector('#rg-add').addEventListener('click', () => showSelfMalusModal(wk, () => renderRigueurSection(root)));
-  c2.querySelector('#rg-save').addEventListener('click', async () => {
-    const h = Math.max(0, parseInt(c2.querySelector('#rg-h').value) || 0);
-    const m = Math.min(59, Math.max(0, parseInt(c2.querySelector('#rg-m').value) || 0));
-    const d = await getScreenData();
-    d.weeks[wk] = h * 60 + m;
-    await saveScreenData(d);
-    showToast({ type: 'xp', title: 'Temps d\'écran enregistré', text: fmtH(h * 60 + m) });
-    renderRigueurSection(root);
-  });
-  c2.querySelector('#rg-thr').addEventListener('click', async () => {
-    const v = prompt('Seuil quotidien en minutes (ex : 60 pour 1h)', String(sd.perDayMin));
-    if (v === null) return;
-    const n = parseInt(v);
-    if (!(n >= 0 && n <= 600)) return;
-    const d = await getScreenData();
-    d.perDayMin = n;
-    await saveScreenData(d);
-    renderRigueurSection(root);
-  });
 }
 
 // Modal : déclarer un écart (motif + pourcentage).
@@ -3234,6 +3216,12 @@ async function showRunsExcuseModal(q) {
   if (!weeks.length) { showToast({ type: 'err', title: 'Aucune semaine', text: 'Les malus démarrent le ' + formatDate(PENALTIES_START) }); return; }
 
   const excuses = await getMalusExcuses();
+  const completions = await dbAll('completions');
+  for (let i = weeks.length - 1; i >= 0; i--) {
+    const c = completions.find(x => x.questId === q.id && x.weekKey === weeks[i]);
+    if ((c?.actualValue || 0) > 0 && !excuses[`${weeks[i]}|${q.id}`]) weeks.splice(i, 1);
+  }
+  if (!weeks.length) { showToast({ type: 'xp', title: 'Rien à justifier', text: 'Tu as fait au moins une sortie chaque semaine.' }, 3500); return; }
   const logs = (await dbGet('meta', 'malusLog'))?.value || {};
   const label = (w) => {
     const d = weekStartDate(w);
@@ -3246,7 +3234,7 @@ async function showRunsExcuseModal(q) {
   const modal = el('div', { class: 'gpx-preview-modal' });
   modal.innerHTML = `
     <div class="gpx-preview-head">
-      <div class="gpx-preview-title"><span class="gpx-preview-icon">🩺</span><span>Justifier les sorties</span></div>
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">🩺</span><span>Justifier une semaine sans sortie</span></div>
       <button class="gpx-preview-close" aria-label="Fermer">✕</button>
     </div>
     <div style="padding: 16px 18px;">
@@ -3413,37 +3401,63 @@ function renderSport(root) {
     }, 0);
   }
 
-  // History
+  // History : un dépliant par mois
   page.appendChild(el('h3', { class: 'mb-2' }, `Historique (${State.activities.length})`));
-  const list = el('div', { class: 'flex col gap-2' });
   const sortedActs = [...State.activities].sort((a, b) => b.date.localeCompare(a.date));
+  const months = [];
   for (const a of sortedActs) {
-    const ti = activityTypeIcon(a.type);
-    const btn = el('button', {
-      class: 'act' + (sel?.id === a.id ? ' sel' : ''),
-      onclick: () => {
-        // Si on change de sortie, on referme le détail. Si on reclique sur la
-        // même, on bascule (geste naturel : tap pour déplier, retap pour replier).
-        if (State.currentActivity?.id === a.id) {
-          State._detailsExpanded = !State._detailsExpanded;
-        } else {
-          State._detailsExpanded = false;
-        }
-        State.currentActivity = a;
-        render();
-      }
-    });
-    btn.innerHTML = `
-      <div class="act-icon">${ti}</div>
-      <div class="act-body">
-        <div class="act-title">${escapeHtml(a.name)}</div>
-        <div class="act-meta">${formatDate(a.date)} • ${a.distanceKm} km • ${a.elevGain} m D+</div>
-      </div>
-      <div class="act-pace">${formatDuration(a.duration)}</div>
-    `;
-    list.appendChild(btn);
+    const ym = a.date.slice(0, 7);
+    let m = months[months.length - 1];
+    if (!m || m.ym !== ym) { m = { ym, acts: [] }; months.push(m); }
+    m.acts.push(a);
   }
-  page.appendChild(list);
+  State._monthsOpen = State._monthsOpen || {};
+  const selYm = sel?.date?.slice(0, 7);
+  months.forEach((m, idx) => {
+    if (State._monthsOpen[m.ym] === undefined) State._monthsOpen[m.ym] = (idx === 0 || m.ym === selYm);
+    const open = !!State._monthsOpen[m.ym];
+    const monthName = new Date(m.ym + '-01T12:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
+    const km = Math.round(m.acts.reduce((t, a) => t + (parseFloat(a.distanceKm) || 0), 0) * 10) / 10;
+    const group = el('div', { class: 'month-group' });
+    const head = el('button', { class: 'month-head', 'aria-expanded': String(open) });
+    head.innerHTML = `<span class="month-name">${monthName.charAt(0).toUpperCase() + monthName.slice(1)}</span>
+      <span class="dim text-xs">${m.acts.length} sortie${m.acts.length > 1 ? 's' : ''} · ${km} km</span>
+      <span class="month-chev">${open ? '▴' : '▾'}</span>`;
+    const body = el('div', { class: 'flex col gap-2 month-body' + (open ? '' : ' hidden') });
+    for (const a of m.acts) {
+      const ti = activityTypeIcon(a.type);
+      const btn = el('button', {
+        class: 'act' + (sel?.id === a.id ? ' sel' : ''),
+        onclick: () => {
+          if (State.currentActivity?.id === a.id) {
+            State._detailsExpanded = !State._detailsExpanded;
+          } else {
+            State._detailsExpanded = false;
+          }
+          State.currentActivity = a;
+          render();
+        }
+      });
+      btn.innerHTML = `
+        <div class="act-icon">${ti}</div>
+        <div class="act-body">
+          <div class="act-title">${escapeHtml(a.name)}</div>
+          <div class="act-meta">${formatDate(a.date)} • ${a.distanceKm} km • ${a.elevGain} m D+</div>
+        </div>
+        <div class="act-pace">${formatDuration(a.duration)}</div>
+      `;
+      body.appendChild(btn);
+    }
+    head.addEventListener('click', () => {
+      const nowOpen = body.classList.toggle('hidden') === false;
+      State._monthsOpen[m.ym] = nowOpen;
+      head.setAttribute('aria-expanded', String(nowOpen));
+      head.querySelector('.month-chev').textContent = nowOpen ? '▴' : '▾';
+    });
+    group.appendChild(head);
+    group.appendChild(body);
+    page.appendChild(group);
+  });
 
   root.appendChild(page);
 
@@ -3676,9 +3690,14 @@ async function onGpxFile(e) {
       render();
       return;
     }
-    await dbPut('activities', activity);
-    const result = await awardXp(xp, skills);
-    const broken = await checkAndUpdateRecords(activity);
+    // Passe par withWeekRecalc : si la sortie tombe dans une semaine déjà évaluée,
+    // quêtes, malus et bonus de cette semaine sont recalculés.
+    let result, broken;
+    await withWeekRecalc(weekKey(new Date(activity.date)), async () => {
+      await dbPut('activities', activity);
+      result = await awardXp(xp, skills);
+      broken = await checkAndUpdateRecords(activity);
+    });
     await recomputeAutoQuests();
     await loadAll();
     State.currentActivity = activity;
@@ -3832,7 +3851,7 @@ async function recomputeAllXp() {
       const r = computeHoursXp(value, q.goalHours);
       xp = r.xp; ratio = r.ratio;
     } else {
-      const r = computeCountXp(value, q.goalCount);
+      const r = computeCountXp(value, q.id === 'wq-runs' ? await runsGoalFor(c.weekKey, q) : q.goalCount);
       xp = r.xp; ratio = r.ratio;
     }
     const skillsXp = questSkillXp(q, xp);
@@ -3883,9 +3902,11 @@ async function deleteActivity(activity) {
       return false;
     }
   }
-  await dbDelete('activities', activity.id);
-  if (xpAwarded > 0) await removeXp(xpAwarded, skillsAwarded);
-  await recomputeAllRecords();
+  await withWeekRecalc(weekKey(new Date(activity.date)), async () => {
+    await dbDelete('activities', activity.id);
+    if (xpAwarded > 0) await removeXp(xpAwarded, skillsAwarded);
+    await recomputeAllRecords();
+  });
   await recomputeAutoQuests();
   await loadAll();
   return true;
@@ -3935,6 +3956,7 @@ async function editActivity(activity) {
     const oldXp = activity.xpAwarded || 0;
     const oldSkills = activity.skillsAwarded || {};
     let updated = { ...activity, name: newName, type: newCat };
+    await withWeekRecalc(weekKey(new Date(activity.date)), async () => {
     // Recalcule l'XP si la catégorie change.
     if (newCat !== activity.type) {
       const { xp, skills } = activityXp(activity, newCat);
@@ -3952,6 +3974,7 @@ async function editActivity(activity) {
       if (xpDelta === 0 && Object.keys(negS).length) await removeXp(0, negS);
     }
     await dbPut('activities', updated);
+    });
     await recomputeAutoQuests();
     await loadAll();
     State.currentActivity = updated;
@@ -4056,37 +4079,6 @@ function renderStats(root) {
       <div class="rolling-row"><div class="rolling-dist">Semi</div><div class="mono">${fmtT(rAll.bestSemi)}</div><div class="mono">${fmtT(r90.bestSemi)}</div><div class="mono">${fmtT(r30.bestSemi)}</div></div>
     </div>
   `}));
-
-  // ── Catalogue parcours ─────────────────────────────────────────────────
-  const routes = detectRoutes(acts);
-  if (routes.length > 0) {
-    page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🗺️ Parcours récurrents'));
-    const routesHtml = routes.slice(0, 5).map(r => `
-      <button class="route-card" data-route-id="${r.id}">
-        <div class="route-card-head">
-          <div class="route-card-name">${activityTypeIcon(r.dominantType)} ${escapeHtml(r.name)}</div>
-          <div class="route-card-count">${r.count}× <span class="dim">parcouru</span></div>
-        </div>
-        <div class="route-card-meta dim text-xs">
-          Meilleur : <span class="mono">${formatPace(r.bestPace || 0)}</span>
-          · Dernier : ${formatDate(r.lastDate)}
-        </div>
-      </button>
-    `).join('');
-    const routesContainer = el('div', { class: 'routes-list mb-3' });
-    routesContainer.innerHTML = routesHtml;
-    page.appendChild(routesContainer);
-    setTimeout(() => {
-      routesContainer.querySelectorAll('[data-route-id]').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const r = routes.find(x => x.id === btn.dataset.routeId);
-          if (r) showRouteCompare(r);
-        });
-      });
-    }, 0);
-    // On garde une référence pour pouvoir lookup l'objet à l'open de modale.
-    State._routesCache = routes;
-  }
 
   // ── Records personnels (existant, fin de page) ─────────────────────────
   page.appendChild(el('h3', { class: 'mb-2 mt-4' }, 'Records personnels'));
@@ -4651,6 +4643,19 @@ function renderProfil(root) {
   skCard.innerHTML = skHtml;
   page.appendChild(skCard);
 
+  // Bilan
+  page.appendChild(el('h3', { class: 'mb-2' }, '📊 Bilan hebdo'));
+  const wrCard = el('div', { class: 'card mb-4' });
+  wrCard.innerHTML = '<div class="dim text-sm mb-2">Affiché automatiquement à chaque changement de semaine.</div><button class="btn ghost sm" id="wr-open">Voir le bilan de la semaine dernière</button>';
+  wrCard.querySelector('#wr-open').addEventListener('click', () => showWeekReport(prevWeekKey(weekKey())));
+  page.appendChild(wrCard);
+
+  // Rappels
+  page.appendChild(el('h3', { class: 'mb-2' }, '🔔 Rappels'));
+  const remCard = el('div', { class: 'card mb-4' });
+  page.appendChild(remCard);
+  renderRemindersCard(remCard);
+
   // Sauvegarde
   page.appendChild(el('h3', { class: 'mb-2' }, '💾 Sauvegarde'));
   const saveCard = el('div', { class: 'card mb-4' });
@@ -4802,6 +4807,231 @@ async function onImportFile(e) {
 }
 
 // ============================================================================
+// BILAN DE FIN DE SEMAINE
+// ============================================================================
+// meta `weekReportSeen` : dernière semaine dont le bilan a été affiché.
+async function buildWeekReport(wk) {
+  const pen = await computeWeekPenalties(wk);
+  const [quests, completions, sched, excuses] = await Promise.all([
+    dbAll('quests'), dbAll('completions'), dbAll('schedule'), getMalusExcuses()
+  ]);
+  // Malus quotidiens du travail (jours évalués, à partir de PENALTIES_START).
+  let dailyMalus = 0;
+  const today = todayKey();
+  for (const dk of weekDateKeys(wk)) {
+    if (dk >= today || dk < PENALTIES_START) continue;
+    const dayK = ['sun','mon','tue','wed','thu','fri','sat'][new Date(dk + 'T12:00:00').getDay()];
+    const goalHours = sched.find(x => x.id === dayK)?.workHours || 0;
+    dailyMalus += dailyWorkMalusXp(await dbGet('workLog', dk), goalHours);
+  }
+  const bonusXp = pen.bonuses.reduce((a, b) => a + b.xp, 0);
+  const malusTotal = dailyMalus + pen.malusXp + pen.selfXp;
+  const net = pen.weekXp - malusTotal + bonusXp;
+  const list = quests.map(q => {
+    const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
+    const ratio = c?.ratio || 0;
+    return { q, ratio, ok: ratio >= 1, excused: !!excuses[`${wk}|${q.id}`], bonus: pen.bonuses.find(b => b.questId === q.id)?.xp || 0 };
+  }).sort((a, b) => (a.q.category === 'main' ? 0 : 1) - (b.q.category === 'main' ? 0 : 1));
+  return { wk, gained: pen.weekXp, dailyMalus, weeklyMalus: pen.malusXp, selfMalus: pen.selfXp, bonusXp, malusTotal, net, list, okCount: list.filter(x => x.ok).length };
+}
+
+async function showWeekReport(wk) {
+  const r = await buildWeekReport(wk);
+  const prev = await buildWeekReport(prevWeekKey(wk));
+  const ws = weekStartDate(wk);
+  const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
+  const fd = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
+  const sign = (n) => (n > 0 ? '+' : n < 0 ? '−' : '') + Math.abs(n);
+  const hasPrev = prev.gained > 0 || prev.malusTotal > 0 || prev.list.some(x => x.ratio > 0);
+  const dNet = r.net - prev.net, dOk = r.okCount - prev.okCount;
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal' });
+  const rows = r.list.map(x => `
+    <div class="rg-row wr-quest">
+      <span class="wr-ico">${x.q.icon || '•'}</span>
+      <span class="rg-reason">${escapeHtml(x.q.title)}${x.excused ? ' <span class="dim text-xs">(justifiée)</span>' : ''}</span>
+      <span class="mono text-xs ${x.ok ? 'wr-ok' : 'wr-ko'}">${Math.round(x.ratio * 100)}% ${x.ok ? '✓' : '✗'}</span>
+    </div>`).join('');
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">📊</span><span>Bilan · ${fd(ws)} – ${fd(we)}</span></div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 16px 18px; overflow-y: auto;">
+      <div class="wr-net grad-text">${sign(r.net)} XP</div>
+      <div class="dim text-xs" style="text-align:center;">net sur la semaine</div>
+      <div class="wr-grid">
+        <div><div class="dim text-xs">Gagné</div><div class="mono">+${r.gained}</div></div>
+        <div><div class="dim text-xs">Malus</div><div class="mono ${r.malusTotal ? 'wr-ko' : ''}">${r.malusTotal ? '−' + r.malusTotal : '0'}</div></div>
+        <div><div class="dim text-xs">Bonus</div><div class="mono">${r.bonusXp ? '+' + r.bonusXp : '0'}</div></div>
+      </div>
+      ${r.malusTotal ? `<div class="dim text-xs mt-1">Détail malus : travail quotidien −${r.dailyMalus} · quêtes −${r.weeklyMalus} · rigueur −${r.selfMalus}</div>` : ''}
+      <div class="wr-title">Quêtes · ${r.okCount}/${r.list.length} réussies</div>
+      <div class="rg-list">${rows}</div>
+      <div class="wr-title">Vs semaine précédente</div>
+      ${hasPrev ? `<div class="rg-row"><span class="rg-reason">XP net</span><span class="mono text-xs">${sign(prev.net)} → ${sign(r.net)} (${sign(dNet)})</span></div>
+      <div class="rg-row" style="margin-top:6px;"><span class="rg-reason">Quêtes réussies</span><span class="mono text-xs">${prev.okCount} → ${r.okCount} (${sign(dOk)})</span></div>`
+        : '<div class="dim text-xs">Pas de semaine précédente à comparer.</div>'}
+      <button class="btn primary sm mt-3 wr-close" style="width:100%;">Fermer</button>
+    </div>`;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
+  modal.querySelector('.wr-close').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+}
+
+// Au lancement : si la semaine précédente vient d'être évaluée et que son bilan n'a pas été vu.
+async function showWeekReportIfDue() {
+  if (!arePenaltiesActive()) return;
+  const wk = prevWeekKey(weekKey());
+  if (wk < weekKey(new Date(PENALTIES_START + 'T00:00:00'))) return;
+  const lastWeekly = (await dbGet('meta', 'lastWeeklyPenalty'))?.value || '';
+  const seen = (await dbGet('meta', 'weekReportSeen'))?.value || '';
+  if (lastWeekly < wk || seen >= wk) return;
+  await dbPut('meta', { key: 'weekReportSeen', value: wk });
+  await showWeekReport(wk);
+}
+
+// ============================================================================
+// RAPPELS (notifications locales + export calendrier)
+// ============================================================================
+// meta `reminders` : { work: {on, time}, sleep: {on, time}, lastFired: { work: 'YYYY-MM-DD', sleep: ... } }
+// Sans serveur push, l'app ne peut notifier QUE lorsqu'elle est ouverte (ou en arrière-plan
+// récent). Pour des rappels fiables app fermée : export .ics → alarmes du calendrier du téléphone.
+const REMINDER_DEFS = {
+  work:  { icon: '📚', label: 'Saisir le travail du jour', title: 'Orion · Travail', body: "N'oublie pas de saisir ton travail d'aujourd'hui.", def: '21:30' },
+  sleep: { icon: '🌙', label: 'Se coucher avant 23h30', title: 'Orion · Sommeil', body: 'Il est temps de se préparer : couché avant 23h30.', def: '22:45' },
+};
+const REMINDER_WINDOW_MIN = 90;   // rattrapage : on déclenche jusqu'à 90 min après l'heure prévue
+
+async function getReminders() {
+  const v = (await dbGet('meta', 'reminders'))?.value || {};
+  const out = { lastFired: v.lastFired || {} };
+  for (const k of Object.keys(REMINDER_DEFS)) out[k] = { on: !!v[k]?.on, time: v[k]?.time || REMINDER_DEFS[k].def };
+  return out;
+}
+async function saveReminders(r) { await dbPut('meta', { key: 'reminders', value: r }); }
+
+function timeToMin(t) { const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); }
+
+async function showReminderNotification(kind) {
+  const d = REMINDER_DEFS[kind];
+  showToast({ type: 'xp', title: d.icon + ' ' + d.title.replace('Orion · ', ''), text: d.body }, 6000);
+  try {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const opts = { body: d.body, icon: 'icons/icon-192.png', badge: 'icons/favicon.png', tag: 'orion-' + kind };
+      const reg = await navigator.serviceWorker?.getRegistration();
+      if (reg?.showNotification) await reg.showNotification(d.title, opts);
+      else new Notification(d.title, opts);
+    }
+  } catch (e) { /* silencieux */ }
+}
+
+// Vérifie si un rappel doit partir maintenant (appelé au lancement, au retour au premier plan et toutes les 30 s).
+async function checkReminders() {
+  const r = await getReminders();
+  const now = new Date();
+  const today = todayKey(now);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  let changed = false;
+  for (const kind of Object.keys(REMINDER_DEFS)) {
+    const c = r[kind];
+    if (!c.on || r.lastFired[kind] === today) continue;
+    const t = timeToMin(c.time);
+    if (nowMin < t || nowMin > t + REMINDER_WINDOW_MIN) continue;
+    r.lastFired[kind] = today; changed = true;
+    if (kind === 'work') {
+      const log = await dbGet('workLog', today);
+      if ((log?.totalMinutes || 0) > 0) continue;   // déjà saisi : pas de rappel
+    }
+    await showReminderNotification(kind);
+  }
+  if (changed) await saveReminders(r);
+}
+let _reminderTimer = null;
+function startReminderLoop() {
+  if (_reminderTimer) return;
+  checkReminders().catch(() => {});
+  _reminderTimer = setInterval(() => checkReminders().catch(() => {}), 30000);
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) checkReminders().catch(() => {}); });
+}
+
+// Fichier .ics : événements quotidiens récurrents avec alarme à l'heure pile (fiable app fermée).
+function buildRemindersIcs(r) {
+  const pad = (n) => String(n).padStart(2, '0');
+  const d0 = new Date(); const ymd = `${d0.getFullYear()}${pad(d0.getMonth() + 1)}${pad(d0.getDate())}`;
+  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Orion//Rappels//FR', 'CALSCALE:GREGORIAN'];
+  for (const kind of Object.keys(REMINDER_DEFS)) {
+    const c = r[kind]; if (!c.on) continue;
+    const t = timeToMin(c.time); const end = t + 15;
+    const f = (m) => `${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`;
+    lines.push('BEGIN:VEVENT', `UID:orion-${kind}@orion.local`, `DTSTAMP:${ymd}T000000Z`,
+      `DTSTART:${ymd}T${f(t)}`, `DTEND:${ymd}T${f(end)}`, 'RRULE:FREQ=DAILY',
+      `SUMMARY:${REMINDER_DEFS[kind].icon} ${REMINDER_DEFS[kind].label}`,
+      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${REMINDER_DEFS[kind].body}`, 'TRIGGER:PT0S', 'END:VALARM', 'END:VEVENT');
+  }
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+function downloadRemindersIcs(r) {
+  const blob = new Blob([buildRemindersIcs(r)], { type: 'text/calendar' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'orion-rappels.ics';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function renderRemindersCard(card) {
+  const r = await getReminders();
+  const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
+  const permTxt = perm === 'granted' ? 'Notifications autorisées' : perm === 'denied' ? 'Notifications bloquées (réglages du navigateur)' : perm === 'unsupported' ? 'Notifications non disponibles ici' : 'Notifications non autorisées';
+  card.innerHTML = `
+    <div class="rem-list">
+      ${Object.keys(REMINDER_DEFS).map(k => `
+        <div class="rg-row rem-row" data-kind="${k}">
+          <span class="rg-reason">${REMINDER_DEFS[k].icon} ${REMINDER_DEFS[k].label}</span>
+          <input class="input rem-time" type="time" value="${r[k].time}" />
+          <input class="rem-on" type="checkbox" ${r[k].on ? 'checked' : ''} aria-label="Activer" />
+        </div>`).join('')}
+    </div>
+    <div class="dim text-xs mt-2">${permTxt}.</div>
+    <div class="save-actions mt-2">
+      ${perm === 'default' ? '<button class="btn ghost sm" id="rem-perm">Autoriser les notifications</button>' : ''}
+      <button class="btn ghost sm" id="rem-ics">📅 Ajouter au calendrier</button>
+    </div>
+    <div class="dim text-xs mt-3">Sans serveur, Orion ne peut notifier que lorsqu'il est ouvert ou récemment actif. Pour des rappels fiables même app fermée, ajoute-les au calendrier du téléphone (alarme quotidienne). Si tu changes l'heure, réexporte et supprime l'ancien événement.</div>
+  `;
+  card.querySelectorAll('.rem-row').forEach(row => {
+    const k = row.dataset.kind;
+    const save = async () => {
+      const cur = await getReminders();
+      cur[k].on = row.querySelector('.rem-on').checked;
+      cur[k].time = row.querySelector('.rem-time').value || REMINDER_DEFS[k].def;
+      delete cur.lastFired[k];
+      await saveReminders(cur);
+      if (cur[k].on && 'Notification' in window && Notification.permission === 'default') {
+        try { await Notification.requestPermission(); } catch (e) {}
+        renderRemindersCard(card);
+      }
+      checkReminders().catch(() => {});
+    };
+    row.querySelectorAll('input').forEach(i => i.addEventListener('change', save));
+  });
+  card.querySelector('#rem-perm')?.addEventListener('click', async () => {
+    try { await Notification.requestPermission(); } catch (e) {}
+    renderRemindersCard(card);
+  });
+  card.querySelector('#rem-ics').addEventListener('click', async () => {
+    const cur = await getReminders();
+    if (!Object.keys(REMINDER_DEFS).some(k => cur[k].on)) { showToast({ type: 'err', title: 'Rappels', text: 'Active au moins un rappel.' }, 3000); return; }
+    downloadRemindersIcs(cur);
+  });
+}
+
+// ============================================================================
 // 20. SPLASH + INIT
 // ============================================================================
 
@@ -4852,6 +5082,8 @@ async function init() {
   });
 
   navigate('home');
+  startReminderLoop();
+  setTimeout(() => showWeekReportIfDue().catch(() => {}), 1200);
 
   // Si des malus/bonus viennent d'être appliqués, le signaler.
   if (tick?.applied?.length) {

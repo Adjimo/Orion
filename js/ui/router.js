@@ -2,8 +2,7 @@
 import { State } from '../core/state.js';
 import { renderHome } from '../pages/home.js';
 import { renderPlanning } from '../pages/planning.js';
-import { renderProfil } from '../pages/profile.js';
-import { renderQuetes } from '../pages/quests.js';
+import { renderHebdo, renderToday } from '../pages/quests.js';
 import { renderSport } from '../pages/sport.js';
 import { renderStats } from '../pages/stats.js';
 
@@ -28,9 +27,9 @@ export function render() {
   switch (State.currentRoute) {
     case 'home': renderHome(view); break;
     case 'planning': renderPlanning(view); break;
-    case 'quetes': renderQuetes(view); break;
+    case 'today': renderToday(view); break;
+    case 'hebdo': renderHebdo(view); break;
     case 'sport': renderSport(view); break;
     case 'stats': renderStats(view); break;
-    case 'profil': renderProfil(view); break;
   }
 }

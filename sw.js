@@ -4,18 +4,48 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v66';
+const VERSION = 'orion-v73';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
-  './app.js',
+  './js/core/calendar.js',
+  './js/core/dates.js',
+  './js/core/db.js',
+  './js/core/state.js',
+  './js/core/xp.js',
+  './js/features/backup.js',
+  './js/features/exams.js',
+  './js/features/gpx.js',
+  './js/features/penalties.js',
+  './js/features/planning-data.js',
+  './js/features/planning.js',
+  './js/features/quests.js',
+  './js/features/records.js',
+  './js/features/schedule.js',
+  './js/features/seed.js',
+  './js/features/todo-data.js',
+  './js/features/todo.js',
+  './js/features/weekly-goals.js',
+  './js/features/work.js',
+  './js/main.js',
+  './js/pages/home.js',
+  './js/pages/planning.js',
+  './js/pages/planning-todo.js',
+  './js/pages/profile.js',
+  './js/pages/quests.js',
+  './js/pages/sport.js',
+  './js/pages/stats.js',
+  './js/ui/helpers.js',
+  './js/ui/router.js',
   './manifest.json',
   './icons/favicon.png',
   './icons/logo.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
   './icons/badge.png',
+  './icons/ui/tab-planning.png',
+  './icons/ui/tab-planning-mono.png',
 ];
 
 // ── Installation : on précharge tous les assets locaux dans un cache versionné.

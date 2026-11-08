@@ -65,6 +65,10 @@
         <img class="tab-icon" src="icons/ui/tab-accueil-mono.png?v=3" alt="">
         <span>Accueil</span>
       </button>
+      <button class="tab" data-route="planning" data-icon="tab-planning">
+        <img class="tab-icon" src="icons/ui/tab-planning-mono.png?v=3" alt="">
+        <span>Planning</span>
+      </button>
       <button class="tab" data-route="quetes" data-icon="tab-objectif">
         <img class="tab-icon" src="icons/ui/tab-objectif-mono.png?v=3" alt="">
         <span>Objectifs</span>
@@ -84,7 +88,7 @@
     </div>
   </nav>
 
-  <script src="app.js"></script>
+  <script type="module" src="js/main.js"></script>
   <script>
     // ── Service worker : enregistrement + mise à jour automatique.
     // Quand le SW signale qu'une nouvelle version est active (postMessage 'SW_ACTIVATED'),

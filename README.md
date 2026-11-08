@@ -1,42 +1,65 @@
-# 🔥 Orion
+# Orion
 
-> Le phénix — webapp PWA pour gamifier ta vie de **prépa MP\*** + **course à pied**.
+PWA personnelle qui gamifie la prépa MP\* et la course à pied / trail : XP, niveaux, quêtes hebdomadaires, malus et bonus, import GPX. JavaScript pur (modules ES natifs), sans framework ni étape de build. Les données restent sur l'appareil (IndexedDB).
 
----
+## Fonctionnalités
 
-## 🎮 Features
+- XP, niveaux, rangs et compétences (Endurance, Allure, Maths, Physique, SI, Anglais, Lettres, Discipline)
+- Saisie du temps de travail par matière, avec recalcul automatique de l'XP
+- Quêtes hebdomadaires : principales (sorties, travail, sommeil) et secondaires (Anglais, Lettres, SI)
+- Malus si un objectif n'est pas atteint, bonus s'il est dépassé ; total des malus plafonné à 100 % de l'XP de la semaine
+- Justification d'une semaine (maladie, autre) et déclaration d'écarts personnels
+- Import GPX, carte, découpage par kilomètre, records, VDOT
+- Statistiques et bilan hebdomadaire, contrôle automatique de cohérence de l'XP
+- Compte à rebours des concours
+- Sauvegarde automatique quotidienne, export et import JSON
+- Installable (PWA), fonctionne hors ligne, mise à jour automatique
 
-- **Splash phénix** stylé (logo orange/rose/violet + titre doré)
-- **Navigation tabbar** : Accueil / Objectifs / Sport / Stats / Profil
-- **Système XP** avec niveaux et 9 rangs (Mortel → ... → Orion)
-- **8 compétences** : Endurance, Allure, Maths, Physique, SI, Anglais, Lettres, Discipline
-- **Saisie de travail unifiée par matière** avec recalcul automatique de l'XP
-- **Objectifs hebdo** principaux (sorties, travail, sommeil) + secondaires (anglais, lettres, SI)
-- **Bonus / malus** au passage de chaque période (à partir de la rentrée 2026-09-07)
-- **Import GPX** + carte Orion stylée (MapLibre, palette violet/or), splits km par km, splits 1K/5K/10K/semi
-- **Détection auto** footing / trail / fractionné / sortie week-end
-- **VDOT calibré + chronos prédits** (5K → marathon) basé sur tes meilleures perfs récentes
-- **Allures Daniels** (E/M/T/I/R) calibrées sur ton VDOT actuel
-- **Mon objectif** : course cible avec plan-type hebdomadaire de 4 séances et faisabilité selon ton volume actuel
-- **Charge d'entraînement** (CTL/ATL/TSB) avec seuil personnalisé sur ton historique
-- **Records glissants** 30j / 90j / absolu
-- **Catalogue de parcours récurrents** avec comparaison cross-sortie
-- **Heatmap calendaire** du travail avec popover détaillé au clic
-- **Compte à rebours concours MP\*** (X/ENS, Mines-Ponts, Centrale, CCINP) avec % année écoulée
-- **Sauvegarde auto quotidienne** (7 dernières gardées) + Export/Import JSON
-- **Recalcul XP total** depuis l'historique complet (bouton dans Profil)
-- **PWA installable** sur Android/iOS, fonctionne hors-ligne, auto-update SW
+## Structure
 
----
+```
+index.html          page unique, charge js/main.js
+style.css           styles
+sw.js               service worker (cache hors ligne, versionné)
+manifest.json       manifeste PWA
+icons/              icônes
+js/
+  main.js           point d'entrée : splash, initialisation
+  core/             état, base IndexedDB, dates, XP et niveaux
+  features/         logique métier : travail, quêtes, malus, GPX, records, sauvegarde…
+  ui/               aides d'interface (DOM, toasts, modales), navigation
+  pages/            une page par onglet : accueil, quêtes, sport, stats, profil
+```
 
-## 💾 Sauvegarder tes données
+Règle de dépendance : `pages/` utilise `features/`, `ui/` et `core/` ; `features/` utilise `core/` ; `core/` ne dépend de rien d'autre.
 
-Tes données vivent **uniquement** dans le navigateur. Si tu vides Chrome ou changes de téléphone : tout est perdu.
+## Développement
 
-Pour ne rien perdre :
-- **Profil** → **Sauvegarde** → **Exporter** (JSON)
-- Le fichier `orion-backup-YYYY-MM-DD.json` se télécharge
-- Mets-le sur Google Drive / par email à toi-même
-- Pour restaurer : **Importer une sauvegarde**
+Les modules ES exigent un serveur HTTP (pas de `file://`) :
 
-Une **sauvegarde auto** est aussi créée chaque jour au premier lancement, gardée 7 jours, téléchargeable dans Profil.
+```
+python3 -m http.server 8000
+```
+
+puis ouvrir http://localhost:8000.
+
+## Publication sur GitHub Pages
+
+Déposer le contenu du dossier à la racine du dépôt (ou dans `/docs`) et activer Pages. Tous les chemins sont relatifs, aucun build n'est nécessaire.
+
+À chaque modification livrée :
+
+1. incrémenter `APP_VERSION` dans `js/core/state.js` ;
+2. incrémenter `VERSION` dans `sw.js` ;
+3. si un fichier JS est ajouté ou renommé, mettre à jour la liste `ASSETS` de `sw.js`.
+
+## Sauvegarder ses données
+
+Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exporter produit `orion-backup-AAAA-MM-JJ.json` ; Importer une sauvegarde le restaure.
+
+## v4.5 — To-do hebdomadaire (Planning › À faire)
+- Store `planTodo` + meta `todoState` (curseurs de rotation, derniers éléments faits, dernière semaine générée).
+- `features/todo-data.js` : catalogue (maths pondérées, budget 10 pts/semaine ; physique : 23 chapitres pondérés).
+- `features/todo.js` : génération par rotation, report automatique des éléments non cochés (rattrapage multi-semaines), aucune XP.
+- Les semaines passées sont en lecture seule ; les éléments reportés y restent marqués « reporté au … ».
+- Pas de to-do pendant les révisions et les concours ; oraux blancs de Thomas (M0 lundi 7h20, M1 jeudi 7h20).

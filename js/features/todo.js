@@ -4,7 +4,7 @@ import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { YEAR_END, SCHOOL_START, addDays, mondayOf, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { COLLES_G8, weekIndexOf } from './planning-data.js';
-import { ANGLAIS_FIXED, ANGLAIS_ROTATION, FRANCAIS_ROTATION, SI_LABEL, TODO_BUDGET, TODO_CATALOG, TODO_SUBJECTS } from './todo-data.js';
+import { ANGLAIS_FIXED, ANGLAIS_ROTATION, DAY_PLAN, FRANCAIS_ROTATION, SI_LABEL, TODO_BUDGET, TODO_CATALOG, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
 
 const STATE_KEY = 'todoState';
 let seq = 0;
@@ -23,7 +23,22 @@ const hasAnglaisColle = (monday) => {
 };
 
 function makeItem(w, subj, key, label) {
-  return { id: `${w}|${key}`, weekKey: w, subj, key, label, done: false, doneAt: null, carried: false, origin: null, carriedTo: null, custom: false, ord: nextOrd() };
+  return { id: `${w}|${key}`, weekKey: w, subj, key, label, done: false, doneAt: null, carried: false, origin: null, carriedTo: null, custom: false, noCarry: false, day: 1, ord: nextOrd() };
+}
+
+// Répartition par jour : un chapitre de maths / de physique par jour, SI, anglais et français sur des jours fixes.
+export function assignDays(items) {
+  const byOrder = (a, b) => (b.carried - a.carried) || ((a.ord || 0) - (b.ord || 0));
+  for (const subj of ['maths', 'physique']) {
+    items.filter(i => i.subj === subj && i.key && !i.custom).sort(byOrder).forEach((it, idx) => { it.day = (idx % 7) + 1; });
+  }
+  for (const it of items) {
+    if (!it.key || it.custom) { if (!it.day) it.day = 1; continue; }
+    if (it.key === 'si:main') it.day = DAY_PLAN.si;
+    else if (it.key.startsWith('anglais:vocab')) { it.day = Number(it.key.split(':')[2]) || 1; it.noCarry = true; }
+    else if (it.subj === 'anglais') it.day = DAY_PLAN.anglaisSession;
+    else if (it.subj === 'francais') it.day = DAY_PLAN.francais;
+  }
 }
 
 // Génère les éléments d'une semaine (les éléments reportés y sont déjà).
@@ -56,15 +71,26 @@ function generate(w, st, items) {
     for (const x of pool.slice(0, Math.max(0, count - have))) add(subj, `${subj}:${x.n}`, x.n);
   };
 
-  add('anglais', 'anglais:vocab', ANGLAIS_FIXED.vocab);
+  for (const d of VOCAB_DAYS) { add('anglais', `anglais:vocab:${d}`, ANGLAIS_FIXED.vocab); const v = items.find(i => i.key === `anglais:vocab:${d}`); v.day = d; v.noCarry = true; }
   if (hasAnglaisColle(w)) { add('anglais', 'anglais:gram', ANGLAIS_FIXED.gram); rotate('anglais', ANGLAIS_ROTATION, 1); }
   else rotate('anglais', ANGLAIS_ROTATION, 2);
   rotate('francais', FRANCAIS_ROTATION, 1);
   add('si', 'si:main', SI_LABEL);
+  assignDays(items);
 }
 
 // Pas de to-do pendant les deux semaines de révisions ni pendant les concours.
 export const hasTodo = (monday) => { const m = weekMode(monday); return m === 'normal' || m === 'allege'; };
+
+// Anciennes données (sans jour) : on répartit les éléments par jour.
+async function migrateDays(all) {
+  const weeks = [...new Set(all.filter(i => !i.day).map(i => i.weekKey))];
+  for (const w of weeks) {
+    const items = all.filter(i => i.weekKey === w);
+    assignDays(items);
+    for (const it of items) await dbPut('planTodo', it);
+  }
+}
 
 async function run(today) {
   const first = mondayOf(SCHOOL_START), last = mondayOf(YEAR_END);
@@ -72,15 +98,16 @@ async function run(today) {
   if (target < first) return;
   if (target > last) target = last;
   const st = await loadState();
-  if (st.lastWeek && st.lastWeek >= target) return;
   const all = await dbAll('planTodo');
+  await migrateDays(all);
+  if (st.lastWeek && st.lastWeek >= target) return;
   let w = st.lastWeek ? addDays(st.lastWeek, 7) : target;
   while (w <= target) {
     const items = all.filter(i => i.weekKey === w);
     if (!items.length && hasTodo(w)) {
       // Report : les éléments non cochés de la semaine précédente (les semaines closes ne sont que marquées).
       const prevWeek = all.filter(i => i.weekKey < w).reduce((m, i) => (i.weekKey > m ? i.weekKey : m), '');
-      for (const p of all.filter(i => i.weekKey === prevWeek && !i.done && !i.carriedTo)) {
+      for (const p of all.filter(i => i.weekKey === prevWeek && !i.done && !i.carriedTo && !i.noCarry)) {
         if (p.key && items.some(i => i.key === p.key)) continue;
         const n = { ...p, id: p.key ? `${w}|${p.key}` : uid(w), weekKey: w, done: false, doneAt: null, carried: true, origin: p.origin || p.weekKey, carriedTo: null };
         items.push(n);
@@ -118,21 +145,23 @@ export async function toggleTodo(item) {
 }
 export const removeTodo = (id) => dbDelete('planTodo', id);
 
-// Éléments du catalogue absents de la semaine, par matière.
-export function availableCatalog(items) {
+// Éléments du catalogue absents de la semaine, par matière (le vocabulaire se choisit par jour).
+export function availableCatalog(items, day = 1) {
   const present = new Set(items.map(i => i.key).filter(Boolean));
   const groups = [];
   const push = (subj, entries) => { const e = entries.filter(x => !present.has(x.key)); if (e.length) groups.push({ subj, entries: e }); };
   push('maths', TODO_CATALOG.maths.map(c => ({ key: `maths:${c.name}`, label: c.name })));
   push('physique', TODO_CATALOG.physique.map(c => ({ key: `physique:${c.name}`, label: c.name })));
-  push('anglais', [{ key: 'anglais:vocab', label: ANGLAIS_FIXED.vocab }, { key: 'anglais:gram', label: ANGLAIS_FIXED.gram }, ...ANGLAIS_ROTATION.map(n => ({ key: `anglais:${n}`, label: n }))]);
+  push('anglais', [{ key: `anglais:vocab:${day}`, label: ANGLAIS_FIXED.vocab }, { key: 'anglais:gram', label: ANGLAIS_FIXED.gram }, ...ANGLAIS_ROTATION.map(n => ({ key: `anglais:${n}`, label: n }))]);
   push('francais', FRANCAIS_ROTATION.map(n => ({ key: `francais:${n}`, label: n })));
   push('si', [{ key: 'si:main', label: SI_LABEL }]);
   return groups;
 }
 
-export async function addTodo(monday, subj, key, label) {
-  const it = key ? makeItem(monday, subj, key, label) : { ...makeItem(monday, 'autre', 'x', label), id: uid(monday), key: null, custom: true };
+export async function addTodo(monday, subj, key, label, day = 1) {
+  const it = key
+    ? { ...makeItem(monday, subj, key, label), day, noCarry: key.startsWith('anglais:vocab') }
+    : { ...makeItem(monday, 'autre', 'x', label), id: uid(monday), key: null, custom: true, day };
   await dbPut('planTodo', it);
 }
 export { TODO_SUBJECTS };

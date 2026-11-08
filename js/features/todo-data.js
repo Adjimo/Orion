@@ -38,3 +38,8 @@ export const ANGLAIS_FIXED = { vocab: 'Vocabulaire', gram: 'Grammaire' };
 export const ANGLAIS_ROTATION = ['Entraînement DS Centrale', 'Entraînement DS Mines-Ponts', 'Revoir les actualités de la semaine'];
 export const FRANCAIS_ROTATION = ['Entraînement DS', 'Entraînement oral'];
 export const SI_LABEL = 'Sciences de l\u2019ingénieur';
+
+// Répartition par jour (1 = lundi … 7 = dimanche).
+// Maths et physique : un chapitre par jour à partir du lundi, puis jours libres.
+export const DAY_PLAN = { si: 5, anglaisSession: 6, francais: 7 };   // SI le vendredi, anglais (grammaire/rotation) le samedi, français le dimanche
+export const VOCAB_DAYS = [1, 2, 3, 4, 5, 6, 7];                      // vocabulaire d'anglais tous les jours

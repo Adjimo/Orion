@@ -5,7 +5,6 @@ import { BASE_COURSES, COLLES_G8, COLLE_SLOTS, DS_BY_INDEX, DS_DAY, DS_START, IT
 
 export const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 // Fenêtre de la journée dans laquelle on calcule le temps libre.
-export const DAY_WINDOW = { start: '08:00', end: '22:00' };
 const COLLE_TITLES = { 'Mathématiques': 'Colle de maths', 'Physique': 'Colle de physique', 'Anglais': 'Colle d\u2019anglais', 'Français': 'Colle de français' };
 const ALLEGE_SUBJECTS = ['maths', 'physique', 'tp-physique'];
 
@@ -99,16 +98,38 @@ function applyOverrides(events, monday, overrides) {
 }
 
 // ── Temps libre ──────────────────────────────────────────────────────────────
-function freeBlocks(events) {
-  const w0 = toMin(DAY_WINDOW.start), w1 = toMin(DAY_WINDOW.end);
-  const busy = events.filter(e => e.start && e.end)
-    .map(e => [Math.max(w0, toMin(e.start)), Math.min(w1, toMin(e.end))])
-    .filter(([a, b]) => b > a).sort((x, y) => x[0] - y[0]);
-  const free = [];
-  let cur = w0;
-  for (const [a, b] of busy) { if (a - cur >= 30) free.push({ start: fromMin(cur), end: fromMin(a) }); cur = Math.max(cur, b); }
-  if (w1 - cur >= 30) free.push({ start: fromMin(cur), end: fromMin(w1) });
-  return free;
+// Plages de travail personnel et pauses repas par jour (0 = lundi … 6 = dimanche).
+// Le temps libre = plages de travail moins les événements ; une plage < 30 min est ignorée.
+const R = (a, b) => [toMin(a), toMin(b)];
+const EVENING = R('18:30', '19:30');
+export const DAY_RULES = [
+  { work: [R('08:00', '12:00'), R('12:30', '18:30'), R('19:30', '22:00')], pauses: [R('12:00', '12:30'), EVENING] },   // lundi
+  { work: [R('08:00', '12:00'), R('13:00', '18:30'), R('19:30', '22:00')], pauses: [R('12:00', '13:00'), EVENING] },   // mardi
+  { work: [R('08:00', '12:00'), R('13:00', '18:30'), R('19:30', '22:00')], pauses: [R('12:00', '13:00'), EVENING] },   // mercredi (DS l'après-midi)
+  { work: [R('08:00', '12:00'), R('12:30', '18:30'), R('19:30', '22:00')], pauses: [R('12:00', '12:30'), EVENING] },   // jeudi
+  { work: [R('08:00', '12:00'), R('12:30', '18:30'), R('19:30', '22:00')], pauses: [R('12:00', '12:30'), EVENING] },   // vendredi
+  { work: [R('11:00', '12:00'), R('13:30', '17:30')], pauses: [R('12:00', '13:30')] },                                 // samedi (11h-12h si pas de TD de SI)
+  { work: [R('08:00', '12:00'), R('13:30', '18:00')], pauses: [R('12:00', '13:30')] }                                  // dimanche
+];
+
+function subtractBusy(windows, busy, minLen) {
+  const out = [];
+  for (const [w0, w1] of windows) {
+    let cur = w0;
+    for (const [a, b] of busy) {
+      if (b <= cur || a >= w1) continue;
+      if (a - cur >= minLen) out.push({ start: fromMin(cur), end: fromMin(a) });
+      cur = Math.max(cur, b);
+    }
+    if (w1 - cur >= minLen) out.push({ start: fromMin(cur), end: fromMin(w1) });
+  }
+  return out;
+}
+
+function freeBlocks(events, dayIndex) {
+  const busy = events.filter(e => e.start && e.end).map(e => [toMin(e.start), toMin(e.end)]).sort((x, y) => x[0] - y[0]);
+  const rules = DAY_RULES[dayIndex];
+  return { free: subtractBusy(rules.work, busy, 30), pauses: subtractBusy(rules.pauses, busy, 15) };
 }
 
 // Semaine complète : 7 jours, événements triés, temps libre (« travail personnel »).
@@ -120,8 +141,8 @@ export async function buildWeek(monday, overrides) {
   for (let i = 0; i < 7; i++) {
     const date = addDays(monday, i);
     const events = all.filter(e => e.date === date && e.start).sort((a, b) => a.start.localeCompare(b.start));
-    const free = freeBlocks(events);
-    days.push({ date, index: i, label: DAY_LABELS[i], info: dayInfo(date), events, free, freeMinutes: free.reduce((s, b) => s + toMin(b.end) - toMin(b.start), 0) });
+    const { free, pauses } = freeBlocks(events, i);
+    days.push({ date, index: i, label: DAY_LABELS[i], info: dayInfo(date), events, free, pauses, freeMinutes: free.reduce((s, b) => s + toMin(b.end) - toMin(b.start), 0) });
   }
   return {
     monday, mode, index: weekIndexOf(monday), days,

@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v75';
+const VERSION = 'orion-v77';
 const ASSETS = [
   './',
   './index.html',
@@ -120,7 +120,14 @@ self.addEventListener('fetch', (e) => {
     return;
   }
 
-  // Autres assets locaux (JS/CSS/SVG) : stale-while-revalidate.
+  // JS / CSS : réseau d'abord (cache en secours hors-ligne), pour ne jamais mélanger d'anciens
+  // et de nouveaux modules après une mise à jour (écran vide sur une page).
+  if (/\.(js|css)$/.test(url.pathname)) {
+    e.respondWith(networkFirst(req));
+    return;
+  }
+
+  // Autres assets locaux (images, icônes) : stale-while-revalidate.
   e.respondWith(staleWhileRevalidate(req));
 });
 

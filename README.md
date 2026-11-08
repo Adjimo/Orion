@@ -70,3 +70,9 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - Aujourd'hui : tableau de bord du jour inchangé + to-do du jour (retards de la semaine inclus). Hebdo : quêtes hebdomadaires inchangées + to-do de la semaine par jour.
 - To-do par jour : un chapitre de maths et de physique par jour à partir du lundi, vocabulaire d'anglais tous les jours, SI le vendredi, anglais (grammaire/rotation) le samedi, français le dimanche (`DAY_PLAN` dans `features/todo-data.js`).
 - Les anciennes données de to-do sans jour sont réparties automatiquement.
+
+### v4.8
+- Service worker : JS/CSS en réseau d'abord (évite un mélange ancien/nouveau code après mise à jour, qui laissait Aujourd'hui/Hebdo vides).
+
+### v4.9
+- Aujourd'hui : seule la to-do du jour est affichée (la semaine complète reste dans Hebdo).

@@ -737,16 +737,7 @@ img[src*="icons/ui/"] {
   user-select: none;
 }
 .btn:active { transform: scale(0.97); }
-.btn.primary {
-  background: var(--grad-sun);
-  color: #14100a;
-  border-color: transparent;
-  font-weight: 600;
-}
-.btn.ghost {
-  background: transparent;
-  border-color: var(--border-strong);
-}
+/* Style unique : .btn (primary / ghost inclus) = .btn-gpx, voir plus bas. Seul .danger garde le rouge. */
 .btn.danger {
   background: transparent;
   border-color: var(--danger);
@@ -755,8 +746,8 @@ img[src*="icons/ui/"] {
 .btn.full { width: 100%; }
 .btn.sm { padding: 8px 12px; font-size: 0.85rem; }
 
-/* Bouton import GPX — sombre, dans la palette de l'app, accent violet/orange discret */
-.btn-gpx {
+/* Style de bouton unique de l'app (.btn et .btn-gpx identiques) — sombre, accent khaki */
+.btn, .btn-gpx {
   display: inline-flex;
   align-items: center;
   gap: 7px;
@@ -774,7 +765,7 @@ img[src*="icons/ui/"] {
   position: relative;
   overflow: hidden;
 }
-.btn-gpx::before {
+.btn::before, .btn-gpx::before {
   content: '';
   position: absolute;
   inset: 0;
@@ -782,17 +773,22 @@ img[src*="icons/ui/"] {
   transition: background 0.25s;
   pointer-events: none;
 }
-.btn-gpx:hover {
+.btn:hover, .btn-gpx:hover {
   border-color: var(--accent-2);
   color: var(--gold);
 }
-.btn-gpx:hover::before {
+.btn:hover::before, .btn-gpx:hover::before {
   background: linear-gradient(135deg, rgba(187,166,119,0.18) 0%, rgba(168,116,42,0.12) 100%);
 }
-.btn-gpx:active { transform: scale(0.96); }
-.btn-gpx svg { width: 15px; height: 15px; stroke-width: 2.2; color: var(--accent-2); transition: color 0.2s; }
-.btn-gpx:hover svg { color: var(--gold); }
-.btn-gpx > * { position: relative; z-index: 1; }
+.btn:active, .btn-gpx:active { transform: scale(0.96); }
+.btn svg, .btn-gpx svg { width: 15px; height: 15px; stroke-width: 2.2; color: var(--accent-2); transition: color 0.2s; }
+.btn:hover svg, .btn-gpx:hover svg { color: var(--gold); }
+.btn:not(.sm) { padding: 10px 16px; }
+.btn > *, .btn-gpx > * { position: relative; z-index: 1; }
+
+
+.btn.danger:hover { color: var(--danger); border-color: var(--danger); }
+.btn.danger::before { display: none; }
 
 /* Conteneur pour les boutons sauvegarde côte à côte */
 .save-actions {
@@ -1317,7 +1313,7 @@ img[src*="icons/ui/"] {
 /* Stats grid */
 .stats-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: 10px;
 }
 .stat {

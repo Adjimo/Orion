@@ -6,7 +6,7 @@
 'use strict';
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-const APP_VERSION = '3.28';
+const APP_VERSION = '3.35';
 
 // ============================================================================
 // 1. ÉTAT GLOBAL
@@ -108,11 +108,11 @@ async function dbClear(store) {
   });
 }
 
-// ── Données « fantômes » : tout ce qui précède le 1er septembre 2026 reste
+// ── Données « fantômes » : tout ce qui précède le 15 août 2026 reste
 // stocké en base (export, sauvegardes) mais n'est jamais affiché ni compté
 // (niveaux, XP, heures, stats, records, VDOT...). Les lectures « live » passent
 // par dbAllLive() ; seules les sauvegardes lisent la base complète.
-const GHOST_BEFORE = '2026-09-01';
+const GHOST_BEFORE = '2026-08-15';
 
 function isGhostDate(dateStr) {
   return !!dateStr && String(dateStr).slice(0, 10) < GHOST_BEFORE;
@@ -399,7 +399,7 @@ async function setSubjectMinutes(dateKey, subjectKey, newMinutes, goalHours) {
 }
 
 async function commitWorkLog(dateKey, bySubject, goalHours) {
-  // Jour fantôme (avant le 1er sept.) : on stocke sans aucune XP.
+  // Jour fantôme (avant le 15 août) : on stocke sans aucune XP.
   if (isGhostDate(dateKey)) {
     const totalMinutes = Object.values(bySubject).reduce((s, m) => s + m, 0);
     await dbPut('workLog', {
@@ -2565,7 +2565,6 @@ function renderHome(root) {
   const ws = startOfWeek();
   const weekActs = State.activities.filter(a => new Date(a.date) >= ws);
   const weekKm = weekActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
-  const weekDplus = weekActs.reduce((s, a) => s + (a.elevGain || 0), 0);
   const weekStart = todayKey(ws);
   const weekLogs = State.workLogs.filter(l => l.date >= weekStart);
   const weekWorkMin = weekLogs.reduce((s, l) => s + (l.totalMinutes || 0), 0);
@@ -2644,7 +2643,6 @@ function renderHome(root) {
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, '🏃 Sport'));
   page.appendChild(el('div', { class: 'stats-grid mb-4', html: `
     <div class="stat"><div class="stat-val grad-text">${weekKm.toFixed(1)}</div><div class="stat-label">km</div></div>
-    <div class="stat"><div class="stat-val grad-text">${Math.round(weekDplus)}</div><div class="stat-label">m D+</div></div>
     <div class="stat"><div class="stat-val grad-text">${weekActs.length}</div><div class="stat-label">sorties</div></div>
   `}));
 
@@ -2652,7 +2650,6 @@ function renderHome(root) {
   page.appendChild(el('div', { class: 'stats-grid mb-4', html: `
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(todayWorkMin)}</div><div class="stat-label">aujourd'hui</div></div>
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(weekWorkMin)}</div><div class="stat-label">cette semaine</div></div>
-    <div class="stat"><div class="stat-val grad-text">${(weekWorkMin / 60).toFixed(1)}</div><div class="stat-label">heures cumulées</div></div>
   `}));
 
   // Compétences
@@ -3042,32 +3039,23 @@ async function _renderOneQuest(root, q, category) {
     }
   }
 
-  // Quête « Couché avant 23h30 » : une case par soir, navigation de semaine en semaine.
+  // Quête « Couché avant 23h30 » : compteur de la semaine en cours uniquement.
   if (q.id === 'wq-sleep') {
     const sleepLog = await getSleepLog();
-    const offset = State.sleepOffset || 0;
-    const base = startOfWeek();
-    const ws = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset * 7);
-    const wkKey = weekKey(ws);
-    const firstWs = startOfWeek(new Date(GHOST_BEFORE + 'T12:00:00'));
-    const canPrev = ws.getTime() > firstWs.getTime();
-    const dayKeys = weekDateKeys(wkKey);
+    const dayKeys = weekDateKeys(weekKey(new Date()));
     const eligible = dayKeys.filter(k => k <= todayKey() && k >= GHOST_BEFORE);
     const ticked = eligible.filter(k => sleepLog[k]);
     const free = eligible.filter(k => !sleepLog[k]);
-    const weekLabel = offset === 0 ? 'Cette semaine' : 'Sem. du ' + ws.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
     const row = el('div', { class: 'sleep-wrap' });
     row.innerHTML = `
       <div class="sleep-row">
-        <button class="btn ghost sm" id="sl-prev" ${canPrev ? '' : 'disabled'} aria-label="Semaine précédente">‹</button>
         <div class="hq-count-row sleep-counter">
           <button class="cnt-btn" id="sl-minus" ${ticked.length ? '' : 'disabled'} aria-label="Retirer une nuit">−</button>
           <div class="cnt-val">${ticked.length}/7</div>
           <button class="cnt-btn plus" id="sl-plus" ${free.length ? '' : 'disabled'} aria-label="Ajouter une nuit">+</button>
         </div>
-        <button class="btn ghost sm" id="sl-next" ${offset >= 0 ? 'disabled' : ''} aria-label="Semaine suivante">›</button>
       </div>
-      <div class="dim text-xs sleep-cap">${weekLabel} · appuie sur + pour ajouter une nuit couché avant 23h30</div>`;
+      <div class="dim text-xs sleep-cap">Cette semaine · appuie sur + pour ajouter une nuit couché avant 23h30</div>`;
     // + ajoute la nuit la plus récente encore non cochée ; − retire la dernière cochée.
     row.querySelector('#sl-plus').addEventListener('click', async () => {
       if (!free.length) return;
@@ -3081,8 +3069,6 @@ async function _renderOneQuest(root, q, category) {
       await loadAll();
       render();
     });
-    row.querySelector('#sl-prev').addEventListener('click', () => { State.sleepOffset = offset - 1; render(); });
-    row.querySelector('#sl-next').addEventListener('click', () => { State.sleepOffset = Math.min(0, offset + 1); render(); });
     div.appendChild(row);
   }
 
@@ -3685,7 +3671,7 @@ async function onGpxFile(e) {
       activity.xpAwarded = 0;
       activity.skillsAwarded = {};
       await dbPut('activities', activity);
-      showToast({ type: 'xp', title: 'Sortie archivée', text: 'Antérieure au 1er septembre : stockée mais non comptée.' }, 4000);
+      showToast({ type: 'xp', title: 'Sortie archivée', text: 'Antérieure au 15 août : stockée mais non comptée.' }, 4000);
       await loadAll();
       render();
       return;
@@ -4586,39 +4572,6 @@ function renderProfil(root) {
     });
   }, 0);
 
-  // ── Profil sportif (chronos prédits + allures Daniels actuelles) ──────
-  const vdot = currentVDOT(State.activities);
-  if (vdot) {
-    const races = predictRaceTimes(vdot.vdot);
-    const paces = trainingPaces(vdot.vdot);
-    page.appendChild(el('h3', { class: 'mb-2' }, '⚡ Profil sportif'));
-    const sportCard = el('div', { class: 'card mb-4' });
-    const racesHtml = races ? Object.entries(races).map(([k, r]) => `
-      <div class="race-row">
-        <div class="race-dist">${k}</div>
-        <div class="race-time mono">${formatDuration(r.time)}</div>
-        <div class="race-pace dim mono">${formatPace(r.time / (r.distance / 1000))}</div>
-      </div>
-    `).join('') : '';
-    const pacesHtml = paces ? `
-      <div class="paces-grid">
-        <div class="pace-cell"><div class="pace-key">E</div><div class="pace-val mono">${formatPace(paces.E)}</div><div class="pace-desc">Footing</div></div>
-        <div class="pace-cell"><div class="pace-key">M</div><div class="pace-val mono">${formatPace(paces.M)}</div><div class="pace-desc">Marathon</div></div>
-        <div class="pace-cell"><div class="pace-key">T</div><div class="pace-val mono">${formatPace(paces.T)}</div><div class="pace-desc">Seuil</div></div>
-        <div class="pace-cell"><div class="pace-key">I</div><div class="pace-val mono">${formatPace(paces.I)}</div><div class="pace-desc">VMA</div></div>
-        <div class="pace-cell"><div class="pace-key">R</div><div class="pace-val mono">${formatPace(paces.R)}</div><div class="pace-desc">Sprint</div></div>
-      </div>
-    ` : '';
-    sportCard.innerHTML = `
-      <div class="dim text-xs mb-2">Estimations basées sur tes meilleures sorties récentes</div>
-      <div class="perf-section-title" style="margin-top:0; padding-top:0; border-top:0;">⏱ Chronos prédits</div>
-      <div class="races-list">${racesHtml}</div>
-      <div class="perf-section-title">🎯 Allures actuelles</div>
-      ${pacesHtml}
-    `;
-    page.appendChild(sportCard);
-  }
-
   // Compétences
   page.appendChild(el('h3', { class: 'mb-2' }, '⭐ Compétences'));
   const skCard = el('div', { class: 'card mb-4' });
@@ -4660,7 +4613,6 @@ function renderProfil(root) {
   page.appendChild(el('h3', { class: 'mb-2' }, '💾 Sauvegarde'));
   const saveCard = el('div', { class: 'card mb-4' });
   saveCard.innerHTML = `
-    <p class="dim text-sm mb-3">Données stockées localement. Sauvegarde auto au premier lancement de chaque journée (gardé 7 jours).</p>
     <div class="save-actions">
       <button class="btn-gpx" id="btn-export">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -4838,6 +4790,9 @@ async function buildWeekReport(wk) {
 async function showWeekReport(wk) {
   const r = await buildWeekReport(wk);
   const prev = await buildWeekReport(prevWeekKey(wk));
+  const chk = (await dbGet('meta', 'xpCheckResult'))?.value;
+  const chkTxt = !chk ? '' : chk.diff === 0 ? 'XP vérifiée : tout est cohérent ✓'
+    : `XP vérifiée : écart de ${chk.diff > 0 ? '+' : '−'}${Math.abs(chk.diff)} corrigé`;
   const ws = weekStartDate(wk);
   const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
   const fd = (d) => d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -4872,6 +4827,7 @@ async function showWeekReport(wk) {
       ${hasPrev ? `<div class="rg-row"><span class="rg-reason">XP net</span><span class="mono text-xs">${sign(prev.net)} → ${sign(r.net)} (${sign(dNet)})</span></div>
       <div class="rg-row" style="margin-top:6px;"><span class="rg-reason">Quêtes réussies</span><span class="mono text-xs">${prev.okCount} → ${r.okCount} (${sign(dOk)})</span></div>`
         : '<div class="dim text-xs">Pas de semaine précédente à comparer.</div>'}
+      ${chkTxt ? `<div class="dim text-xs mt-3" style="text-align:center;">${chkTxt}</div>` : ''}
       <button class="btn primary sm mt-3 wr-close" style="width:100%;">Fermer</button>
     </div>`;
   overlay.appendChild(modal);
@@ -4883,6 +4839,128 @@ async function showWeekReport(wk) {
 }
 
 // Au lancement : si la semaine précédente vient d'être évaluée et que son bilan n'a pas été vu.
+// ── Vérification hebdomadaire de l'XP ────────────────────────────────────────
+// computeExpectedXp() : recalcule, SANS rien écrire, l'XP totale attendue d'après les
+// données (activités, travail, complétions, malus/bonus déjà appliqués). Même logique que
+// recomputeAllXp(), mais en lecture seule.
+async function computeExpectedXp() {
+  let total = 0;
+  for (const a of await dbAllLive('activities')) total += activityXp(a, a.type || 'footing').xp || 0;
+  for (const l of await dbAllLive('workLog')) {
+    const totalMin = Object.values(l.bySubject || {}).reduce((s, m) => s + m, 0);
+    if (totalMin > 0) total += computeWorkXp(totalMin, l.goalHours || 0).xp || 0;
+  }
+  const quests = await dbAll('quests');
+  for (const c of await dbAllLive('completions')) {
+    const q = quests.find(x => x.id === c.questId);
+    if (!q) continue;
+    const value = c.actualValue || 0;
+    total += (q.type === 'weekly-hours'
+      ? computeHoursXp(value, q.goalHours)
+      : computeCountXp(value, q.id === 'wq-runs' ? await runsGoalFor(c.weekKey, q) : q.goalCount)).xp || 0;
+  }
+  if (arePenaltiesActive()) {
+    // Malus quotidiens déjà appliqués (jusqu'à lastDailyPenalty inclus).
+    const lastDaily = (await dbGet('meta', 'lastDailyPenalty'))?.value || '';
+    const sched = await dbAll('schedule');
+    for (const l of await dbAllLive('workLog')) {
+      // Comme applyPendingPenalties : le jour PENALTIES_START lui-même n'est jamais évalué (le curseur démarre le lendemain).
+      if (!l.date || l.date <= PENALTIES_START || l.date > lastDaily) continue;
+      const dayK = ['sun','mon','tue','wed','thu','fri','sat'][new Date(l.date + 'T12:00:00').getDay()];
+      total -= dailyWorkMalusXp(l, sched.find(x => x.id === dayK)?.workHours || 0);
+    }
+    // Jours planifiés sans aucune saisie (malus sur 0 XP gagné = 0) : rien à retirer.
+    // Malus / rigueur / bonus des semaines déjà évaluées.
+    const lastWeekly = (await dbGet('meta', 'lastWeeklyPenalty'))?.value || '';
+    const startWk = weekKey(new Date(PENALTIES_START + 'T00:00:00'));
+    for (let wk = startWk; lastWeekly && wk <= lastWeekly; wk = nextWeekKey(wk)) {
+      const pen = await computeWeekPenalties(wk);
+      total -= pen.malusXp + pen.selfXp;
+      total += pen.bonuses.reduce((a, b) => a + b.xp, 0);
+    }
+  }
+  return Math.max(0, Math.round(total));
+}
+
+// Une fois par semaine (meta `xpCheckWeek`) : compare l'XP du profil à l'XP attendue.
+// Si un écart existe, le total est corrigé et l'écart est mémorisé (meta `xpCheckResult`).
+// ── Intégration unique des données du 15 au 31 août 2026 ─────────────────────
+// Ces données étaient « fantômes » (XP à 0 / non comptées). Une seule fois (meta
+// `augustIntegrated`), on leur accorde l'XP, on recalcule les quêtes des semaines concernées,
+// les records et le VDOT. Les semaines à partir du 1er septembre ne sont pas recalculées
+// (sauf la semaine du 31 août, dont la quête change car le 31 août devient compté).
+const AUGUST_END = '2026-09-01';
+async function integrateAugustData() {
+  if ((await dbGet('meta', 'augustIntegrated'))?.value) return null;
+  if (!State.profile) return null;
+  const inRange = (d) => { const k = String(d || '').slice(0, 10); return k >= GHOST_BEFORE && k < AUGUST_END; };
+  const before = Math.round(State.profile.totalXp);
+  const counts = { activities: 0, workLogs: 0, completions: 0 };
+
+  // 1) Activités
+  const acts = (await dbAll('activities')).filter(a => inRange(a.date)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  for (const a of acts) {
+    const { xp, skills } = activityXp(a, a.type || 'footing');
+    a.xpAwarded = xp; a.skillsAwarded = skills;
+    await dbPut('activities', a);
+    if (xp > 0) await awardXp(xp, skills);
+    counts.activities++;
+  }
+  // 2) Travail (même formule que recomputeAllXp)
+  const logs = (await dbAll('workLog')).filter(l => inRange(l.date)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  for (const l of logs) {
+    const bySubject = l.bySubject || {};
+    const totalMin = Object.values(bySubject).reduce((s, m) => s + m, 0);
+    if (totalMin === 0) { l.lastXpAwarded = 0; l.lastSkillsAwarded = {}; await dbPut('workLog', l); continue; }
+    const { xp: newXp } = computeWorkXp(totalMin, l.goalHours || 0);
+    const sk = {};
+    for (const [subj, mins] of Object.entries(bySubject)) {
+      const meta = SUBJECTS[subj];
+      if (!meta) continue;
+      sk[meta.skill] = (sk[meta.skill] || 0) + Math.round(newXp * (mins / totalMin) * (meta.skillMult ?? 0.6));
+    }
+    sk.discipline = (sk.discipline || 0) + Math.round(newXp * 0.04);
+    l.lastXpAwarded = newXp; l.lastSkillsAwarded = sk;
+    await dbPut('workLog', l);
+    if (newXp > 0) await awardXp(newXp, sk);
+    counts.workLogs++;
+  }
+  // 3) Quêtes : les complétions datées d'août n'ont jamais été comptées → on repart de 0 XP
+  //    puis recomputeAutoQuests accorde l'XP complète de chaque semaine.
+  for (const c of (await dbAll('completions')).filter(c => inRange(c.date))) {
+    c.lastXp = 0; c.lastSkillsXp = {}; c.xp = 0; c.skills = {};
+    await dbPut('completions', c);
+    counts.completions++;
+  }
+  const lastWk = weekKey(new Date(AUGUST_END + 'T12:00:00'));
+  for (let wk = weekKey(new Date(GHOST_BEFORE + 'T12:00:00')); wk <= lastWk; wk = nextWeekKey(wk)) {
+    await recomputeAutoQuests(wk);
+  }
+  // 4) Records et VDOT (le VDOT se déduit des activités rechargées)
+  await recomputeAllRecords();
+  await loadAll();
+  const after = Math.round(State.profile.totalXp);
+  const res = { before, after, delta: after - before, counts, at: new Date().toISOString() };
+  await dbPut('meta', { key: 'augustIntegration', value: res });
+  await dbPut('meta', { key: 'augustIntegrated', value: true });
+  return res;
+}
+
+async function weeklyXpCheck() {
+  const wk = weekKey();
+  if ((await dbGet('meta', 'xpCheckWeek'))?.value === wk) return;
+  if (!State.profile) return;
+  const expected = await computeExpectedXp();
+  const actual = Math.round(State.profile.totalXp);
+  const diff = actual - expected;
+  if (diff !== 0) {
+    await applyXpDelta(-diff, {});
+    await loadAll();
+  }
+  await dbPut('meta', { key: 'xpCheckResult', value: { wk, diff, actual, expected } });
+  await dbPut('meta', { key: 'xpCheckWeek', value: wk });
+}
+
 async function showWeekReportIfDue() {
   if (!arePenaltiesActive()) return;
   const wk = prevWeekKey(weekKey());
@@ -4921,7 +4999,7 @@ async function showReminderNotification(kind) {
   showToast({ type: 'xp', title: d.icon + ' ' + d.title.replace('Orion · ', ''), text: d.body }, 6000);
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      const opts = { body: d.body, icon: 'icons/icon-192.png', badge: 'icons/favicon.png', tag: 'orion-' + kind };
+      const opts = { body: d.body, icon: 'icons/icon-192.png', badge: 'icons/badge.png', tag: 'orion-' + kind };
       const reg = await navigator.serviceWorker?.getRegistration();
       if (reg?.showNotification) await reg.showNotification(d.title, opts);
       else new Notification(d.title, opts);
@@ -5002,7 +5080,6 @@ async function renderRemindersCard(card) {
       ${perm === 'default' ? '<button class="btn ghost sm" id="rem-perm">Autoriser les notifications</button>' : ''}
       <button class="btn ghost sm" id="rem-ics">📅 Ajouter au calendrier</button>
     </div>
-    <div class="dim text-xs mt-3">Sans serveur, Orion ne peut notifier que lorsqu'il est ouvert ou récemment actif. Pour des rappels fiables même app fermée, ajoute-les au calendrier du téléphone (alarme quotidienne). Si tu changes l'heure, réexporte et supprime l'ancien événement.</div>
   `;
   card.querySelectorAll('.rem-row').forEach(row => {
     const k = row.dataset.kind;
@@ -5054,21 +5131,29 @@ async function init() {
 
   // Bascule « données fantômes » : une seule fois, on recalcule XP, niveaux et
   // records en ignorant tout ce qui précède GHOST_BEFORE (rien n'est supprimé).
+  // Le recalcul global ne tourne qu'une seule fois (installation sans flag). Quand GHOST_BEFORE
+  // recule (1er sept. → 15 août), c'est integrateAugustData() qui s'en charge, sans tout refaire.
   const ghostFlag = await dbGet('meta', 'ghostCutoffApplied');
-  if (ghostFlag?.value !== GHOST_BEFORE) {
+  if (!ghostFlag?.value) {
     try {
       await recomputeAllXp();
       await recomputeAllRecords();
       await dbPut('meta', { key: 'ghostCutoffApplied', value: GHOST_BEFORE });
+      await dbPut('meta', { key: 'augustIntegrated', value: true });   // déjà inclus dans ce recalcul
       await loadAll();
     } catch (err) { console.error('Ghost recompute failed', err); }
   }
+  try {
+    const aug = await integrateAugustData();
+    if (aug) showToast({ type: 'xp', title: 'Données du 15 août intégrées', text: `XP ${aug.before} → ${aug.after} (${aug.delta >= 0 ? '+' : '−'}${Math.abs(aug.delta)})` }, 7000);
+  } catch (err) { console.error('August integration failed', err); }
   await migrateSleepCounter();
   await recomputeAutoQuests();
 
   // Applique les malus/bonus pour les jours/semaines déjà passés depuis la rentrée.
   const tick = await applyPendingPenalties();
   await loadAll();
+  try { await weeklyXpCheck(); } catch (err) { console.error('XP check failed', err); }
 
   // Sauvegarde automatique : 1× par jour au premier lancement.
   // Silencieuse : on ne notifie que si elle a réellement créé un snapshot.

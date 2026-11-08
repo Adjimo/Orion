@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v59';
+const VERSION = 'orion-v66';
 const ASSETS = [
   './',
   './index.html',
@@ -15,6 +15,7 @@ const ASSETS = [
   './icons/logo.png',
   './icons/icon-192.png',
   './icons/icon-512.png',
+  './icons/badge.png',
 ];
 
 // ── Installation : on précharge tous les assets locaux dans un cache versionné.

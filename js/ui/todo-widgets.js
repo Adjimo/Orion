@@ -41,11 +41,9 @@ export async function renderDayTodo(root, dateKey) {
 
   const box = el('div', { class: 'td-group' });
   const mine = items.filter(i => i.day === day);
-  const late = dateKey === today ? items.filter(i => i.day < day && !i.done && !i.noCarry) : [];
   box.appendChild(countHead('✅ À faire', mine));
   if (!hasTodo(monday)) box.appendChild(el('div', { class: 'pl-note' }, 'Pas de to-do pendant les révisions et les concours.'));
-  else if (!mine.length && !late.length) box.appendChild(el('div', { class: 'pl-note' }, 'Rien de prévu : journée libre.'));
-  late.forEach(it => box.appendChild(itemRow(it, { editable, chip: DAY_LABELS[it.day - 1].toLowerCase(), showSubj: true }, change)));
+  else if (!mine.length) box.appendChild(el('div', { class: 'pl-note' }, 'Rien de prévu : journée libre.'));
   mine.sort((a, b) => (a.ord || 0) - (b.ord || 0)).forEach(it => box.appendChild(itemRow(it, { editable, showSubj: true }, change)));
   root.appendChild(box);
   if (editable && hasTodo(monday)) root.appendChild(el('button', { class: 'btn full sm pl-add', onclick: () => openTodoPicker(monday, day, false, rerender) }, '+ Ajouter à ce jour'));

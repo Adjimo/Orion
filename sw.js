@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v73';
+const VERSION = 'orion-v75';
 const ASSETS = [
   './',
   './index.html',
@@ -29,9 +29,9 @@ const ASSETS = [
   './js/features/weekly-goals.js',
   './js/features/work.js',
   './js/main.js',
+  './js/ui/todo-widgets.js',
   './js/pages/home.js',
   './js/pages/planning.js',
-  './js/pages/planning-todo.js',
   './js/pages/profile.js',
   './js/pages/quests.js',
   './js/pages/sport.js',

@@ -1,10 +1,14 @@
 // Page Accueil
 import { daysUntil, formatCountdown, formatDate, startOfWeek, todayKey } from '../core/dates.js';
 import { State } from '../core/state.js';
-import { SKILL_META, deriveLevel, getNextRank, getRank } from '../core/xp.js';
+import { dbPut } from '../core/db.js';
+import { deriveLevel, getNextRank, getRank } from '../core/xp.js';
 import { computeYearProgress } from '../features/exams.js';
+import { loadAll } from '../features/seed.js';
 import { formatMinutes } from '../features/work.js';
 import { el, escapeHtml, progressBar } from '../ui/helpers.js';
+import { render } from '../ui/router.js';
+import { renderProfileSections } from './profile.js';
 
 export function greeting() {
   const h = new Date().getHours();
@@ -40,11 +44,19 @@ export function renderHome(root) {
 
   const page = el('div', { class: 'page' });
 
-  // Header
-  page.appendChild(el('div', { class: 'header' }, [
-    el('div', { class: 'dim text-sm' }, greeting()),
-    el('div', { class: 'text-2xl' }, p.name),
-    rank ? el('div', { class: 'rank-pill', style: `--rank-c: ${rank.color};` }, '✦ ' + rank.title) : null
+  // Header (nom modifiable, rang, ancienneté)
+  const editBtn = el('button', { class: 'btn ghost sm', 'aria-label': 'Modifier le nom', onclick: async () => {
+    const name = prompt('Ton nom :', p.name);
+    if (name && name.trim()) { p.name = name.trim(); await dbPut('profile', p); await loadAll(); render(); }
+  } }, '✎');
+  page.appendChild(el('div', { class: 'header flex between' }, [
+    el('div', {}, [
+      el('div', { class: 'dim text-sm' }, greeting()),
+      el('div', { class: 'text-2xl' }, p.name),
+      rank ? el('div', { class: 'rank-pill', style: `--rank-c: ${rank.color};` }, '✦ ' + rank.title) : null,
+      el('div', { class: 'dim text-xs mt-2' }, `Membre depuis ${formatDate(p.createdAt)}`)
+    ]),
+    editBtn
   ]));
 
   // Hero niveau
@@ -112,23 +124,8 @@ export function renderHome(root) {
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(weekWorkMin)}</div><div class="stat-label">cette semaine</div></div>
   `}));
 
-  // Compétences
-  page.appendChild(el('h3', { class: 'mb-2' }, 'Compétences'));
-  const skillsHtml = Object.entries(p.skills).map(([k, sk]) => {
-    const meta = SKILL_META[k];
-    const info = deriveLevel(sk.xp);
-    return `
-      <div class="skill-card" style="--c: ${meta.color}">
-        <div class="skill-top">
-          <span class="skill-icon">${meta.icon}</span>
-          <span class="skill-lvl" style="color:${meta.color}">Niv. ${info.level}</span>
-        </div>
-        <div class="skill-name">${meta.label}</div>
-        ${progressBar(info.progress, 6)}
-      </div>
-    `;
-  }).join('');
-  page.appendChild(el('div', { class: 'skills mb-3', html: skillsHtml }));
+  // Compétences, bilan hebdo, rappels, sauvegarde (ex-page Profil)
+  renderProfileSections(page);
 
   root.appendChild(page);
 }

@@ -3,7 +3,6 @@ import { MODE_LABELS, SCHOOL_START, YEAR_END, addDays, mondayOf, parseKey } from
 import { todayKey } from '../core/dates.js';
 import { DAY_LABELS, buildWeek, formatDuration, loadOverrides, removeOverride, saveOverride, toMin } from '../features/planning.js';
 import { el } from '../ui/helpers.js';
-import { renderTodoView } from './planning-todo.js';
 
 const view = { monday: null, day: null, tab: 'agenda' };
 const MIN_MONDAY = mondayOf(SCHOOL_START);
@@ -33,8 +32,15 @@ function freeCard(b) {
   ]);
 }
 
+function pauseCard(b) {
+  return el('div', { class: 'pl-card pl-pause' }, [
+    el('div', { class: 'pl-time' }, [el('span', {}, hhmm(b.start)), el('span', { class: 'pl-time-end' }, hhmm(b.end))]),
+    el('div', { class: 'pl-body' }, [el('div', { class: 'pl-title' }, 'Pause repas')])
+  ]);
+}
+
 function dayList(day, mode, onTap) {
-  const items = [...day.events.map(e => ({ t: toMin(e.start), node: eventCard(e, onTap) })), ...day.free.map(b => ({ t: toMin(b.start), node: freeCard(b) }))]
+  const items = [...day.events.map(e => ({ t: toMin(e.start), node: eventCard(e, onTap) })), ...day.free.map(b => ({ t: toMin(b.start), node: freeCard(b) })), ...day.pauses.map(b => ({ t: toMin(b.start), node: pauseCard(b) }))]
     .sort((a, b) => a.t - b.t).map(x => x.node);
   const wrap = el('div', { class: 'pl-list' });
   const note = day.info.holiday ? `Jour férié · ${day.info.holiday}` : day.info.vacation ? `Vacances · ${day.info.vacation}` : null;
@@ -66,10 +72,6 @@ export async function renderPlanning(root) {
     ]),
     el('button', { class: 'pl-nav', onclick: () => go(1), 'aria-label': 'Semaine suivante' }, '›')
   ]));
-  root.appendChild(el('div', { class: 'pl-scope pl-tabs' }, [['agenda', 'Agenda'], ['todo', 'À faire']].map(([id, label]) => el('button', {
-    class: `pl-seg${view.tab === id ? ' active' : ''}`, onclick: () => { view.tab = id; rerender(); }
-  }, label))));
-  if (view.tab === 'todo') { await renderTodoView(root, week, rerender); return; }
   root.appendChild(el('div', { class: 'pl-summary' }, [
     el('span', {}, 'Travail personnel disponible'), el('strong', {}, formatDuration(week.freeMinutes))
   ]));

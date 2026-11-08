@@ -10,15 +10,25 @@ import { RUNS_GOAL_MAX, getSleepLog, runsGoalFor, setRunsGoal, toggleSleepNight 
 import { SUBJECTS, computeWorkXp, formatMinutes, parseTimeInput } from '../features/work.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
 import { render } from '../ui/router.js';
+import { renderDayTodo, renderWeekTodo } from '../ui/todo-widgets.js';
+import { mondayOf } from '../core/calendar.js';
 
-export function renderQuetes(root) {
+// Page « Aujourd'hui » : tableau de bord du jour (sport, temps de travail par matière) + to-do du jour.
+export function renderToday(root) {
   const page = el('div', { class: 'page' });
-  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Objectifs')]));
-
-  // Aujourd'hui (sport + travail)
-  page.appendChild(el('h3', { class: 'mb-2' }, '📆 Aujourd\'hui'));
-  const dashWrap = el('div', { class: 'mb-5' });
+  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Aujourd\'hui')]));
+  const dashWrap = el('div', { class: 'mb-3' });
   page.appendChild(dashWrap);
+  const todoWrap = el('div', { class: 'mb-5' });
+  page.appendChild(todoWrap);
+  root.appendChild(page);
+  renderDayDashboard(dashWrap, (dateKey) => renderDayTodo(todoWrap, dateKey));
+}
+
+// Page « Hebdo » : objectifs de la semaine (sport, travail, rigueur) + to-do de la semaine.
+export function renderHebdo(root) {
+  const page = el('div', { class: 'page' });
+  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Hebdo')]));
 
   // ── 🏃 SPORT (quête sorties principales) ─────────────────────────────
   page.appendChild(el('h3', { class: 'mb-1' }, '🏃 Sport'));
@@ -35,6 +45,11 @@ export function renderQuetes(root) {
   const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(travailWrap);
 
+  // ── ✅ TO-DO DE LA SEMAINE ───────────────────────────────────────────
+  page.appendChild(el('h3', { class: 'mb-2' }, '✅ To-do de la semaine'));
+  const todoWrap = el('div', { class: 'mb-5' });
+  page.appendChild(todoWrap);
+
   // ── ⚖️ RIGUEUR (auto-sanctions) ─────────────────────
   page.appendChild(el('h3', { class: 'mb-1' }, '⚖️ Rigueur'));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
@@ -43,9 +58,7 @@ export function renderQuetes(root) {
 
   root.appendChild(page);
   renderRigueurSection(rigueurWrap);
-
-  // Render async, en filtrant par questId pour chaque section
-  renderDayDashboard(dashWrap);
+  renderWeekTodo(todoWrap, mondayOf(todayKey()));
   renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']);
   renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-sleep', 'wq-langues', 'wq-lettres', 'wq-si']);
 }
@@ -62,7 +75,7 @@ export async function renderWeeklyQuestsFiltered(root, questIds) {
   }
 }
 
-export async function renderDayDashboard(root) {
+export async function renderDayDashboard(root, afterRender) {
   // Jour affiché : aujourd'hui par défaut, ou un jour choisi (entre GHOST_BEFORE et aujourd'hui).
   let dateKey = State.dashDate || todayKey();
   if (dateKey > todayKey() || dateKey < GHOST_BEFORE) dateKey = todayKey();
@@ -155,7 +168,7 @@ export async function renderDayDashboard(root) {
   // Sélecteur de jour
   const gotoDay = async (key) => {
     State.dashDate = key >= todayKey() ? null : key;
-    await renderDayDashboard(root);
+    await renderDayDashboard(root, afterRender);
   };
   const shiftDay = (n) => {
     const d = new Date(dateKey + 'T12:00:00'); d.setDate(d.getDate() + n);
@@ -168,6 +181,8 @@ export async function renderDayDashboard(root) {
     const v = e.target.value;
     if (v && v >= GHOST_BEFORE && v <= todayKey()) gotoDay(v);
   });
+
+  afterRender?.(dateKey);
 
   if (goalHours > 0) {
     const grid = root.querySelector('#subjects-grid');

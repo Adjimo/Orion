@@ -1,49 +1,14 @@
 // Page Profil
 import { formatDate, prevWeekKey, weekKey } from '../core/dates.js';
-import { dbAll, dbPut } from '../core/db.js';
+import { dbAll } from '../core/db.js';
 import { APP_VERSION, State } from '../core/state.js';
-import { SKILL_META, deriveLevel, getRank } from '../core/xp.js';
+import { SKILL_META, deriveLevel } from '../core/xp.js';
 import { downloadAutoBackup, exportData, onImportFile, renderRemindersCard, showWeekReport } from '../features/backup.js';
-import { loadAll } from '../features/seed.js';
-import { el, escapeHtml, progressBar } from '../ui/helpers.js';
-import { render } from '../ui/router.js';
+import { el, progressBar } from '../ui/helpers.js';
 
-export function renderProfil(root) {
+// Sections du profil (compétences, bilan, rappels, sauvegarde), affichées en bas de l'Accueil.
+export function renderProfileSections(page) {
   const p = State.profile;
-  const li = deriveLevel(p.totalXp);
-  const rank = getRank(li.level);
-
-  const page = el('div', { class: 'page' });
-  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Profil')]));
-
-  // Carte
-  const card = el('div', { class: 'card glow mb-4' });
-  card.innerHTML = `
-    <div class="flex between">
-      <div>
-        <div class="text-2xl">${escapeHtml(p.name)}</div>
-        <div class="rank-pill" style="--rank-c:${rank.color};">✦ ${rank.title}</div>
-        <div class="dim text-xs mt-2">Membre depuis ${formatDate(p.createdAt)}</div>
-      </div>
-      <button class="btn ghost sm" id="edit-name">✎</button>
-    </div>
-    <div class="flex gap-3 mt-3">
-      <div><div class="dim text-xs">Niveau</div><div class="text-xl grad-text">${li.level}</div></div>
-      <div><div class="dim text-xs">XP total</div><div class="text-xl">${p.totalXp}</div></div>
-    </div>
-  `;
-  page.appendChild(card);
-  setTimeout(() => {
-    card.querySelector('#edit-name').addEventListener('click', async () => {
-      const name = prompt('Ton nom :', p.name);
-      if (name && name.trim()) {
-        p.name = name.trim();
-        await dbPut('profile', p);
-        await loadAll();
-        render();
-      }
-    });
-  }, 0);
 
   // Compétences
   page.appendChild(el('h3', { class: 'mb-2' }, '⭐ Compétences'));
@@ -131,5 +96,4 @@ export function renderProfil(root) {
     style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);'
   }, `Orion v${APP_VERSION}`));
 
-  root.appendChild(page);
 }

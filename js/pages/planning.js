@@ -51,6 +51,7 @@ function dayList(day, mode, onTap) {
 }
 
 export async function renderPlanning(root) {
+  if (!root.classList.contains('page')) { const pg = el('div', { class: 'page' }); root.innerHTML = ''; root.appendChild(pg); root = pg; }
   const today = todayKey();
   if (!view.monday) view.monday = mondayOf(today);
   const rerender = () => { root.innerHTML = ''; renderPlanning(root); };
@@ -81,6 +82,8 @@ export async function renderPlanning(root) {
     onclick: () => { view.day = i; root.innerHTML = ''; renderPlanning(root); }
   }, [el('span', {}, d.label.slice(0, 3)), el('b', {}, String(parseKey(d.date).getDate())),
       el('i', { class: (d.events.length || d.info.vacation || d.info.holiday) ? 'on' : '' })]))));
+
+  root.appendChild(el('div', { class: 'pl-legend' }, [['Cours', 'var(--ev-cours)'], ['Colle', 'var(--ev-colle)'], ['DS', 'var(--ev-ds)'], ['Libre', 'var(--border-strong)']].map(([l, c]) => el('span', { style: `--c:${c}` }, l))));
 
   if (week.unscheduled.length) {
     root.appendChild(el('div', { class: 'pl-card pl-colle pl-unsched pl-tap' }, [

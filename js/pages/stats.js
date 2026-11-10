@@ -121,16 +121,16 @@ export function renderStats(root) {
 
 // Helpers de styling Chart.js cohérents avec la palette Orion.
 export const CHART_COLORS = {
-  text: '#bdb49b',
-  textMute: '#8a8270',
+  text: '#B8B2A7',
+  textMute: '#8C8579',
   grid: 'rgba(187, 166, 119, 0.12)',
-  gold: '#e6c36a',
+  gold: '#E3B089',
   goldFade: 'rgba(230,195,106, 0.18)',
-  warm: '#d9a441',
-  cool: '#bba677',
+  warm: '#D08A4E',
+  cool: '#C8814A',
   violet: '#b0705a',
-  pink: '#a8742a',
-  bg: '#242422'
+  pink: '#B5703B',
+  bg: '#1E1E1E'
 };
 
 export function chartCommonOptions() {
@@ -190,8 +190,8 @@ export function renderVO2maxChart(acts) {
   const data = points.map(p => p.vo2);
   const ctxC = ctx.getContext('2d');
   const grad = ctxC.createLinearGradient(0, 0, 0, 160);
-  grad.addColorStop(0, 'rgba(187,166,119, 0.4)');
-  grad.addColorStop(1, 'rgba(187,166,119, 0)');
+  grad.addColorStop(0, 'rgba(200,129,74, 0.4)');
+  grad.addColorStop(1, 'rgba(200,129,74, 0)');
   State.charts.vo2 = new Chart(ctx, {
     type: 'line',
     data: {
@@ -205,7 +205,7 @@ export function renderVO2maxChart(acts) {
         tension: 0.35,
         pointRadius: 4,
         pointHoverRadius: 6,
-        pointBackgroundColor: '#e6c36a',
+        pointBackgroundColor: '#E3B089',
         pointBorderColor: CHART_COLORS.bg,
         pointBorderWidth: 1.5,
         fill: true

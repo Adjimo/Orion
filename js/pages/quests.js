@@ -98,7 +98,7 @@ export async function renderDayDashboard(root, afterRender) {
   const todayActs = State.activities.filter(a => a.date.slice(0, 10) === dateKey);
   const sportDone = todayActs.length > 0;
 
-  const barColor = wi.ratio < 0.5 ? '#7d7664' : wi.ratio < 1 ? '#d8c797' : '#d9a441';
+  const barColor = wi.ratio < 0.5 ? '#7d7664' : wi.ratio < 1 ? '#E3B089' : '#D08A4E';
 
   let sportBlock = '';
   if (showSport) {
@@ -257,7 +257,7 @@ export async function _renderOneQuest(root, q, category) {
 
   const div = el('div', {
     class: 'hq' + (ratio >= 1 ? ' done' : ''),
-    style: `--hq-c: ${q.color || '#d9a441'};`
+    style: `--hq-c: ${q.color || '#D08A4E'};`
   });
   div.innerHTML = `
     <div class="hq-head">

@@ -188,7 +188,7 @@ export const ORION_MAP_STYLE = {
   },
   layers: [
     // Fond sombre neutre
-    { id: 'bg', type: 'background', paint: { 'background-color': '#1a1917' } },
+    { id: 'bg', type: 'background', paint: { 'background-color': '#181818' } },
     // Eau : gris-brun plus profond que la terre
     { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
       paint: { 'fill-color': '#0f0f0e', 'fill-opacity': 1 } },
@@ -202,7 +202,7 @@ export const ORION_MAP_STYLE = {
     // Bâti
     { id: 'buildings', type: 'fill', source: 'openmaptiles', 'source-layer': 'building',
       minzoom: 13,
-      paint: { 'fill-color': '#2b2a26', 'fill-outline-color': '#3b3935' } },
+      paint: { 'fill-color': '#2b2a26', 'fill-outline-color': '#333231' } },
     // Routes : de gris-brun à khaki selon l'importance
     { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
       filter: ['in', 'class', 'minor', 'service', 'track'],
@@ -217,7 +217,7 @@ export const ORION_MAP_STYLE = {
     // Frontières
     { id: 'admin-bounds', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
       filter: ['<=', 'admin_level', 4],
-      paint: { 'line-color': '#bba677', 'line-width': 0.7, 'line-opacity': 0.35, 'line-dasharray': [2, 2] } },
+      paint: { 'line-color': '#C8814A', 'line-width': 0.7, 'line-opacity': 0.35, 'line-dasharray': [2, 2] } },
     // Noms de lieux : khaki
     { id: 'place-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
       filter: ['in', 'class', 'city', 'town', 'village'],
@@ -227,7 +227,7 @@ export const ORION_MAP_STYLE = {
         'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 12, 14],
         'text-anchor': 'center'
       },
-      paint: { 'text-color': '#bba677', 'text-halo-color': '#121211', 'text-halo-width': 1.4, 'text-opacity': 0.9 } }
+      paint: { 'text-color': '#C8814A', 'text-halo-color': '#121212', 'text-halo-width': 1.4, 'text-opacity': 0.9 } }
   ]
 };
 
@@ -261,19 +261,19 @@ export function renderMapInto(mapEl, activity) {
     map.addLayer({
       id: 'track-halo', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#dcc98f', 'line-width': 12, 'line-opacity': 0.28, 'line-blur': 4 }
+      paint: { 'line-color': '#E3B089', 'line-width': 12, 'line-opacity': 0.28, 'line-blur': 4 }
     });
     // Halo brun intermédiaire
     map.addLayer({
       id: 'track-glow', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#a8742a', 'line-width': 7, 'line-opacity': 0.55 }
+      paint: { 'line-color': '#B5703B', 'line-width': 7, 'line-opacity': 0.55 }
     });
     // Trait principal khaki clair
     map.addLayer({
       id: 'track-main', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#e3d3a2', 'line-width': 3 }
+      paint: { 'line-color': '#EBC29C', 'line-width': 3 }
     });
 
     // Markers départ (crème) et arrivée (brun)

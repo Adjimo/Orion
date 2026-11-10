@@ -84,8 +84,8 @@ export function renderHome(root) {
   if (nextExam) {
     const yearProgress = computeYearProgress(nextExam.date);
     const yearPct = Math.round(yearProgress * 100);
-    const pctColor = yearPct < 25 ? '#d8c797' : yearPct < 50 ? '#bba677' : yearPct < 75 ? '#d9a441' : '#a8742a';
-    const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#a8742a' : nextExam.days < 180 ? '#d9a441' : '#d8c797';
+    const pctColor = yearPct < 25 ? '#E3B089' : yearPct < 50 ? '#C8814A' : yearPct < 75 ? '#D08A4E' : '#B5703B';
+    const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#B5703B' : nextExam.days < 180 ? '#D08A4E' : '#E3B089';
 
     page.appendChild(el('div', { class: 'mb-4', html: `
       <div class="cd-card">

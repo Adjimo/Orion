@@ -1,19 +1,20 @@
 // To-do hebdomadaire : génération par rotation, report automatique, cases à cocher (sans XP).
 // Store planTodo ; curseurs et historique dans meta 'todoState'.
 import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
-import { YEAR_END, SCHOOL_START, addDays, mondayOf, weekMode } from '../core/calendar.js';
+import { YEAR_END, SCHOOL_START, addDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { COLLES_G8, weekIndexOf } from './planning-data.js';
 import { ANGLAIS_FIXED, ANGLAIS_ROTATION, DAY_PLAN, FRANCAIS_ROTATION, SI_LABEL, TODO_BUDGET, TODO_CATALOG, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
 
 const STATE_KEY = 'todoState';
+const isoDay = (key) => parseKey(key).getDay() || 7;
 let seq = 0;
 const nextOrd = () => Date.now() * 1000 + (seq++ % 1000);
 const uid = (w) => `${w}|c:${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 async function loadState() {
   const v = (await dbGet('meta', STATE_KEY))?.value;
-  return { lastWeek: v?.lastWeek || null, cursors: v?.cursors || {}, lastDone: v?.lastDone || {} };
+  return { v: v?.v || 0, startDate: v?.startDate || null, lastWeek: v?.lastWeek || null, cursors: v?.cursors || {}, lastDone: v?.lastDone || {} };
 }
 const saveState = (st) => dbPut('meta', { key: STATE_KEY, value: st });
 
@@ -27,22 +28,22 @@ function makeItem(w, subj, key, label) {
 }
 
 // Répartition par jour : un chapitre de maths / de physique par jour, SI, anglais et français sur des jours fixes.
-export function assignDays(items) {
+export function assignDays(items, fromDay = 1) {
   const byOrder = (a, b) => (b.carried - a.carried) || ((a.ord || 0) - (b.ord || 0));
   for (const subj of ['maths', 'physique']) {
-    items.filter(i => i.subj === subj && i.key && !i.custom).sort(byOrder).forEach((it, idx) => { it.day = (idx % 7) + 1; });
+    items.filter(i => i.subj === subj && i.key && !i.custom).sort(byOrder).forEach((it, idx) => { it.day = Math.min(7, fromDay + idx); });
   }
   for (const it of items) {
-    if (!it.key || it.custom) { if (!it.day) it.day = 1; continue; }
-    if (it.key === 'si:main') it.day = DAY_PLAN.si;
+    if (!it.key || it.custom) { it.day = Math.max(it.day || 1, fromDay); continue; }
+    if (it.key === 'si:main') it.day = Math.max(DAY_PLAN.si, fromDay);
     else if (it.key.startsWith('anglais:vocab')) { it.day = Number(it.key.split(':')[2]) || 1; it.noCarry = true; }
-    else if (it.subj === 'anglais') it.day = DAY_PLAN.anglaisSession;
-    else if (it.subj === 'francais') it.day = DAY_PLAN.francais;
+    else if (it.subj === 'anglais') it.day = Math.max(DAY_PLAN.anglaisSession, fromDay);
+    else if (it.subj === 'francais') it.day = Math.max(DAY_PLAN.francais, fromDay);
   }
 }
 
 // Génère les éléments d'une semaine (les éléments reportés y sont déjà).
-function generate(w, st, items) {
+function generate(w, st, items, fromDay = 1) {
   const has = (key) => items.some(i => i.key === key);
   const add = (subj, key, label) => { if (!has(key)) items.push(makeItem(w, subj, key, label)); };
 
@@ -71,12 +72,12 @@ function generate(w, st, items) {
     for (const x of pool.slice(0, Math.max(0, count - have))) add(subj, `${subj}:${x.n}`, x.n);
   };
 
-  for (const d of VOCAB_DAYS) { add('anglais', `anglais:vocab:${d}`, ANGLAIS_FIXED.vocab); const v = items.find(i => i.key === `anglais:vocab:${d}`); v.day = d; v.noCarry = true; }
+  for (const d of VOCAB_DAYS.filter(x => x >= fromDay)) { add('anglais', `anglais:vocab:${d}`, ANGLAIS_FIXED.vocab); const v = items.find(i => i.key === `anglais:vocab:${d}`); v.day = d; v.noCarry = true; }
   if (hasAnglaisColle(w)) { add('anglais', 'anglais:gram', ANGLAIS_FIXED.gram); rotate('anglais', ANGLAIS_ROTATION, 1); }
   else rotate('anglais', ANGLAIS_ROTATION, 2);
   rotate('francais', FRANCAIS_ROTATION, 1);
   add('si', 'si:main', SI_LABEL);
-  assignDays(items);
+  assignDays(items, fromDay);
 }
 
 // Pas de to-do pendant les deux semaines de révisions ni pendant les concours.
@@ -92,15 +93,34 @@ async function migrateDays(all) {
   }
 }
 
+// Les éléments non faits d'un jour passé de la semaine en cours passent au jour courant.
+async function rollover(all, today) {
+  const monday = mondayOf(today);
+  if (!hasTodo(monday)) return;
+  const day = isoDay(today);
+  for (const it of all) {
+    if (it.weekKey !== monday || it.done || it.carriedTo || it.noCarry || it.day >= day) continue;
+    it.day = day; it.rolled = true;
+    await dbPut('planTodo', it);
+  }
+}
+
 async function run(today) {
   const first = mondayOf(SCHOOL_START), last = mondayOf(YEAR_END);
   let target = mondayOf(today);
   if (target < first) return;
   if (target > last) target = last;
-  const st = await loadState();
-  const all = await dbAll('planTodo');
+  let st = await loadState();
+  let all = await dbAll('planTodo');
+  // Remise à zéro unique : la to-do démarre aujourd'hui (pas de reports d'avant la fonctionnalité).
+  if (st.v !== 2) {
+    for (const it of all) await dbDelete('planTodo', it.id);
+    all = [];
+    st = { v: 2, startDate: today, lastWeek: null, cursors: {}, lastDone: {} };
+    await saveState(st);
+  }
   await migrateDays(all);
-  if (st.lastWeek && st.lastWeek >= target) return;
+  const startMonday = mondayOf(st.startDate || today);
   let w = st.lastWeek ? addDays(st.lastWeek, 7) : target;
   while (w <= target) {
     const items = all.filter(i => i.weekKey === w);
@@ -109,18 +129,19 @@ async function run(today) {
       const prevWeek = all.filter(i => i.weekKey < w).reduce((m, i) => (i.weekKey > m ? i.weekKey : m), '');
       for (const p of all.filter(i => i.weekKey === prevWeek && !i.done && !i.carriedTo && !i.noCarry)) {
         if (p.key && items.some(i => i.key === p.key)) continue;
-        const n = { ...p, id: p.key ? `${w}|${p.key}` : uid(w), weekKey: w, done: false, doneAt: null, carried: true, origin: p.origin || p.weekKey, carriedTo: null };
+        const n = { ...p, id: p.key ? `${w}|${p.key}` : uid(w), weekKey: w, done: false, doneAt: null, carried: true, rolled: false, origin: p.origin || p.weekKey, carriedTo: null };
         items.push(n);
         p.carriedTo = w;
         await dbPut('planTodo', p);
       }
-      generate(w, st, items);
+      generate(w, st, items, w === startMonday ? isoDay(st.startDate || today) : 1);
       for (const it of items) { await dbPut('planTodo', it); all.push(it); }
     }
     st.lastWeek = w;
     await saveState(st);
     w = addDays(w, 7);
   }
+  await rollover(all, today);
 }
 
 let lock = null;

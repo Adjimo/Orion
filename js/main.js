@@ -3,11 +3,13 @@ import { GHOST_BEFORE, dbGet, dbPut } from './core/db.js';
 import { integrateAugustData, maybeAutoBackup, showWeekReportIfDue, startReminderLoop, weeklyXpCheck } from './features/backup.js';
 import { ensureTodo } from './features/todo.js';
 import { applyPendingPenalties } from './features/penalties.js';
+import { backupReminder, ensurePersistentStorage } from './features/storage.js';
 import { recomputeAutoQuests } from './features/quests.js';
 import { initSeed, loadAll } from './features/seed.js';
 import { migrateSleepCounter } from './features/weekly-goals.js';
 import { recomputeAllRecords, recomputeAllXp } from './pages/sport.js';
 import { showToast } from './ui/helpers.js';
+import { hydrateStaticIcons } from './ui/icons.js';
 import { initSwipeNav, navigate } from './ui/router.js';
 
 export function showSplash() {
@@ -23,9 +25,11 @@ export function showSplash() {
 }
 
 export async function init() {
+  hydrateStaticIcons();   // icônes SVG du pack Orion pour les emplacements statiques
   showSplash();
   await initSeed();
   await loadAll();
+  ensurePersistentStorage().catch(() => {});
 
   // Bascule « données fantômes » : une seule fois, on recalcule XP, niveaux et
   // records en ignorant tout ce qui précède GHOST_BEFORE (rien n'est supprimé).
@@ -69,6 +73,11 @@ export async function init() {
 
   initSwipeNav();
   navigate('home');
+  // Rappel d'export JSON (au plus une fois par jour), après les autres notifications de lancement.
+  setTimeout(async () => {
+    const r = await backupReminder().catch(() => null);
+    if (r) showToast({ type: 'xp', title: r.title, text: r.text }, 6000);
+  }, 7000);
   startReminderLoop();
   setTimeout(() => showWeekReportIfDue().catch(() => {}), 1200);
 

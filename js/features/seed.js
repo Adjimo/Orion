@@ -35,7 +35,23 @@ export async function initSeed() {
 
 // 11.b MIGRATION DES DONNÉES (idempotent, exécuté à chaque démarrage)
 
+// Anciennes données : icône stockée sous forme d'emoji → nom d'icône du pack.
+const LEGACY_ICONS = {
+  '🏃': 'run', '⚡': 'bolt', '📚': 'books', '📖': 'book', '🔬': 'chip', '🌍': 'globe', '✒': 'pen', '✍': 'pen',
+  '⏱': 'stopwatch', '🌙': 'moon', '🧮': 'sigma', '⚛': 'atom', '⛰': 'mountain', '🏔': 'peak', '🌄': 'sunrise',
+  '🏛': 'building', '⛏': 'pickaxe', '🥾': 'boot', '🧘': 'lotus', '🎯': 'target', '⭐': 'star'
+};
+async function migrateIconNames() {
+  for (const store of ['quests', 'exams']) {
+    for (const row of await dbAll(store)) {
+      const name = LEGACY_ICONS[String(row.icon || '').replace('\uFE0F', '')];
+      if (name) { row.icon = name; await dbPut(store, row); }
+    }
+  }
+}
+
 export async function migrateData() {
+  await migrateIconNames();
   // Calendrier des écrits (v3.15) + quête sommeil « couché avant 23h30 ».
   for (const seed of SEED_EXAMS) {
     const cur = await dbGet('exams', seed.id);

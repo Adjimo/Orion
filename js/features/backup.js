@@ -11,6 +11,8 @@ import { runsGoalFor } from './weekly-goals.js';
 import { SUBJECTS, computeWorkXp } from './work.js';
 import { recomputeAllRecords, recomputeAllXp } from '../pages/sport.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
+import { markExport } from './storage.js';
 
 // Construit le snapshot complet de l'app (utilisé par export et backup auto).
 // `backups` lui-même est volontairement EXCLU pour éviter la récursion.
@@ -34,6 +36,7 @@ export async function buildSnapshot() {
 
 export async function exportData() {
   const data = await buildSnapshot();
+  await markExport();
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -90,7 +93,7 @@ export async function downloadAutoBackup(date) {
 export async function onImportFile(e) {
   const file = e.target.files?.[0];
   if (!file) return;
-  if (!confirm('⚠️ Importer va REMPLACER toutes tes données actuelles. Continuer ?')) return;
+  if (!confirm('Importer va REMPLACER toutes tes données actuelles. Continuer ?')) return;
   try {
     const text = await file.text();
     const data = JSON.parse(text);
@@ -100,7 +103,7 @@ export async function onImportFile(e) {
       const items = data[store] || [];
       for (const it of items) await dbPut(store, it);
     }
-    showToast({ type: 'xp', title: '✅ Importé', text: 'Rechargement…' }, 1500);
+    showToast({ type: 'xp', icon: 'check', title: 'Importé', text: 'Rechargement…' }, 1500);
     setTimeout(() => location.reload(), 1500);
   } catch (err) {
     showToast({ type: 'err', title: 'Erreur', text: err.message }, 4000);
@@ -150,13 +153,13 @@ export async function showWeekReport(wk) {
   const modal = el('div', { class: 'gpx-preview-modal' });
   const rows = r.list.map(x => `
     <div class="rg-row wr-quest">
-      <span class="wr-ico">${x.q.icon || '•'}</span>
+      <span class="wr-ico">${x.q.icon ? iconHtml(x.q.icon) : '•'}</span>
       <span class="rg-reason">${escapeHtml(x.q.title)}${x.excused ? ' <span class="dim text-xs">(justifiée)</span>' : ''}</span>
       <span class="mono text-xs ${x.ok ? 'wr-ok' : 'wr-ko'}">${Math.round(x.ratio * 100)}% ${x.ok ? '✓' : '✗'}</span>
     </div>`).join('');
   modal.innerHTML = `
     <div class="gpx-preview-head">
-      <div class="gpx-preview-title"><span class="gpx-preview-icon">📊</span><span>Bilan · ${fd(ws)} – ${fd(we)}</span></div>
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('chart')}</span><span>Bilan · ${fd(ws)} – ${fd(we)}</span></div>
       <button class="gpx-preview-close" aria-label="Fermer">✕</button>
     </div>
     <div style="padding: 16px 18px; overflow-y: auto;">
@@ -325,8 +328,8 @@ export async function showWeekReportIfDue() {
 // Sans serveur push, l'app ne peut notifier QUE lorsqu'elle est ouverte (ou en arrière-plan
 // récent). Pour des rappels fiables app fermée : export .ics → alarmes du calendrier du téléphone.
 export const REMINDER_DEFS = {
-  work:  { icon: '📚', label: 'Saisir le travail du jour', title: 'Orion · Travail', body: "N'oublie pas de saisir ton travail d'aujourd'hui.", def: '21:30' },
-  sleep: { icon: '🌙', label: 'Se coucher avant 23h30', title: 'Orion · Sommeil', body: 'Il est temps de se préparer : couché avant 23h30.', def: '22:45' },
+  work:  { icon: 'books', label: 'Saisir le travail du jour', title: 'Orion · Travail', body: "N'oublie pas de saisir ton travail d'aujourd'hui.", def: '21:30' },
+  sleep: { icon: 'moon', label: 'Se coucher avant 23h30', title: 'Orion · Sommeil', body: 'Il est temps de se préparer : couché avant 23h30.', def: '22:45' },
 };
 
 export const REMINDER_WINDOW_MIN = 90;   // rattrapage : on déclenche jusqu'à 90 min après l'heure prévue
@@ -344,10 +347,10 @@ export function timeToMin(t) { const [h, m] = String(t).split(':').map(Number); 
 
 export async function showReminderNotification(kind) {
   const d = REMINDER_DEFS[kind];
-  showToast({ type: 'xp', title: d.icon + ' ' + d.title.replace('Orion · ', ''), text: d.body }, 6000);
+  showToast({ type: 'xp', icon: d.icon, title: d.title.replace('Orion · ', ''), text: d.body }, 6000);
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      const opts = { body: d.body, icon: 'icons/icon-192.png', badge: 'icons/badge.png', tag: 'orion-' + kind };
+      const opts = { body: d.body, icon: 'icons/orion-192.png', badge: 'icons/badge.png', tag: 'orion-' + kind };
       const reg = await navigator.serviceWorker?.getRegistration();
       if (reg?.showNotification) await reg.showNotification(d.title, opts);
       else new Notification(d.title, opts);
@@ -397,7 +400,7 @@ export function buildRemindersIcs(r) {
     const f = (m) => `${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`;
     lines.push('BEGIN:VEVENT', `UID:orion-${kind}@orion.local`, `DTSTAMP:${ymd}T000000Z`,
       `DTSTART:${ymd}T${f(t)}`, `DTEND:${ymd}T${f(end)}`, 'RRULE:FREQ=DAILY',
-      `SUMMARY:${REMINDER_DEFS[kind].icon} ${REMINDER_DEFS[kind].label}`,
+      `SUMMARY:${REMINDER_DEFS[kind].label}`,
       'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${REMINDER_DEFS[kind].body}`, 'TRIGGER:PT0S', 'END:VALARM', 'END:VEVENT');
   }
   lines.push('END:VCALENDAR');
@@ -421,7 +424,7 @@ export async function renderRemindersCard(card) {
     <div class="rem-list">
       ${Object.keys(REMINDER_DEFS).map(k => `
         <div class="rg-row rem-row" data-kind="${k}">
-          <span class="rg-reason">${REMINDER_DEFS[k].icon} ${REMINDER_DEFS[k].label}</span>
+          <span class="rg-reason">${iconHtml(REMINDER_DEFS[k].icon)} ${REMINDER_DEFS[k].label}</span>
           <input class="input rem-time" type="time" value="${r[k].time}" />
           <input class="rem-on" type="checkbox" ${r[k].on ? 'checked' : ''} aria-label="Activer" />
         </div>`).join('')}
@@ -429,7 +432,7 @@ export async function renderRemindersCard(card) {
     <div class="dim text-xs mt-2">${permTxt}.</div>
     <div class="save-actions mt-2">
       ${perm === 'default' ? '<button class="btn ghost sm" id="rem-perm">Autoriser les notifications</button>' : ''}
-      <button class="btn ghost sm" id="rem-ics">📅 Ajouter au calendrier</button>
+      <button class="btn ghost sm" id="rem-ics">${iconHtml('calendar')} Ajouter au calendrier</button>
     </div>
   `;
   card.querySelectorAll('.rem-row').forEach(row => {

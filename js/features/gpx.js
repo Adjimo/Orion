@@ -136,7 +136,7 @@ export function defaultActivityName(category, date) {
 // Icône d'une activité selon son type (toutes catégories : nouvelles + legacy).
 export function activityTypeIcon(type) {
   return SPORT_TYPES[type]?.icon
-    || '🏃';
+    || 'run';
 }
 
 // Analyse une trace de fractionné : segmente en phases d'effort et de récupération

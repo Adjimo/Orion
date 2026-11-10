@@ -4,11 +4,11 @@ import { analyseIntervals, formatDuration, formatPace, haversine } from './gpx.j
 import { isRunActivity } from './schedule.js';
 
 export const RECORD_TYPES = [
-  { id: 'longest',    label: 'Plus longue sortie', icon: '🌄', metric: 'distanceKm', mode: 'max' },
-  { id: 'highest',    label: 'Plus gros D+',       icon: '⛰️', metric: 'elevGain',   mode: 'max' },
-  { id: 'fastest5k',  label: 'Meilleur 5K',        icon: '⏱️', metric: 'best5k',     mode: 'min' },
-  { id: 'fastest10k', label: 'Meilleur 10K',       icon: '⏱️', metric: 'best10k',    mode: 'min' },
-  { id: 'longestDur', label: 'Plus long temps',    icon: '⏱️', metric: 'duration',   mode: 'max' }
+  { id: 'longest',    label: 'Plus longue sortie', icon: 'sunrise', metric: 'distanceKm', mode: 'max' },
+  { id: 'highest',    label: 'Plus gros D+',       icon: 'mountain', metric: 'elevGain',   mode: 'max' },
+  { id: 'fastest5k',  label: 'Meilleur 5K',        icon: 'stopwatch', metric: 'best5k',     mode: 'min' },
+  { id: 'fastest10k', label: 'Meilleur 10K',       icon: 'stopwatch', metric: 'best10k',    mode: 'min' },
+  { id: 'longestDur', label: 'Plus long temps',    icon: 'stopwatch', metric: 'duration',   mode: 'max' }
 ];
 
 export function bestSplit(points, distanceTarget) {
@@ -210,7 +210,7 @@ export function renderFractionneIntervalsHtml(activity) {
     if (isEffort) lapNum++;
     return `
       <div class="interval-row ${isEffort ? 'effort' : 'repos'}">
-        <div class="interval-label">${isEffort ? '⚡ Tour ' + lapNum : '😮‍💨 Récup'}</div>
+        <div class="interval-label">${isEffort ? 'Tour ' + lapNum : 'Récup'}</div>
         <div class="interval-meta">${formatDuration(it.duration)} · ${(it.distance / 1000).toFixed(2)} km · ${formatPace(it.avgPace)}</div>
       </div>
     `;

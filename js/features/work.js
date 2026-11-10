@@ -8,12 +8,12 @@ import { awardXp, removeXp } from '../core/xp.js';
 // Une matière qui prend une grande part du temps a un mult faible (déjà bcp d'XP),
 // une matière minoritaire a un mult fort pour compenser.
 export const SUBJECTS = {
-  maths:    { label: 'Maths',     icon: '🧮', skill: 'maths',      skillMult: 1.10 },
-  physique: { label: 'Physique',  icon: '⚛️', skill: 'physique',   skillMult: 1.30 },
-  si:       { label: 'SI / Info', icon: '🔬', skill: 'si',         skillMult: 4.00 },
-  langues:  { label: 'Anglais',   icon: '🌍', skill: 'langues',    skillMult: 4.00 },
-  francais: { label: 'Français',  icon: '✒️', skill: 'lettres',    skillMult: 4.00 },
-  autre:    { label: 'Autre',     icon: '📖', skill: 'discipline', skillMult: 0.20 }
+  maths:    { label: 'Maths',     icon: 'sigma', skill: 'maths',      skillMult: 1.10 },
+  physique: { label: 'Physique',  icon: 'atom', skill: 'physique',   skillMult: 1.30 },
+  si:       { label: 'SI / Info', icon: 'chip', skill: 'si',         skillMult: 4.00 },
+  langues:  { label: 'Anglais',   icon: 'globe', skill: 'langues',    skillMult: 4.00 },
+  francais: { label: 'Français',  icon: 'pen', skill: 'lettres',    skillMult: 4.00 },
+  autre:    { label: 'Autre',     icon: 'book', skill: 'discipline', skillMult: 0.20 }
 };
 
 export function baseXpForGoal(goalHours) {

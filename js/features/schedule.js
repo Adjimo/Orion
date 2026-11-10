@@ -32,11 +32,11 @@ export const DEFAULT_SCHEDULE = [
 // 5 catégories de sport. Toutes correspondent à une séance hebdo régulière
 // (footing/fractionne/sortie-longue) ou à une sortie spécifique (trail).
 export const SPORT_TYPES = {
-  footing:        { label: 'Footing',         icon: '🏃',  desc: 'Endurance facile (zone E)',        zone: 'E' },
-  fractionne:     { label: 'Fractionné',      icon: '⚡',  desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
-  'sortie-longue':{ label: 'Sortie longue',   icon: '🌄',  desc: 'Volume long, allure E/M' },
-  trail:          { label: 'Trail',           icon: '⛰️',  desc: 'D+ et terrain technique' },
-  rando:          { label: 'Randonnée',       icon: '🥾',  desc: 'Marche en terrain varié, D+' }
+  footing:        { label: 'Footing',         icon: 'run',  desc: 'Endurance facile (zone E)',        zone: 'E' },
+  fractionne:     { label: 'Fractionné',      icon: 'bolt',  desc: 'VMA, intervalles courts (zone I)', zone: 'I' },
+  'sortie-longue':{ label: 'Sortie longue',   icon: 'sunrise',  desc: 'Volume long, allure E/M' },
+  trail:          { label: 'Trail',           icon: 'mountain',  desc: 'D+ et terrain technique' },
+  rando:          { label: 'Randonnée',       icon: 'boot',  desc: 'Marche en terrain varié, D+' }
 };
 
 // Une randonnée est de la marche : elle donne de l'endurance mais ne compte ni

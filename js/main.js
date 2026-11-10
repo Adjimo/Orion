@@ -8,7 +8,7 @@ import { initSeed, loadAll } from './features/seed.js';
 import { migrateSleepCounter } from './features/weekly-goals.js';
 import { recomputeAllRecords, recomputeAllXp } from './pages/sport.js';
 import { showToast } from './ui/helpers.js';
-import { navigate } from './ui/router.js';
+import { initSwipeNav, navigate } from './ui/router.js';
 
 export function showSplash() {
   const splash = document.getElementById('splash');
@@ -67,6 +67,7 @@ export async function init() {
     t.addEventListener('click', () => navigate(t.dataset.route));
   });
 
+  initSwipeNav();
   navigate('home');
   startReminderLoop();
   setTimeout(() => showWeekReportIfDue().catch(() => {}), 1200);

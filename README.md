@@ -87,3 +87,6 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.12
 - Icônes (app, favicon, logo, barre d'onglets) recolorées en cuivre pour la palette « Graphite et cuivre ».
+
+### v4.13
+- Balayage horizontal pour changer d'onglet (ignoré sur carte, graphiques, champs, zones défilantes et fenêtres ouvertes).

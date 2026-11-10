@@ -76,3 +76,14 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.9
 - Aujourd'hui : seule la to-do du jour est affichée (la semaine complète reste dans Hebdo).
+
+### v4.10
+- To-do : remise à zéro unique (`todoState.v = 2`), démarrage à la date du jour (pas de reports d'avant) ; report quotidien des éléments non faits au jour courant (badge « reporté ») ; vocabulaire quotidien non reporté.
+- Style unifié : cartes Sport/Travail/jour au même langage que la to-do (bandeau, barre en dégradé, boutons).
+- Agenda : cours/colles/DS teintés (`--ev-cours/--ev-colle/--ev-ds`), temps libre et pauses sobres, légende, marges.
+
+### v4.11
+- Nouvelle palette « Graphite et cuivre » appliquée à tout le thème (variables :root + couleurs en dur remplacées).
+
+### v4.12
+- Icônes (app, favicon, logo, barre d'onglets) recolorées en cuivre pour la palette « Graphite et cuivre ».

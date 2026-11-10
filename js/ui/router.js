@@ -15,7 +15,7 @@ export function navigate(route) {
     const img = t.querySelector('.tab-icon');
     const iconName = t.dataset.icon;
     if (img && iconName) {
-      img.src = isActive ? `icons/ui/${iconName}.png?v=4` : `icons/ui/${iconName}-mono.png?v=4`;
+      img.src = isActive ? `icons/ui/${iconName}.png?v=5` : `icons/ui/${iconName}-mono.png?v=5`;
     }
   });
   render();

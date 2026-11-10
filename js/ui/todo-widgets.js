@@ -4,6 +4,7 @@ import { todayKey } from '../core/dates.js';
 import { DAY_LABELS } from '../features/planning.js';
 import { TODO_SUBJECTS, addTodo, availableCatalog, ensureTodo, hasTodo, loadWeekTodo, removeTodo, toggleTodo } from '../features/todo.js';
 import { el } from './helpers.js';
+import { iconHtml } from './icons.js';
 
 const subjLabel = (id) => TODO_SUBJECTS.find(s => s.id === id)?.label || '';
 const fmtShort = (k) => parseKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -24,7 +25,7 @@ function itemRow(it, { editable, chip, showSubj }, change) {
 
 const countHead = (title, items) => {
   const d = items.filter(i => i.done).length;
-  return el('div', { class: 'td-group-head' }, [el('span', {}, title), el('span', { class: `td-count${items.length && d === items.length ? ' full' : ''}` }, `${d}/${items.length}`)]);
+  return el('div', { class: 'td-group-head' }, [el('span', { html: title }), el('span', { class: `td-count${items.length && d === items.length ? ' full' : ''}` }, `${d}/${items.length}`)]);
 };
 
 // ── To-do du jour (page Aujourd'hui) ─────────────────────────────────────────
@@ -41,7 +42,7 @@ export async function renderDayTodo(root, dateKey) {
 
   const box = el('div', { class: 'td-group' });
   const mine = items.filter(i => i.day === day);
-  box.appendChild(countHead('✅ À faire', mine));
+  box.appendChild(countHead(iconHtml('check') + ' À faire', mine));
   if (!hasTodo(monday)) box.appendChild(el('div', { class: 'pl-note' }, 'Pas de to-do pendant les révisions et les concours.'));
   else if (!mine.length) box.appendChild(el('div', { class: 'pl-note' }, 'Rien de prévu : journée libre.'));
   mine.sort((a, b) => (a.ord || 0) - (b.ord || 0)).forEach(it => box.appendChild(itemRow(it, { editable, showSubj: true }, change)));

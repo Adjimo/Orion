@@ -1,4 +1,5 @@
 // Aides d'interface (éléments DOM, toasts, modales)
+import { iconHtml } from './icons.js';
 
 export function el(tag, props = {}, children = []) {
   const e = document.createElement(tag);
@@ -21,7 +22,7 @@ export function showToast(toast, duration = 2500) {
   const root = document.getElementById('toast');
   root.className = 'toast' + (toast.type === 'levelup' ? ' levelup' : '');
   root.innerHTML = `
-    <div class="icon">${toast.type === 'levelup' ? '🎉' : '✨'}</div>
+    <div class="icon">${iconHtml(toast.icon || (toast.type === 'levelup' ? 'party' : 'sparkles'))}</div>
     <div class="body">
       <div class="title">${escapeHtml(toast.title)}</div>
       <div class="text">${escapeHtml(toast.text || '')}</div>

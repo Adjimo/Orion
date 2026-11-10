@@ -23,14 +23,14 @@ export function deriveLevel(totalXp) {
 }
 
 export const SKILL_META = {
-  endurance:  { label: 'Endurance',  icon: '🏃', color: '#C8814A', desc: 'Volume kilométrique.' },
-  allure:     { label: 'Allure',     icon: '⚡', color: '#D08A4E', desc: 'Performance pure.' },
-  maths:      { label: 'Maths',      icon: '🧮', color: '#EBCDB0', desc: 'DM, exos, démos.' },
-  physique:   { label: 'Physique',   icon: '⚛️', color: '#b0705a', desc: 'Mécanique, thermo, ondes.' },
-  si:         { label: 'SI / Info',  icon: '🔬', color: '#B5703B', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Anglais',    icon: '🌍', color: '#E3B089', desc: 'Anglais.' },
-  lettres:    { label: 'Lettres',    icon: '✒️', color: '#c8975a', desc: 'Français, philo.' },
-  discipline: { label: 'Discipline', icon: '🧘', color: '#9C6335', desc: 'Régularité, focus.' }
+  endurance:  { label: 'Endurance',  icon: 'run', color: '#C8814A', desc: 'Volume kilométrique.' },
+  allure:     { label: 'Allure',     icon: 'bolt', color: '#D08A4E', desc: 'Performance pure.' },
+  maths:      { label: 'Maths',      icon: 'sigma', color: '#EBCDB0', desc: 'DM, exos, démos.' },
+  physique:   { label: 'Physique',   icon: 'atom', color: '#b0705a', desc: 'Mécanique, thermo, ondes.' },
+  si:         { label: 'SI / Info',  icon: 'chip', color: '#B5703B', desc: 'Sciences ingé / info.' },
+  langues:    { label: 'Anglais',    icon: 'globe', color: '#E3B089', desc: 'Anglais.' },
+  lettres:    { label: 'Lettres',    icon: 'pen', color: '#c8975a', desc: 'Français, philo.' },
+  discipline: { label: 'Discipline', icon: 'lotus', color: '#9C6335', desc: 'Régularité, focus.' }
 };
 
 export const RANKS = [

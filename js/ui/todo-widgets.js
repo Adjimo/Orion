@@ -15,7 +15,7 @@ function itemRow(it, { editable, chip, showSubj }, change) {
     el('div', { class: 'td-label' }, [
       showSubj ? el('span', { class: 'td-subj' }, subjLabel(it.subj)) : null,
       el('span', { class: 'td-name' }, it.label),
-      it.carried ? el('span', { class: 'pl-chip td-carried' }, 'reporté') : null,
+      (it.carried || it.rolled) ? el('span', { class: 'pl-chip td-carried' }, 'reporté') : null,
       chip ? el('span', { class: 'pl-chip td-carried' }, chip) : null
     ]),
     editable ? el('button', { class: 'td-del', 'aria-label': 'Retirer', onclick: () => change(() => removeTodo(it.id)) }, '✕') : null
@@ -62,7 +62,7 @@ export async function renderWeekTodo(root, monday) {
   if (!items.length) { root.appendChild(el('div', { class: 'pl-note' }, 'La to-do de cette semaine sera générée à son ouverture.')); return; }
 
   const done = items.filter(i => i.done).length;
-  const carried = items.filter(i => i.carried && !i.done).length;
+  const carried = items.filter(i => (i.carried || i.rolled) && !i.done).length;
   const subjChips = TODO_SUBJECTS.map(s => {
     const l = items.filter(i => i.subj === s.id);
     return l.length ? el('span', { class: `pl-chip td-sum${l.every(i => i.done) ? ' full' : ''}` }, `${s.label.split(' ')[0]} ${l.filter(i => i.done).length}/${l.length}`) : null;
@@ -71,7 +71,7 @@ export async function renderWeekTodo(root, monday) {
     el('div', { class: 'td-total-row' }, [el('span', {}, 'Cette semaine'), el('strong', {}, `${done}/${items.length}`)]),
     el('div', { class: 'td-bar' }, el('div', { class: 'td-bar-fill', style: `width:${done / items.length * 100}%` })),
     el('div', { class: 'td-chips' }, subjChips),
-    carried ? el('div', { class: 'pl-hint' }, `${carried} reporté(s) de la semaine précédente`) : null
+    carried ? el('div', { class: 'pl-hint' }, `${carried} reporté(s)`) : null
   ]));
 
   for (let d = 1; d <= 7; d++) {

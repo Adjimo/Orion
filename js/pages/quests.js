@@ -9,6 +9,7 @@ import { loadAll } from '../features/seed.js';
 import { RUNS_GOAL_MAX, getSleepLog, runsGoalFor, setRunsGoal, toggleSleepNight } from '../features/weekly-goals.js';
 import { SUBJECTS, computeWorkXp, formatMinutes, parseTimeInput } from '../features/work.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 import { renderDayTodo, renderWeekTodo } from '../ui/todo-widgets.js';
 import { mondayOf } from '../core/calendar.js';
@@ -30,14 +31,14 @@ export function renderHebdo(root) {
   const page = el('div', { class: 'page' });
   page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Hebdo')]));
 
-  // ── 🏃 SPORT (quête sorties principales) ─────────────────────────────
-  page.appendChild(el('h3', { class: 'mb-1' }, '🏃 Sport'));
+  // ── SPORT (quête sorties principales) ─────────────────────────────
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('run') + ' Sport' }));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Sorties de course de la semaine'));
   const sportWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(sportWrap);
 
-  // ── 📚 TRAVAIL (quêtes travail + sommeil + secondaires) ──────────────
-  page.appendChild(el('h3', { class: 'mb-1' }, '📚 Travail & autres'));
+  // ── TRAVAIL (quêtes travail + sommeil + secondaires) ──────────────
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('books') + ' Travail &amp; autres' }));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' },
     arePenaltiesActive()
       ? 'Malus si non atteint · bonus si dépassé.'
@@ -45,13 +46,13 @@ export function renderHebdo(root) {
   const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(travailWrap);
 
-  // ── ✅ TO-DO DE LA SEMAINE ───────────────────────────────────────────
-  page.appendChild(el('h3', { class: 'mb-2' }, '✅ To-do de la semaine'));
+  // ── TO-DO DE LA SEMAINE ───────────────────────────────────────────
+  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('check') + ' To-do de la semaine' }));
   const todoWrap = el('div', { class: 'mb-5' });
   page.appendChild(todoWrap);
 
-  // ── ⚖️ RIGUEUR (auto-sanctions) ─────────────────────
-  page.appendChild(el('h3', { class: 'mb-1' }, '⚖️ Rigueur'));
+  // ── RIGUEUR (auto-sanctions) ─────────────────────
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('scale') + ' Rigueur' }));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
   const rigueurWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(rigueurWrap);
@@ -111,7 +112,7 @@ export async function renderDayDashboard(root, afterRender) {
         : 'Importe ton GPX quand c\'est fait';
     sportBlock = `
       <div class="block sport ${sportDone ? 'done' : ''}">
-        <div class="block-icon">${sportMeta.icon}</div>
+        <div class="block-icon">${iconHtml(sportMeta.icon)}</div>
         <div class="block-body">
           <div class="block-title">${sportMeta.label}<span class="pill warm" style="margin-left:8px;">${isWeekend ? 'Week-end' : 'Sport du jour'}</span></div>
           <div class="dim text-xs">${subtitle}</div>
@@ -125,7 +126,7 @@ export async function renderDayDashboard(root, afterRender) {
     const workDone = wi.ratio >= 1;
     workBlock = `
       <div class="block work ${workDone ? 'done' : ''}">
-        <div class="block-icon">📚</div>
+        <div class="block-icon">${iconHtml('books')}</div>
         <div class="block-body">
           <div class="flex between">
             <div class="block-title">Travail · objectif ${goalHours}h${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>
@@ -189,7 +190,7 @@ export async function renderDayDashboard(root, afterRender) {
     for (const [key, meta] of Object.entries(SUBJECTS)) {
       const minutes = workLog?.bySubject?.[key] || 0;
       const sub = el('div', { class: 'sub' });
-      sub.innerHTML = `<label class="sub-label">${meta.icon} ${meta.label}</label>`;
+      sub.innerHTML = `<label class="sub-label">${iconHtml(meta.icon)} ${meta.label}</label>`;
       const input = el('input', {
         class: 'sub-input',
         type: 'text',
@@ -261,7 +262,7 @@ export async function _renderOneQuest(root, q, category) {
   });
   div.innerHTML = `
     <div class="hq-head">
-      <span class="hq-icon">${q.icon}</span>
+      <span class="hq-icon">${iconHtml(q.icon)}</span>
       <div class="hq-titles">
         <div class="hq-title">${escapeHtml(q.title)}</div>
         <div class="hq-goal">Objectif : ${goal} ${unit}${isAuto ? '<span class="auto-tag">auto</span>' : ''}</div>
@@ -407,7 +408,7 @@ export async function renderRigueurSection(root) {
   const c1 = el('div', { class: 'card rg-card' });
   c1.innerHTML = `
     <div class="rg-head">
-      <div><div class="rg-title">🩹 Mes écarts</div>
+      <div><div class="rg-title">${iconHtml('bandage')} Mes écarts</div>
       <div class="dim text-xs">Une mauvaise action ? Inflige-toi un malus.</div></div>
       <div class="rg-total">${selfPct ? '−' + selfPct + '%' : '—'}</div>
     </div>
@@ -441,7 +442,7 @@ export function showSelfMalusModal(wk, onDone) {
   const modal = el('div', { class: 'gpx-preview-modal' });
   modal.innerHTML = `
     <div class="gpx-preview-head">
-      <div class="gpx-preview-title"><span class="gpx-preview-icon">🩹</span><span>Déclarer un écart</span></div>
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('bandage')}</span><span>Déclarer un écart</span></div>
       <button class="gpx-preview-close" aria-label="Fermer">✕</button>
     </div>
     <div style="padding: 16px 18px;">
@@ -503,7 +504,7 @@ export async function showRunsExcuseModal(q) {
   const modal = el('div', { class: 'gpx-preview-modal' });
   modal.innerHTML = `
     <div class="gpx-preview-head">
-      <div class="gpx-preview-title"><span class="gpx-preview-icon">🩺</span><span>Justifier une semaine sans sortie</span></div>
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('stethoscope')}</span><span>Justifier une semaine sans sortie</span></div>
       <button class="gpx-preview-close" aria-label="Fermer">✕</button>
     </div>
     <div style="padding: 16px 18px;">
@@ -514,8 +515,8 @@ export async function showRunsExcuseModal(q) {
       <div id="ex-info" class="dim text-xs mt-2"></div>
       <label class="dim text-xs" style="display:block; margin:14px 0 6px;">Motif</label>
       <select class="input" id="ex-reason" style="width:100%;">
-        <option value="malade">🤒 Malade</option>
-        <option value="autre">✍️ Autre</option>
+        <option value="malade">Malade</option>
+        <option value="autre">Autre</option>
       </select>
       <label class="dim text-xs" style="display:block; margin:14px 0 6px;">Précision <span id="ex-req"></span></label>
       <input class="input" id="ex-note" type="text" placeholder="ex : grippe, blessure, voyage…" style="width:100%;" />

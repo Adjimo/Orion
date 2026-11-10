@@ -7,6 +7,7 @@ import { computeYearProgress } from '../features/exams.js';
 import { loadAll } from '../features/seed.js';
 import { formatMinutes } from '../features/work.js';
 import { el, escapeHtml, progressBar } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 import { renderProfileSections } from './profile.js';
 
@@ -48,7 +49,7 @@ export function renderHome(root) {
   const editBtn = el('button', { class: 'btn ghost sm', 'aria-label': 'Modifier le nom', onclick: async () => {
     const name = prompt('Ton nom :', p.name);
     if (name && name.trim()) { p.name = name.trim(); await dbPut('profile', p); await loadAll(); render(); }
-  } }, '✎');
+  }, html: iconHtml('pencil') });
   page.appendChild(el('div', { class: 'header flex between' }, [
     el('div', {}, [
       el('div', { class: 'dim text-sm' }, greeting()),
@@ -92,7 +93,7 @@ export function renderHome(root) {
         <div class="cd-main">
           <div class="cd-info">
             <div class="cd-label">Prochaine échéance</div>
-            <div class="cd-name">${nextExam.icon} ${escapeHtml(nextExam.short)}</div>
+            <div class="cd-name">${iconHtml(nextExam.icon)} ${escapeHtml(nextExam.short)}</div>
             <div class="cd-date">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
           </div>
           <div class="cd-stats">
@@ -112,13 +113,13 @@ export function renderHome(root) {
   // Synthèse semaine
   page.appendChild(el('h3', { class: 'mb-3' }, 'Cette semaine'));
 
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, '🏃 Sport'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: iconHtml('run') + ' Sport' }));
   page.appendChild(el('div', { class: 'stats-grid mb-4', html: `
     <div class="stat"><div class="stat-val grad-text">${weekKm.toFixed(1)}</div><div class="stat-label">km</div></div>
     <div class="stat"><div class="stat-val grad-text">${weekActs.length}</div><div class="stat-label">sorties</div></div>
   `}));
 
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, '📚 Travail'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: iconHtml('books') + ' Travail' }));
   page.appendChild(el('div', { class: 'stats-grid mb-4', html: `
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(todayWorkMin)}</div><div class="stat-label">aujourd'hui</div></div>
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(weekWorkMin)}</div><div class="stat-label">cette semaine</div></div>

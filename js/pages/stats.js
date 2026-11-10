@@ -5,6 +5,7 @@ import { formatDuration } from '../features/gpx.js';
 import { RECORD_TYPES, activityVO2maxPoints, formatRecordValue, getRollingRecords } from '../features/records.js';
 import { SUBJECTS, formatMinutes } from '../features/work.js';
 import { el } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 
 export function renderStats(root) {
@@ -36,7 +37,7 @@ export function renderStats(root) {
   const prev4Avg = prev4.length > 0 ? prev4.reduce((s, v) => s + v, 0) / prev4.length : 0;
   const trendPct = prev4Avg > 0 ? Math.round((recent4Avg - prev4Avg) / prev4Avg * 100) : 0;
 
-  page.appendChild(el('h3', { class: 'section-h work' }, '📚 Travail'));
+  page.appendChild(el('h3', { class: 'section-h work', html: iconHtml('books') + ' Travail' }));
   page.appendChild(el('div', { class: 'card mb-3', html: `
     <div class="totals">
       <div><div class="t-val grad-text">${(totalWorkMin/60).toFixed(1)}</div><div class="t-lbl">heures cumulées</div></div>
@@ -48,20 +49,20 @@ export function renderStats(root) {
 
   // Heatmap calendaire — visualise la régularité sur 12 semaines
   page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '🗓️ Régularité · 12 dernières semaines'),
+    el('div', { class: 'chart-title', html: iconHtml('calendar') + ' Régularité · 12 dernières semaines' }),
     el('div', { class: 'work-heatmap', id: 'work-heatmap' })
   ]));
 
   // Graph: répartition matières (30 derniers jours)
   page.appendChild(el('div', { class: 'chart-card mb-3' }, [
-    el('div', { class: 'chart-title' }, '🎯 Répartition des matières · 30 derniers jours'),
+    el('div', { class: 'chart-title', html: iconHtml('target') + ' Répartition des matières · 30 derniers jours' }),
     el('div', { class: 'chart-wrap chart-wrap-donut' }, [el('canvas', { id: 'chart-work-subjects' })])
   ]));
 
   page.appendChild(el('h3', { class: 'mb-2' }, 'Records personnels'));
   page.appendChild(el('div', { class: 'card mb-5', html: `
-    <div class="rec-row"><div class="rec-left"><span class="rec-icon">📅</span><span class="rec-label">Plus grosse journée</span></div><div class="rec-value">${bestDayMin > 0 ? formatMinutes(bestDayMin) : '—'}</div></div>
-    <div class="rec-row"><div class="rec-left"><span class="rec-icon">🗓️</span><span class="rec-label">Plus grosse semaine</span></div><div class="rec-value">${bestWeekMin > 0 ? (bestWeekMin/60).toFixed(1) + 'h' : '—'}</div></div>
+    <div class="rec-row"><div class="rec-left"><span class="rec-icon">${iconHtml('calendar')}</span><span class="rec-label">Plus grosse journée</span></div><div class="rec-value">${bestDayMin > 0 ? formatMinutes(bestDayMin) : '—'}</div></div>
+    <div class="rec-row"><div class="rec-left"><span class="rec-icon">${iconHtml('calendar')}</span><span class="rec-label">Plus grosse semaine</span></div><div class="rec-value">${bestWeekMin > 0 ? (bestWeekMin/60).toFixed(1) + 'h' : '—'}</div></div>
   `}));
 
   // Sport — refonte complète : focus sur les métriques runner
@@ -69,7 +70,7 @@ export function renderStats(root) {
   const totalDplus = acts.reduce((s, a) => s + (a.elevGain || 0), 0);
   const totalDur = acts.reduce((s, a) => s + (a.duration || 0), 0);
 
-  page.appendChild(el('h3', { class: 'section-h sport' }, '🏃 Sport'));
+  page.appendChild(el('h3', { class: 'section-h sport', html: iconHtml('run') + ' Sport' }));
   page.appendChild(el('div', { class: 'card mb-3', html: `
     <div class="totals">
       <div><div class="t-val grad-text">${totalKm.toFixed(1)}</div><div class="t-lbl">km cumulés</div></div>
@@ -88,7 +89,7 @@ export function renderStats(root) {
     const m = Math.floor(s / 60), sec = Math.round(s % 60);
     return `${m}:${String(sec).padStart(2, '0')}`;
   };
-  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, '🏆 Records glissants'));
+  page.appendChild(el('h3', { class: 'mb-2 mt-4', html: iconHtml('trophy') + ' Records glissants' }));
   page.appendChild(el('div', { class: 'card mb-3', html: `
     <div class="rolling-table">
       <div class="rolling-header"><div></div><div>Absolu</div><div>90 j</div><div>30 j</div></div>
@@ -106,7 +107,7 @@ export function renderStats(root) {
     const r = State.records[t.id];
     recsHtml += `
       <div class="rec-row">
-        <div class="rec-left"><span class="rec-icon">${t.icon}</span><span class="rec-label">${t.label}</span></div>
+        <div class="rec-left"><span class="rec-icon">${iconHtml(t.icon)}</span><span class="rec-label">${t.label}</span></div>
         <div class="rec-value">${r ? formatRecordValue(t, r.value) : '—'}</div>
       </div>
     `;
@@ -343,7 +344,7 @@ export function showHeatmapPopover(anchorEl, dateKey, log) {
       const meta = SUBJECTS[k];
       return `
         <div class="popover-subject">
-          <span>${meta?.icon || '📖'} ${meta?.label || k}</span>
+          <span>${iconHtml(meta?.icon || 'book')} ${meta?.label || k}</span>
           <span class="mono">${formatMinutes(m)}</span>
         </div>
       `;

@@ -3,15 +3,17 @@ import { formatDate, prevWeekKey, weekKey } from '../core/dates.js';
 import { dbAll } from '../core/db.js';
 import { APP_VERSION, State } from '../core/state.js';
 import { SKILL_META, deriveLevel } from '../core/xp.js';
+import { storageStatus, daysSince } from '../features/storage.js';
 import { downloadAutoBackup, exportData, onImportFile, renderRemindersCard, showWeekReport } from '../features/backup.js';
 import { el, progressBar } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
 
 // Sections du profil (compétences, bilan, rappels, sauvegarde), affichées en bas de l'Accueil.
 export function renderProfileSections(page) {
   const p = State.profile;
 
   // Compétences
-  page.appendChild(el('h3', { class: 'mb-2' }, '⭐ Compétences'));
+  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('star') + ' Compétences' }));
   const skCard = el('div', { class: 'card mb-4' });
   let skHtml = '';
   for (const [k, sk] of Object.entries(p.skills)) {
@@ -20,7 +22,7 @@ export function renderProfileSections(page) {
     skHtml += `
       <div class="skill-row">
         <div class="flex between mb-1">
-          <div class="flex gap-2"><span class="skill-icon">${meta.icon}</span><span style="font-weight:500;">${meta.label}</span></div>
+          <div class="flex gap-2"><span class="skill-icon">${iconHtml(meta.icon)}</span><span style="font-weight:500;">${meta.label}</span></div>
           <span class="mono text-sm" style="color:${meta.color}; font-weight:700;">Niveau ${info.level}</span>
         </div>
         ${progressBar(info.progress, 6)}
@@ -35,20 +37,20 @@ export function renderProfileSections(page) {
   page.appendChild(skCard);
 
   // Bilan
-  page.appendChild(el('h3', { class: 'mb-2' }, '📊 Bilan hebdo'));
+  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('chart') + ' Bilan hebdo' }));
   const wrCard = el('div', { class: 'card mb-4' });
   wrCard.innerHTML = '<div class="dim text-sm mb-2">Affiché automatiquement à chaque changement de semaine.</div><button class="btn ghost sm" id="wr-open">Voir le bilan de la semaine dernière</button>';
   wrCard.querySelector('#wr-open').addEventListener('click', () => showWeekReport(prevWeekKey(weekKey())));
   page.appendChild(wrCard);
 
   // Rappels
-  page.appendChild(el('h3', { class: 'mb-2' }, '🔔 Rappels'));
+  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('bell') + ' Rappels' }));
   const remCard = el('div', { class: 'card mb-4' });
   page.appendChild(remCard);
   renderRemindersCard(remCard);
 
   // Sauvegarde
-  page.appendChild(el('h3', { class: 'mb-2' }, '💾 Sauvegarde'));
+  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('disk') + ' Sauvegarde' }));
   const saveCard = el('div', { class: 'card mb-4' });
   saveCard.innerHTML = `
     <div class="save-actions">
@@ -63,11 +65,18 @@ export function renderProfileSections(page) {
       </label>
     </div>
     <div class="dim text-xs mt-3" id="auto-backup-info">Chargement…</div>
+    <div class="dim text-xs mt-3" id="storage-info"></div>
   `;
   page.appendChild(saveCard);
   setTimeout(async () => {
     saveCard.querySelector('#btn-export').addEventListener('click', exportData);
     saveCard.querySelector('#import-file').addEventListener('change', onImportFile);
+    // État de la protection des données (stockage persistant, dernier export).
+    const st = await storageStatus();
+    const d = daysSince(st.lastExport);
+    saveCard.querySelector('#storage-info').innerHTML =
+      `Stockage protégé : <strong>${st.persisted ? 'oui' : 'non demandé ou refusé'}</strong><br>` +
+      `Dernier export : <strong>${d === null ? 'jamais' : d === 0 ? 'aujourd\'hui' : 'il y a ' + d + ' j'}</strong>`;
     // Affiche la dernière sauvegarde auto.
     const infoEl = saveCard.querySelector('#auto-backup-info');
     const backups = await dbAll('backups');

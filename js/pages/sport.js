@@ -12,6 +12,7 @@ import { loadAll } from '../features/seed.js';
 import { runsGoalFor } from '../features/weekly-goals.js';
 import { SUBJECTS, computeWorkXp } from '../features/work.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 
 export function renderSport(root) {
@@ -37,7 +38,7 @@ export function renderSport(root) {
 
   if (State.activities.length === 0) {
     const empty = el('div', { class: 'card center', style: 'padding:40px; text-align:center;', html: `
-      <div class="text-2xl mb-2">🏔️</div>
+      <div class="text-2xl mb-2">${iconHtml('peak')}</div>
       <h3 class="mb-2">Aucune sortie</h3>
       <div class="dim text-sm mb-4">Importe ton premier fichier GPX.</div>
     `});
@@ -64,11 +65,11 @@ export function renderSport(root) {
     const card = el('div', { class: 'card mb-4', html: `
       <div class="flex between mb-2">
         <div>
-          <div class="text-lg" style="font-weight:600;">${typeIcon} ${escapeHtml(sel.name)}</div>
+          <div class="text-lg" style="font-weight:600;">${iconHtml(typeIcon)} ${escapeHtml(sel.name)}</div>
           <div class="dim text-sm">${formatDate(sel.date)} · ${SPORT_TYPES[sel.type]?.label || sel.type}</div>
         </div>
         <div class="flex gap-2">
-          <button class="btn ghost sm" id="edit-act" title="Modifier">✏️</button>
+          <button class="btn ghost sm" id="edit-act" title="Modifier">${iconHtml('pencil')}</button>
           <button class="btn ghost sm danger" id="del-act">Suppr.</button>
         </div>
       </div>
@@ -150,7 +151,7 @@ export function renderSport(root) {
         }
       });
       btn.innerHTML = `
-        <div class="act-icon">${ti}</div>
+        <div class="act-icon">${iconHtml(ti)}</div>
         <div class="act-body">
           <div class="act-title">${escapeHtml(a.name)}</div>
           <div class="act-meta">${formatDate(a.date)} • ${a.distanceKm} km • ${a.elevGain} m D+</div>
@@ -315,7 +316,7 @@ export function showGpxPreview(parsed, type, splits, xp) {
     modal.innerHTML = `
       <div class="gpx-preview-head">
         <div class="gpx-preview-title">
-          <span class="gpx-preview-icon">${typeIcon}</span>
+          <span class="gpx-preview-icon">${iconHtml(typeIcon)}</span>
           <span>${escapeHtml(parsed.name)}</span>
         </div>
         <button class="gpx-preview-close" aria-label="Fermer">✕</button>
@@ -329,8 +330,8 @@ export function showGpxPreview(parsed, type, splits, xp) {
       </div>
       ${splits.best5k || splits.best10k ? `
         <div class="gpx-preview-splits">
-          ${splits.best5k ? `<span>⚡ 5K · ${formatDuration(Math.round(splits.best5k))}</span>` : ''}
-          ${splits.best10k ? `<span>🏃 10K · ${formatDuration(Math.round(splits.best10k))}</span>` : ''}
+          ${splits.best5k ? `<span>${iconHtml('bolt')} 5K · ${formatDuration(Math.round(splits.best5k))}</span>` : ''}
+          ${splits.best10k ? `<span>${iconHtml('run')} 10K · ${formatDuration(Math.round(splits.best10k))}</span>` : ''}
         </div>
       ` : ''}
       <div class="gpx-preview-actions">
@@ -432,7 +433,7 @@ export function showPRCelebration(records) {
   const list = document.getElementById('pr-list');
   list.innerHTML = records.map(r => `
     <div class="pr-item">
-      <span class="pr-icon">${r.type.icon}</span>
+      <span class="pr-icon">${iconHtml(r.type.icon)}</span>
       <span class="pr-label">${r.type.label}</span>
       <span class="pr-value">${formatRecordValue(r.type, r.value)}</span>
     </div>
@@ -609,7 +610,7 @@ export async function deleteActivity(activity) {
   const projectedXp = Math.max(0, profile.totalXp - xpAwarded);
   const after = deriveLevel(projectedXp).level;
   if (after < before) {
-    if (!confirm(`⚠️ Supprimer cette sortie te fera perdre ${before - after} niveau${before - after > 1 ? 'x' : ''} (du ${before} au ${after}). Continuer ?`)) {
+    if (!confirm(`Supprimer cette sortie te fera perdre ${before - after} niveau${before - after > 1 ? 'x' : ''} (du ${before} au ${after}). Continuer ?`)) {
       return false;
     }
   }
@@ -633,7 +634,7 @@ export async function editActivity(activity) {
   modal.innerHTML = `
     <div class="gpx-preview-head">
       <div class="gpx-preview-title">
-        <span class="gpx-preview-icon">✏️</span>
+        <span class="gpx-preview-icon">${iconHtml('pencil')}</span>
         <span>Catégorie de la sortie</span>
       </div>
       <button class="gpx-preview-close" aria-label="Fermer">✕</button>
@@ -641,7 +642,7 @@ export async function editActivity(activity) {
     <div style="padding: 16px 18px;">
       <label class="dim text-xs" style="display:block; margin-bottom:6px;">Catégorie</label>
       <select class="input" id="edit-cat" style="width:100%;">
-        ${cats.map(c => `<option value="${c}" ${c === activity.type ? 'selected' : ''}>${SPORT_TYPES[c]?.icon || ''} ${SPORT_TYPES[c]?.label || c}</option>`).join('')}
+        ${cats.map(c => `<option value="${c}" ${c === activity.type ? 'selected' : ''}>${SPORT_TYPES[c]?.label || c}</option>`).join('')}
       </select>
       <p class="dim text-xs mt-3">Le nom de la sortie sera mis à jour automatiquement selon la catégorie. Si la catégorie change, l'XP est recalculé et la différence appliquée à ton niveau.</p>
     </div>

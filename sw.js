@@ -4,7 +4,16 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v81';
+const VERSION = 'orion-v84';
+// Cache des bibliothèques externes (MapLibre, Chart.js, polices) : jamais supprimé lors d'une mise à jour
+// de l'app, pour que la carte et les graphiques marchent hors ligne dès la 1re ouverture en ligne.
+const CDN_CACHE = 'orion-cdn-v1';
+const CDN_URLS = [
+  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css',
+  'https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js',
+  'https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js',
+  'https://fonts.googleapis.com/css2?family=Cinzel:wght@400;500;600;700&family=Cormorant+Garamond:wght@500;600;700&display=swap',
+];
 const ASSETS = [
   './',
   './index.html',
@@ -22,6 +31,7 @@ const ASSETS = [
   './js/features/planning.js',
   './js/features/quests.js',
   './js/features/records.js',
+  './js/features/storage.js',
   './js/features/schedule.js',
   './js/features/seed.js',
   './js/features/todo-data.js',
@@ -37,15 +47,19 @@ const ASSETS = [
   './js/pages/sport.js',
   './js/pages/stats.js',
   './js/ui/helpers.js',
+  './js/ui/icons.js',
   './js/ui/router.js',
   './manifest.json',
-  './icons/favicon.png',
+  './icons/orion-favicon.png?v=5',
   './icons/logo.png',
-  './icons/icon-192.png',
-  './icons/icon-512.png',
+  './icons/orion-192.png?v=5',
+  './icons/orion-512.png?v=5',
+  './icons/orion-maskable-512.png?v=5',
   './icons/badge.png',
   './icons/ui/tab-planning.png',
   './icons/ui/tab-planning-mono.png',
+  './icons/ui/tab-hebdo.png',
+  './icons/ui/tab-hebdo-mono.png',
 ];
 
 // ── Installation : on précharge tous les assets locaux dans un cache versionné.
@@ -54,6 +68,10 @@ self.addEventListener('install', (e) => {
   e.waitUntil(
     caches.open(VERSION).then(cache => cache.addAll(ASSETS).catch(() => {}))
   );
+  // Préchargement best-effort des bibliothèques externes (réponses « opaques » acceptées).
+  e.waitUntil(caches.open(CDN_CACHE).then(cache => Promise.all(CDN_URLS.map(u =>
+    cache.match(u).then(hit => hit || fetch(u, { mode: 'no-cors' }).then(r => cache.put(u, r))).catch(() => {})
+  ))));
   self.skipWaiting();
 });
 
@@ -63,7 +81,7 @@ self.addEventListener('install', (e) => {
 self.addEventListener('activate', (e) => {
   e.waitUntil((async () => {
     const keys = await caches.keys();
-    await Promise.all(keys.filter(k => k !== VERSION).map(k => caches.delete(k)));
+    await Promise.all(keys.filter(k => k !== VERSION && k !== CDN_CACHE).map(k => caches.delete(k)));
     await self.clients.claim();
     const clients = await self.clients.matchAll({ type: 'window' });
     for (const client of clients) {
@@ -110,13 +128,19 @@ self.addEventListener('fetch', (e) => {
 
   const isExternal = url.origin !== self.location.origin;
   if (isExternal) {
-    e.respondWith(networkFirst(req));
+    e.respondWith(externalCached(req));
     return;
   }
 
   // Navigation HTML : on tente le réseau d'abord pour ne pas servir une vieille app.
   if (req.mode === 'navigate' || (req.headers.get('accept') || '').includes('text/html')) {
     e.respondWith(networkFirst(req, './index.html'));
+    return;
+  }
+
+  // Manifeste : toujours le réseau d'abord (sinon l'ancienne icône peut revenir après l'installation).
+  if (/manifest\.json$/.test(url.pathname)) {
+    e.respondWith(networkFirst(req));
     return;
   }
 
@@ -130,6 +154,18 @@ self.addEventListener('fetch', (e) => {
   // Autres assets locaux (images, icônes) : stale-while-revalidate.
   e.respondWith(staleWhileRevalidate(req));
 });
+
+// Ressources externes : cache d'abord (versions épinglées dans l'URL), rafraîchi en arrière-plan.
+// Les réponses opaques (script/CSS sans CORS) sont acceptées : resp.ok y vaut toujours false.
+async function externalCached(req) {
+  const cache = await caches.open(CDN_CACHE);
+  const cached = await cache.match(req);
+  const network = fetch(req).then(resp => {
+    if (resp.ok || resp.type === 'opaque') cache.put(req, resp.clone()).catch(() => {});
+    return resp;
+  }).catch(() => null);
+  return cached || (await network) || Response.error();
+}
 
 async function networkFirst(req, fallbackPath) {
   try {

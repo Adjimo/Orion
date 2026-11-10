@@ -27,7 +27,7 @@ js/
   main.js           point d'entrée : splash, initialisation
   core/             état, base IndexedDB, dates, XP et niveaux
   features/         logique métier : travail, quêtes, malus, GPX, records, sauvegarde…
-  ui/               aides d'interface (DOM, toasts, modales), navigation
+  ui/               aides d'interface (DOM, toasts, modales), navigation, pack d'icônes (icons.js)
   pages/            une page par onglet : accueil, quêtes, sport, stats, profil
 ```
 
@@ -90,3 +90,19 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.13
 - Balayage horizontal pour changer d'onglet (ignoré sur carte, graphiques, champs, zones défilantes et fenêtres ouvertes).
+
+### v4.14
+- Icône d'app : nouveaux noms de fichiers versionnés (`orion-192.png`, `orion-512.png`, `orion-maskable-512.png`, `orion-favicon.png`, `?v=5`) pour empêcher le retour de l'ancienne icône après l'installation (cache navigateur / WebAPK). Le manifeste porte un `id`, des icônes `any` et `maskable` séparées, et passe en réseau d'abord dans le service worker.
+- Onglet Hebdo : nouvelle icône (drapeau) distincte de l'onglet Aujourd'hui (cible) : `tab-hebdo(.png|-mono.png)`.
+- To-do : titres de groupes en blanc, emoji ✅ remplacé par l'icône « check » du pack.
+- Pack d'icônes `js/ui/icons.js` : 36 icônes SVG, une couleur chaude par icône (jaunes, ambres, orangés, terres, rosés, sans bleu/violet/vert). `installIconizer()` remplace automatiquement tout emoji connu du DOM ; pour ajouter une icône, compléter `ICONS`, `COLORS` et `EMOJI`. Les emojis restent dans les données (ils servent de clé) et ne sont affichés nulle part tels quels. Les boîtes natives (`confirm`, `<option>`) gardent du texte.
+
+### v4.15
+- Protection des données : le stockage persistant est demandé au navigateur ; le Profil indique s'il est actif et la date du dernier export ; rappel (au plus un par jour) si aucun export depuis 14 jours.
+- Hors ligne : MapLibre, Chart.js et les polices sont mis dans un cache dédié `orion-cdn-v1` (non effacé à chaque mise à jour) et préchargés à l'installation.
+- Le zoom par pincement est de nouveau autorisé (le double-tap ne zoome pas sur les boutons).
+- Icône de notification : `badge.png` est bien la silhouette monochrome (rien à changer).
+
+### v4.16
+- Icônes : les données et le code utilisent désormais des **noms d'icônes** du pack (`icon: 'run'`) au lieu d'emojis. L'« iconizer » (remplacement automatique d'emojis dans le DOM) est supprimé ; `iconHtml(nom)` dans `js/ui/icons.js` produit l'icône, `data-ico` remplit les emplacements statiques du HTML.
+- Migration silencieuse : les icônes stockées sous forme d'emoji dans les quêtes et les examens sont converties en noms au démarrage (idempotent).

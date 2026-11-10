@@ -23,26 +23,26 @@ export function deriveLevel(totalXp) {
 }
 
 export const SKILL_META = {
-  endurance:  { label: 'Endurance',  icon: '🏃', color: '#bba677', desc: 'Volume kilométrique.' },
-  allure:     { label: 'Allure',     icon: '⚡', color: '#d9a441', desc: 'Performance pure.' },
-  maths:      { label: 'Maths',      icon: '🧮', color: '#e6d9b0', desc: 'DM, exos, démos.' },
+  endurance:  { label: 'Endurance',  icon: '🏃', color: '#C8814A', desc: 'Volume kilométrique.' },
+  allure:     { label: 'Allure',     icon: '⚡', color: '#D08A4E', desc: 'Performance pure.' },
+  maths:      { label: 'Maths',      icon: '🧮', color: '#EBCDB0', desc: 'DM, exos, démos.' },
   physique:   { label: 'Physique',   icon: '⚛️', color: '#b0705a', desc: 'Mécanique, thermo, ondes.' },
-  si:         { label: 'SI / Info',  icon: '🔬', color: '#a8742a', desc: 'Sciences ingé / info.' },
-  langues:    { label: 'Anglais',    icon: '🌍', color: '#d8c797', desc: 'Anglais.' },
+  si:         { label: 'SI / Info',  icon: '🔬', color: '#B5703B', desc: 'Sciences ingé / info.' },
+  langues:    { label: 'Anglais',    icon: '🌍', color: '#E3B089', desc: 'Anglais.' },
   lettres:    { label: 'Lettres',    icon: '✒️', color: '#c8975a', desc: 'Français, philo.' },
-  discipline: { label: 'Discipline', icon: '🧘', color: '#9c7424', desc: 'Régularité, focus.' }
+  discipline: { label: 'Discipline', icon: '🧘', color: '#9C6335', desc: 'Régularité, focus.' }
 };
 
 export const RANKS = [
-  { from: 1,   to: 4,   title: 'Mortel',              color: '#8a8270' },
-  { from: 5,   to: 9,   title: 'Initié',              color: '#a8956a' },
-  { from: 10,  to: 14,  title: 'Aspirant',            color: '#bba677' },
-  { from: 15,  to: 19,  title: 'Coureur',             color: '#d8c797' },
-  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#e6c36a' },
+  { from: 1,   to: 4,   title: 'Mortel',              color: '#8C8579' },
+  { from: 5,   to: 9,   title: 'Initié',              color: '#A39B8D' },
+  { from: 10,  to: 14,  title: 'Aspirant',            color: '#C8814A' },
+  { from: 15,  to: 19,  title: 'Coureur',             color: '#E3B089' },
+  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#E3B089' },
   { from: 30,  to: 49,  title: 'Cendres',             color: '#b0705a' },
-  { from: 50,  to: 74,  title: 'Renaissance',         color: '#d9a441' },
+  { from: 50,  to: 74,  title: 'Renaissance',         color: '#D08A4E' },
   { from: 75,  to: 99,  title: 'Phénix',              color: '#e89a3c' },
-  { from: 100, to: 999, title: 'Orion',               color: '#f3e3ab' }
+  { from: 100, to: 999, title: 'Orion',               color: '#F1DEC8' }
 ];
 
 export function getRank(level) {

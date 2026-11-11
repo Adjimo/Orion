@@ -1,6 +1,7 @@
 // Navigation entre les pages
 import { State } from '../core/state.js';
 import { renderHome } from '../pages/home.js';
+import { renderOptions } from '../pages/options.js';
 import { renderPlanning } from '../pages/planning.js';
 import { renderHebdo, renderToday } from '../pages/quests.js';
 import { renderSport } from '../pages/sport.js';
@@ -31,6 +32,7 @@ export function render() {
     case 'hebdo': renderHebdo(view); break;
     case 'sport': renderSport(view); break;
     case 'stats': renderStats(view); break;
+    case 'options': renderOptions(view); break;
   }
 }
 
@@ -61,6 +63,7 @@ export function initSwipeNav() {
     start = null;
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return;
     const routes = [...document.querySelectorAll('.tab')].map(x => x.dataset.route);
+    if (!routes.includes(State.currentRoute)) return;   // pas de balayage depuis Options
     const i = routes.indexOf(State.currentRoute) + (dx < 0 ? 1 : -1);
     if (i >= 0 && i < routes.length) { navigate(routes[i]); window.scrollTo(0, 0); }
   }, { passive: true });

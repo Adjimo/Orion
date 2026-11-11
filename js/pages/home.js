@@ -2,14 +2,14 @@
 import { daysUntil, formatCountdown, formatDate, startOfWeek, todayKey } from '../core/dates.js';
 import { State } from '../core/state.js';
 import { dbPut } from '../core/db.js';
-import { deriveLevel, getNextRank, getRank } from '../core/xp.js';
+import { MAX_LEVEL, deriveLevel } from '../core/xp.js';
 import { computeYearProgress } from '../features/exams.js';
 import { loadAll } from '../features/seed.js';
 import { formatMinutes } from '../features/work.js';
 import { el, escapeHtml, progressBar } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
-import { render } from '../ui/router.js';
-import { renderProfileSections } from './profile.js';
+import { navigate, render } from '../ui/router.js';
+import { renderCaracsCard } from './caracs-card.js';
 
 export function greeting() {
   const h = new Date().getHours();
@@ -24,8 +24,6 @@ export function renderHome(root) {
   const p = State.profile;
   if (!p) return;
   const li = deriveLevel(p.totalXp);
-  const rank = getRank(li.level);
-  const nextR = getNextRank(li.level);
 
   const ws = startOfWeek();
   const weekActs = State.activities.filter(a => new Date(a.date) >= ws);
@@ -45,7 +43,7 @@ export function renderHome(root) {
 
   const page = el('div', { class: 'page' });
 
-  // Header (nom modifiable, rang, ancienneté)
+  // Header (nom modifiable, ancienneté, rouage Options)
   const editBtn = el('button', { class: 'btn ghost sm', 'aria-label': 'Modifier le nom', onclick: async () => {
     const name = prompt('Ton nom :', p.name);
     if (name && name.trim()) { p.name = name.trim(); await dbPut('profile', p); await loadAll(); render(); }
@@ -54,10 +52,9 @@ export function renderHome(root) {
     el('div', {}, [
       el('div', { class: 'dim text-sm' }, greeting()),
       el('div', { class: 'text-2xl' }, p.name),
-      rank ? el('div', { class: 'rank-pill', style: `--rank-c: ${rank.color};` }, '✦ ' + rank.title) : null,
       el('div', { class: 'dim text-xs mt-2' }, `Membre depuis ${formatDate(p.createdAt)}`)
     ]),
-    editBtn
+    el('div', { class: 'flex gap-2' }, [editBtn, el('button', { class: 'btn ghost sm', 'aria-label': 'Options', onclick: () => navigate('options'), html: iconHtml('scale') })])
   ]));
 
   // Hero niveau
@@ -65,8 +62,8 @@ export function renderHome(root) {
     el('div', { class: 'flex between mb-3' }, [
       el('div', {}, [
         el('div', { class: 'dim text-xs' }, 'Niveau'),
-        el('div', { class: 'text-3xl grad-text' }, String(li.level)),
-        nextR ? el('div', { class: 'text-xs mute mt-1', html: `Encore ${nextR.levelsAway} niv. avant <strong style="color:${nextR.rank.color}">${escapeHtml(nextR.rank.title)}</strong>` }) : null
+        el('div', { class: 'text-3xl grad-text' }, String(li.level) + ' / ' + MAX_LEVEL),
+        el('div', { class: 'text-xs mute mt-1' }, li.max ? 'Niveau maximum atteint' : `Niveau ${li.level + 1} dans ${li.xpToNext - li.xpInLevel} XP`)
       ]),
       el('div', { style: 'text-align:right;' }, [
         el('div', { class: 'dim text-xs' }, 'Cette semaine'),
@@ -76,7 +73,7 @@ export function renderHome(root) {
     ]),
     el('div', { class: '', html: progressBar(li.progress, 12) }),
     el('div', { class: 'flex between mt-2 text-xs dim' }, [
-      el('span', {}, `${li.xpInLevel} / ${li.xpToNext} XP`),
+      el('span', {}, li.max ? 'Niveau maximum' : `${li.xpInLevel} / ${li.xpToNext} XP`),
       el('span', {}, `Total : ${p.totalXp} XP`)
     ])
   ]));
@@ -110,6 +107,11 @@ export function renderHome(root) {
     `}));
   }
 
+  // Caractéristiques hebdomadaires (recalculées à la clôture de chaque semaine)
+  const caracsBox = el('div');
+  page.appendChild(caracsBox);
+  renderCaracsCard(caracsBox).catch(err => console.error('Caracs card failed', err));
+
   // Synthèse semaine
   page.appendChild(el('h3', { class: 'mb-3' }, 'Cette semaine'));
 
@@ -124,9 +126,6 @@ export function renderHome(root) {
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(todayWorkMin)}</div><div class="stat-label">aujourd'hui</div></div>
     <div class="stat"><div class="stat-val grad-text">${formatMinutes(weekWorkMin)}</div><div class="stat-label">cette semaine</div></div>
   `}));
-
-  // Compétences, bilan hebdo, rappels, sauvegarde (ex-page Profil)
-  renderProfileSections(page);
 
   root.appendChild(page);
 }

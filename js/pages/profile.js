@@ -12,30 +12,6 @@ import { iconHtml } from '../ui/icons.js';
 export function renderProfileSections(page) {
   const p = State.profile;
 
-  // Compétences
-  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('star') + ' Compétences' }));
-  const skCard = el('div', { class: 'card mb-4' });
-  let skHtml = '';
-  for (const [k, sk] of Object.entries(p.skills)) {
-    const meta = SKILL_META[k];
-    const info = deriveLevel(sk.xp);
-    skHtml += `
-      <div class="skill-row">
-        <div class="flex between mb-1">
-          <div class="flex gap-2"><span class="skill-icon">${iconHtml(meta.icon)}</span><span style="font-weight:500;">${meta.label}</span></div>
-          <span class="mono text-sm" style="color:${meta.color}; font-weight:700;">Niveau ${info.level}</span>
-        </div>
-        ${progressBar(info.progress, 6)}
-        <div class="flex between mt-1">
-          <span class="text-xs mute">${meta.desc}</span>
-          <span class="text-xs mute mono">${info.xpInLevel}/${info.xpToNext} XP</span>
-        </div>
-      </div>
-    `;
-  }
-  skCard.innerHTML = skHtml;
-  page.appendChild(skCard);
-
   // Bilan
   page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('chart') + ' Bilan hebdo' }));
   const wrCard = el('div', { class: 'card mb-4' });

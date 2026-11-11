@@ -146,3 +146,9 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.24
 - Dextérité : en semaine de sorties justifiées, l'Allure est aussi ignorée (et la sortie ne sert pas de référence VO2max pour les semaines suivantes).
+
+### v4.25
+- Radar des caractéristiques : échelle 0 → 20 (anneau extérieur = 20, anneau pointillé de 24 supprimé), toile agrandie (rayon 108 → 126) et icônes rapprochées des sommets. Le calcul n'est pas touché (scores sur 24) ; une valeur supérieure à 20 est écrêtée au bord du graphe.
+
+### v4.26
+- Échelle des caractéristiques façon D&D (moyen 8-12, bon ≥ 15, très bon 17-20, mauvais < 7) : objectif atteint = 12 (au lieu de 14), score hebdomadaire borné entre un plancher de 3 et un plafond de 20 (au lieu de 0-24). Réglable dans Options › Échelle des scores (clés `goalScore`, `scoreFloor`, `scoreCap`) ; recalcul complet depuis les données brutes, XP et malus intacts. La carte affiche « / plafond ».

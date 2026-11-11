@@ -30,7 +30,8 @@ export async function buildSnapshot() {
     records: await dbAll('records'),
     meta: await dbAll('meta'),
     planOverrides: await dbAll('planOverrides'),
-    planTodo: await dbAll('planTodo')
+    planTodo: await dbAll('planTodo'),
+    caracHistory: await dbAll('caracHistory')
   };
 }
 
@@ -98,7 +99,7 @@ export async function onImportFile(e) {
     const text = await file.text();
     const data = JSON.parse(text);
     if (!data.version) throw new Error('Fichier invalide');
-    for (const store of ['profile', 'quests', 'completions', 'activities', 'workLog', 'exams', 'schedule', 'records', 'meta', 'planOverrides', 'planTodo']) {
+    for (const store of ['profile', 'quests', 'completions', 'activities', 'workLog', 'exams', 'schedule', 'records', 'meta', 'planOverrides', 'planTodo', 'caracHistory']) {
       await dbClear(store);
       const items = data[store] || [];
       for (const it of items) await dbPut(store, it);

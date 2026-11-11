@@ -7,7 +7,8 @@
 //    (lundi suivant). Aucune valeur provisoire pendant la semaine.
 //  - valeur(n) = α × valeur(n-1) + (1-α) × S(n), α réglable (0,75 par défaut) ;
 //    toute modification de α recalcule tout l'historique depuis la date de départ.
-//  - S ∈ [0 ; 24] ; atteindre l'objectif = 14, ≈ 1,45 × l'objectif = 20.
+//  - S ∈ [plancher ; plafond] = [3 ; 20] par défaut ; atteindre l'objectif = 12 (haut de « moyen », façon D&D),
+//    15 à +25 % de l'objectif, 17 à +42 %, 20 à +67 % ; sous 7 en dessous de 58 % de l'objectif. Tout est réglable.
 //  - recalcul déterministe depuis `start` (1er septembre 2026) : même données → mêmes valeurs.
 //  - sorties justifiées (wq-runs) : volume, régularité et allure ignorés en Dextérité ; si rien n'est mesurable, la valeur reste inchangée.
 //  - sommeil : max(cases cochées, compteur de la quête wq-sleep) car l'historique des cases ne commence qu'en nov. 2026.
@@ -51,6 +52,9 @@ export const DEFAULT_SETTINGS = {
     verb: { heures: 60, todo: 40 },
     disc: { quetes: 35, sommeil: 25, jours: 20, todo: 20 }
   },
+  goalScore: 12,                // score quand l'objectif est atteint (échelle façon D&D : moyen 8-12, bon ≥ 15, très bon 17-20)
+  scoreFloor: 3,                // score hebdomadaire minimum (une valeur ne descend jamais sous ce plancher)
+  scoreCap: 20,                 // score hebdomadaire maximum
   allureSensibilite: 5,         // +1 % de VO2max vs référence ⇒ +5 % du score de base (14)
   allureRefWeeks: 6,            // référence = meilleur VO2max des N semaines précédentes
   regulariteWeeks: 4,           // fenêtre de la régularité (semaines avec objectif de sorties atteint)
@@ -76,17 +80,17 @@ export async function saveCaracSettings(patch) {
 
 // ── Outils de calcul ─────────────────────────────────────────────────────────
 export const clamp = (x, a, b) => Math.max(a, Math.min(b, x));
-// Score de base : objectif atteint = 14, 1,45 × objectif ≈ 20, plafonné à 24.
-export const baseScore = (ratio) => clamp(14 * (ratio || 0), 0, 24);
+// Score de base : objectif atteint = `goal` (12 par défaut), proportionnel, plafonné à `cap` (20 par défaut).
+export const baseScore = (ratio, goal = DEFAULT_SETTINGS.goalScore, cap = DEFAULT_SETTINGS.scoreCap) => clamp(goal * (ratio || 0), 0, cap);
 export const modifier = (value) => Math.floor((Math.round(value) - 10) / 2);
 export const fmtMod = (m) => (m >= 0 ? `+${m}` : `${m}`);
 
 // Combine des parts { key, w, score|null } : une part absente (null) est ignorée et les poids sont renormalisés.
-export function combine(parts) {
+export function combine(parts, cap = DEFAULT_SETTINGS.scoreCap) {
   const ok = parts.filter(p => p.score != null && p.w > 0);
   const tw = ok.reduce((s, p) => s + p.w, 0);
   const comps = parts.map(p => ({ key: p.key, w: p.w, score: p.score, contrib: (p.score != null && tw > 0 && p.w > 0) ? (p.w / tw) * p.score : 0, note: p.note || '' }));
-  const S = clamp(comps.reduce((s, c) => s + c.contrib, 0), 0, 24);
+  const S = clamp(comps.reduce((s, c) => s + c.contrib, 0), 0, cap);
   return { S, comps, empty: ok.length === 0 };   // empty : aucune part mesurable → la valeur n'est pas mise à jour
 }
 
@@ -121,12 +125,13 @@ export function scoreWeek(ctx) {
   const items = todoOn ? raw.todo.filter(i => i.weekKey === monday) : [];
   const W = cfg.weights;
   const out = {};
+  const bs = (r) => baseScore(r, cfg.goalScore, cfg.scoreCap);
   const f = cfg.prorateFirstWeek ? days.length / 7 : 1;          // facteur de proratisation (1 = semaine complète)
   const hoursPart = (id, subjects) => {
     const goal = cfg.hoursGoal[id] * 60 * f;
-    return goal > 0 ? baseScore(sumMinutes(raw.logs, days, subjects) / goal) : null;
+    return goal > 0 ? bs(sumMinutes(raw.logs, days, subjects) / goal) : null;
   };
-  const todoPart = (subjects) => { const r = todoRatio(items, subjects); return r == null ? null : baseScore(r); };
+  const todoPart = (subjects) => { const r = todoRatio(items, subjects); return r == null ? null : bs(r); };
 
   // Dextérité : volume (sorties vs objectif), allure (progrès du VO2max/VDOT), régularité (semaines tenues)
   const runs = raw.acts.filter(a => days.includes(String(a.date).slice(0, 10)));
@@ -138,16 +143,16 @@ export function scoreWeek(ctx) {
   const vo2Week = vo2s.length ? Math.max(...vo2s) : null;
   let allure = null, allureNote = '';
   if (runsExcused) allureNote = 'sorties justifiées';             // semaine justifiée : allure ignorée
-  else if (vo2Week != null && ctx.refVo2 != null) allure = clamp(14 * (1 + cfg.allureSensibilite * (vo2Week / ctx.refVo2 - 1)), 0, 24);
-  else if (vo2Week != null) allure = 14;                       // première mesure : neutre
+  else if (vo2Week != null && ctx.refVo2 != null) allure = clamp(cfg.goalScore * (1 + cfg.allureSensibilite * (vo2Week / ctx.refVo2 - 1)), 0, cfg.scoreCap);
+  else if (vo2Week != null) allure = cfg.goalScore;                // première mesure : neutre
   else allureNote = 'aucune sortie chronométrée';              // pas de mesure → part ignorée (pas pénalisée)
   const hit = runs.length >= runsGoal;
   const window = [...ctx.prevRunWeeks.slice(-(cfg.regulariteWeeks - 1)), hit];
   out.dex = combine([
-    { key: 'volume', w: W.dex.volume, score: runsExcused ? null : baseScore(runs.length / runsGoal), note: runsExcused ? 'sorties justifiées' : '' },
+    { key: 'volume', w: W.dex.volume, score: runsExcused ? null : bs(runs.length / runsGoal), note: runsExcused ? 'sorties justifiées' : '' },
     { key: 'allure', w: W.dex.allure, score: allure, note: allureNote },
-    { key: 'regularite', w: W.dex.regularite, score: runsExcused ? null : baseScore(window.filter(Boolean).length / window.length), note: runsExcused ? 'sorties justifiées' : '' }
-  ]);
+    { key: 'regularite', w: W.dex.regularite, score: runsExcused ? null : bs(window.filter(Boolean).length / window.length), note: runsExcused ? 'sorties justifiées' : '' }
+  ], cfg.scoreCap);
   out.dex.meta = { runsHit: hit, runsExcused, vo2Week };
 
   // Matières : heures (objectif de la matière) + chapitres cochés (pondérés)
@@ -157,7 +162,7 @@ export function scoreWeek(ctx) {
     out[id] = combine([
       { key: 'heures', w: W[id].heures, score: hoursPart(id, subj[id]) },
       { key: 'todo', w: W[id].todo, score: todoPart(todoSubj[id]), note: todoOn ? '' : 'pas de to-do cette semaine' }
-    ]);
+    ], cfg.scoreCap);
   }
 
   // Discipline : quêtes réussies, nuits avant 23h30, jours de travail, to-do sans report, − écarts perso
@@ -177,15 +182,15 @@ export function scoreWeek(ctx) {
   const workDays = raw.logs.filter(l => days.includes(l.date) && (l.totalMinutes || 0) > 0).length;
   const late = items.filter(i => i.carried || i.rolled || i.carriedTo).length;
   const disc = combine([
-    { key: 'quetes', w: W.disc.quetes, score: qs.length ? baseScore(done / qs.length) : null, note: nbExcused ? `${nbExcused} quête(s) justifiée(s) ignorée(s)` : '' },
-    { key: 'sommeil', w: W.disc.sommeil, score: baseScore(nights / days.length) },
-    { key: 'jours', w: W.disc.jours, score: baseScore(workDays / Math.max(1, cfg.workDaysGoal * f)) },
-    { key: 'todo', w: W.disc.todo, score: items.length ? baseScore(1 - late / items.length) : null, note: todoOn ? '' : 'pas de to-do cette semaine' }
-  ]);
+    { key: 'quetes', w: W.disc.quetes, score: qs.length ? bs(done / qs.length) : null, note: nbExcused ? `${nbExcused} quête(s) justifiée(s) ignorée(s)` : '' },
+    { key: 'sommeil', w: W.disc.sommeil, score: bs(nights / days.length) },
+    { key: 'jours', w: W.disc.jours, score: bs(workDays / Math.max(1, cfg.workDaysGoal * f)) },
+    { key: 'todo', w: W.disc.todo, score: items.length ? bs(1 - late / items.length) : null, note: todoOn ? '' : 'pas de to-do cette semaine' }
+  ], cfg.scoreCap);
   const selfPct = Math.min(60, (raw.self[wk] || []).reduce((s, e) => s + (e.percent || 0), 0));
   const ecart = selfPct * cfg.ecartPointsPerPct;
   disc.comps.push({ key: 'ecarts', w: 0, score: null, contrib: -ecart, note: selfPct ? `${selfPct} % d'écarts` : '' });
-  disc.S = clamp(disc.S - ecart, 0, 24);
+  disc.S = clamp(disc.S - ecart, 0, cfg.scoreCap);
   out.disc = disc;
   return out;
 }
@@ -213,7 +218,7 @@ async function run(today) {
     const res = scoreWeek({ monday, days, raw, cfg, prevRunWeeks, refVo2 });
     const scores = {}, nextValues = {}, details = {};
     for (const c of CARACS) {
-      const S = res[c.id].empty ? values[c.id] : res[c.id].S;     // rien de mesurable : la valeur reste inchangée
+      const S = res[c.id].empty ? values[c.id] : clamp(res[c.id].S, cfg.scoreFloor, cfg.scoreCap);   // plancher / plafond ; rien de mesurable : valeur inchangée
       scores[c.id] = Math.round(S * 100) / 100;
       nextValues[c.id] = Math.round((cfg.alpha * values[c.id] + (1 - cfg.alpha) * S) * 100) / 100;
       details[c.id] = res[c.id].comps.map(x => ({ key: x.key, score: x.score == null ? null : Math.round(x.score * 100) / 100, contrib: Math.round(x.contrib * 100) / 100, note: x.note }));

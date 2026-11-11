@@ -1,6 +1,7 @@
 // Point d'entrée : splash et initialisation
 import { GHOST_BEFORE, dbGet, dbPut } from './core/db.js';
 import { integrateAugustData, maybeAutoBackup, showWeekReportIfDue, startReminderLoop, weeklyXpCheck } from './features/backup.js';
+import { recomputeCaracs } from './features/caracs.js';
 import { ensureTodo } from './features/todo.js';
 import { applyPendingPenalties } from './features/penalties.js';
 import { backupReminder, ensurePersistentStorage } from './features/storage.js';
@@ -60,6 +61,9 @@ export async function init() {
   // To-do du Planning : génération de la semaine et report des éléments non cochés.
   await ensureTodo();
 
+  // Caractéristiques : recalcul des semaines closes uniquement (jamais de valeur provisoire).
+  await recomputeCaracs().catch(err => console.error('Caracs failed', err));
+
   // Sauvegarde automatique : 1× par jour au premier lancement.
   // Silencieuse : on ne notifie que si elle a réellement créé un snapshot.
   maybeAutoBackup().catch(() => {});
@@ -96,7 +100,5 @@ export async function init() {
     }, 1500);
   }
 }
-
-document.addEventListener('DOMContentLoaded', init);
 
 document.addEventListener('DOMContentLoaded', init);

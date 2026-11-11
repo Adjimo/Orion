@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v84';
+const VERSION = 'orion-v92';
 // Cache des bibliothèques externes (MapLibre, Chart.js, polices) : jamais supprimé lors d'une mise à jour
 // de l'app, pour que la carte et les graphiques marchent hors ligne dès la 1re ouverture en ligne.
 const CDN_CACHE = 'orion-cdn-v1';
@@ -24,6 +24,7 @@ const ASSETS = [
   './js/core/state.js',
   './js/core/xp.js',
   './js/features/backup.js',
+  './js/features/caracs.js',
   './js/features/exams.js',
   './js/features/gpx.js',
   './js/features/penalties.js',
@@ -40,7 +41,10 @@ const ASSETS = [
   './js/features/work.js',
   './js/main.js',
   './js/ui/todo-widgets.js',
+  './js/pages/caracs-card.js',
+  './js/pages/caracs-settings.js',
   './js/pages/home.js',
+  './js/pages/options.js',
   './js/pages/planning.js',
   './js/pages/profile.js',
   './js/pages/quests.js',

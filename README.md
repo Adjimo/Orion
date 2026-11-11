@@ -106,3 +106,43 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 ### v4.16
 - Icônes : les données et le code utilisent désormais des **noms d'icônes** du pack (`icon: 'run'`) au lieu d'emojis. L'« iconizer » (remplacement automatique d'emojis dans le DOM) est supprimé ; `iconHtml(nom)` dans `js/ui/icons.js` produit l'icône, `data-ico` remplit les emplacements statiques du HTML.
 - Migration silencieuse : les icônes stockées sous forme d'emoji dans les quêtes et les examens sont converties en noms au démarrage (idempotent).
+
+### v4.17 — Caractéristiques hebdomadaires (carte « Caractéristiques » sur l'Accueil)
+- 6 caractéristiques : Dextérité, Maths, Physique, SI / Info, Verbe (anglais + français), Discipline. Indépendantes de l'XP, des malus et des niveaux.
+- **Recalcul uniquement à la clôture de chaque semaine** (lundi → dimanche) : aucune valeur provisoire en cours de semaine. Calcul déterministe depuis le 1er septembre 2026, valeur de départ 10.
+- valeur(n) = α × valeur(n−1) + (1−α) × S(n) ; α (poids de l'historique, 75 % par défaut) se règle via l'icône balance de la carte : tout l'historique est recalculé à la validation.
+- S ∈ [0 ; 24] : objectif atteint = 14, ≈ 1,45 × objectif = 20. Pondérations et objectifs dans `DEFAULT_SETTINGS` (`js/features/caracs.js`, meta `caracSettings`).
+- Store `caracHistory` (DB v5), inclus dans export/import. Module : `js/features/caracs.js` ; carte : `js/pages/caracs-card.js` (radar SVG hors ligne, filigrane à −4 semaines, détail au toucher d'un sommet).
+- Correctif : l'écouteur `DOMContentLoaded` de `main.js` était enregistré deux fois.
+
+### v4.17 (suite) — Niveaux D&D, Accueil et Options
+- **Niveaux façon Donjons & Dragons** : niveau 1 → 20, seuils D&D 5e remis à l'échelle (`LEVEL_THRESHOLDS` dans `js/core/xp.js`). Le niveau 20 est atteint à `LEVEL20_XP` = 145 000 XP, soit les oraux (mi/fin juin 2027) au rythme actuel (≈ 3 600 XP/semaine). Pour décaler la date, modifier uniquement `LEVEL20_XP` : l'XP stockée n'est jamais touchée. Les 43 600 XP actuels (ancien « niveau 35 ») donnent le niveau 12.
+- Plus de titres de rang. Les niveaux de compétence (non affichés) gardent l'ancienne courbe (`deriveSkillLevel`).
+- **Accueil** : en-tête avec rouage (Options) en haut à droite → niveau → échéance → graphique des caractéristiques → résumés Travail et Sport de la semaine. La liste des compétences est supprimée.
+- **Options** (route `options`, `js/pages/options.js`) : bilan hebdo, rappels, sauvegarde/import, numéro de version.
+
+### v4.18 — Réglages des caractéristiques éditables
+- Options → « Réglage des caractéristiques » (`js/pages/caracs-settings.js`) : poids de l'historique (α), objectifs d'heures (Maths, Physique, SI, Verbe), jours travaillés attendus, pondérations internes de chacune des 6 caractéristiques, sensibilité de l'allure, points de Discipline retirés par % d'écart. Un bouton « Par défaut » rétablit les valeurs d'origine.
+- Chaque validation passe par `saveCaracSettings()` : recalcul complet de l'historique, sans jamais toucher à l'XP, aux malus ni aux données. Les pondérations d'une caractéristique sont normalisées si leur total n'est pas 100.
+- Les objectifs d'heures par défaut (Maths 15 h, Physique 11 h, SI 1,5 h, Verbe 4 h) restent des valeurs de départ à valider.
+
+### v4.19
+- Caractéristiques : première semaine partielle (31/08, comptée du 01/09) proratisée par jours comptés / 7 : objectifs d'heures, de jours travaillés, de sorties (arrondi, min. 1) et nuits (sur les jours comptés). Réglage `prorateFirstWeek` (case à cocher dans Options, activé par défaut) ; les quêtes stockées ne sont pas modifiées.
+- Objectifs d'heures par défaut confirmés : Maths 15 h, Physique 11 h, SI 1,5 h, Verbe 4 h.
+
+### v4.20
+- Discipline : les quêtes justifiées (maladie ou autre, `meta.malusExcuses`) sont neutralisées : retirées du dénominateur au lieu d'être comptées ratées. Réglage `neutralizeExcused` (case à cocher dans Options, activé par défaut). Dextérité et heures par matière inchangées.
+
+### v4.21
+- Options : « Réglage des caractéristiques » est repliable (fermé par défaut), avec 5 sections dépliables (Historique, Objectifs hebdomadaires, Cas particuliers, Pondérations internes, Sensibilités). La page passe d'environ 2 900 px à environ 950 px de haut (écran de 380 px).
+- Correctif : « Par défaut » ne vide plus toute la page Options, seule la section est ré-affichée.
+
+### v4.22
+- Validé sur l'export réel (11/11/2026) : `actualValue` en minutes pour les quêtes d'heures et en nombre pour les comptes ; `activities.date` au format ISO UTC (aucune sortie proche de minuit UTC, pas de décalage de jour) ; `best5k` présent sur 29 sorties sur 34, repli sur durée et distance pour les autres ; pas de `best10k` ni `bestSemi` (le calcul s'en passe).
+- Correctif Discipline : les cases de sommeil (`sleepLog`) n'existent que depuis le 02/11/2026. Avant, la part Sommeil valait 0 chaque semaine. Désormais nuits = max(cases cochées, compteur de la quête `wq-sleep`).
+
+### v4.23
+- Dextérité : une semaine où les sorties sont justifiées (`wq-runs`, ex. maladie) ignore le volume et la régularité (cette semaine sort de la fenêtre de régularité). Si aucune part n'est mesurable, la valeur reste inchangée au lieu de tomber à 0. Même réglage `neutralizeExcused` que pour la Discipline.
+
+### v4.24
+- Dextérité : en semaine de sorties justifiées, l'Allure est aussi ignorée (et la sortie ne sert pas de référence VO2max pour les semaines suivantes).

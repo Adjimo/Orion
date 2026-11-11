@@ -77,6 +77,13 @@ export async function renderCaracsSettings(root, forceOpen = false) {
   wBody.push(el('div', { class: 'cs-hint' }, 'Si le total d\'une caractéristique n\'est pas 100, les parts sont normalisées.'));
   card.appendChild(group('Pondérations internes (%)', wBody));
 
+  card.appendChild(group('Échelle des scores', [
+    field('Score quand l\'objectif est atteint', 'cs-goalscore', cfg.goalScore, { min: 5, max: 20, step: 0.5 }),
+    field('Score minimum (plancher)', 'cs-floor', cfg.scoreFloor, { min: 0, max: 10, step: 0.5 }),
+    field('Score maximum (plafond)', 'cs-cap', cfg.scoreCap, { min: 10, max: 24, step: 0.5 }),
+    el('div', { class: 'cs-hint' }, 'Échelle façon D&D : moyen 8 à 12, bon à partir de 15, très bon 17 à 20, mauvais sous 7. Objectif atteint = 12 par défaut.')
+  ]));
+
   card.appendChild(group('Sensibilités', [
     field('Allure : % de score pour +1 % de VO2max', 'cs-allure', cfg.allureSensibilite, { min: 0, max: 30, step: 0.5, unit: '%' }),
     field('Écart perso : points de Discipline par %', 'cs-ecart', cfg.ecartPointsPerPct, { min: 0, max: 1, step: 0.05, unit: 'pt' })
@@ -108,6 +115,9 @@ export async function renderCaracsSettings(root, forceOpen = false) {
       }
       if (total <= 0) return bad(`${c.label} : au moins une pondération doit être > 0.`);
     }
+    const gs = q('cs-goalscore'), fl = q('cs-floor'), cp = q('cs-cap');
+    if (isNaN(gs) || isNaN(fl) || isNaN(cp) || fl < 0 || fl >= gs || gs > cp || cp > 24) return bad('Échelle : plancher < objectif atteint ≤ plafond ≤ 24.');
+    patch.goalScore = gs; patch.scoreFloor = fl; patch.scoreCap = cp;
     const al = q('cs-allure'), ec = q('cs-ecart');
     if (isNaN(al) || al < 0 || isNaN(ec) || ec < 0) return bad('Sensibilités invalides.');
     patch.allureSensibilite = al; patch.ecartPointsPerPct = ec;
@@ -118,6 +128,7 @@ export async function renderCaracsSettings(root, forceOpen = false) {
     if (!confirm('Rétablir tous les réglages par défaut et recalculer les caractéristiques ?')) return;
     await saveCaracSettings({
       alpha: DEFAULT_SETTINGS.alpha, hoursGoal: { ...DEFAULT_SETTINGS.hoursGoal }, workDaysGoal: DEFAULT_SETTINGS.workDaysGoal, prorateFirstWeek: DEFAULT_SETTINGS.prorateFirstWeek, neutralizeExcused: DEFAULT_SETTINGS.neutralizeExcused,
+      goalScore: DEFAULT_SETTINGS.goalScore, scoreFloor: DEFAULT_SETTINGS.scoreFloor, scoreCap: DEFAULT_SETTINGS.scoreCap,
       weights: JSON.parse(JSON.stringify(DEFAULT_SETTINGS.weights)), allureSensibilite: DEFAULT_SETTINGS.allureSensibilite,
       ecartPointsPerPct: DEFAULT_SETTINGS.ecartPointsPerPct
     });

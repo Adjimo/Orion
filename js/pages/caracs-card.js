@@ -5,9 +5,10 @@ import { CARACS, fmtMod, getCaracSettings, loadCaracHistory, modifier, saveCarac
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 
-const SIZE = 320, C = SIZE / 2, R24 = 108, ICON_R = 138;
+// Échelle du graphe : 0 → 20 (anneau extérieur = 20) ; une valeur au-delà est écrêtée au bord.
+const SIZE = 320, C = SIZE / 2, RMAX = 20, R_OUT = 126, ICON_R = 144;
 const polar = (i, v) => {
-  const a = (-90 + i * 60) * Math.PI / 180, r = R24 * Math.min(24, Math.max(0, v)) / 24;
+  const a = (-90 + i * 60) * Math.PI / 180, r = R_OUT * Math.min(RMAX, Math.max(0, v)) / RMAX;
   return [C + r * Math.cos(a), C + r * Math.sin(a)];
 };
 const pts = (vals) => CARACS.map((c, i) => polar(i, vals[c.id]).map(n => n.toFixed(1)).join(',')).join(' ');
@@ -45,8 +46,8 @@ export async function renderCaracsCard(root) {
   const last = hist[hist.length - 1], prev = hist[hist.length - 2], old = hist[hist.length - 5];
   card.appendChild(el('div', { class: 'dim text-xs mb-2' }, `Bilan de la semaine du ${formatDate(last.week)} au ${formatDate(addDays(last.week, 6))} · poids de l'historique ${Math.round(cfg.alpha * 100)} %`));
 
-  const rings = [5, 10, 15, 20].map(v => `<polygon points="${ring(v)}" class="cr-ring"/>`).join('') + `<polygon points="${ring(24)}" class="cr-ring dashed"/>`;
-  const axes = CARACS.map((_, i) => { const [x, y] = polar(i, 24); return `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="cr-axis"/>`; }).join('');
+  const rings = [5, 10, 15, 20].map(v => `<polygon points="${ring(v)}" class="cr-ring"/>`).join('');
+  const axes = CARACS.map((_, i) => { const [x, y] = polar(i, RMAX); return `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="cr-axis"/>`; }).join('');
   const ghost = old ? `<polygon points="${pts(old.values)}" class="cr-ghost"/>` : '';
   const dots = CARACS.map((c, i) => { const [x, y] = polar(i, last.values[c.id]); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${c.color}" class="cr-dot"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="16" fill="transparent" data-i="${i}" class="cr-hit"/>`; }).join('');
   const icons = CARACS.map((c, i) => {
@@ -63,7 +64,7 @@ export async function renderCaracsCard(root) {
     const rows = last.details[c.id].map(x => `<div class="flex between text-xs"><span>${COMP_LABEL[x.key] || x.key}${x.note ? ` <span class="mute">(${escapeHtml(x.note)})</span>` : ''}</span><span>${x.score == null ? '—' : x.score.toFixed(1)}</span></div>`).join('');
     detail.innerHTML = `<div class="cr-detail-card" style="border-color:${c.color}">
       <div class="flex between"><strong>${iconHtml(c.icon)} ${c.label}</strong><span>${Math.round(v)} (${fmtMod(modifier(v))}) ${d == null ? '' : arrow(d)}</span></div>
-      <div class="text-xs dim mt-1">Score de la semaine : ${last.scores[c.id].toFixed(1)} / 24${d == null ? '' : ` · variation ${d >= 0 ? '+' : ''}${d.toFixed(2)}`}</div>
+      <div class="text-xs dim mt-1">Score de la semaine : ${last.scores[c.id].toFixed(1)} / ${cfg.scoreCap}${d == null ? '' : ` · variation ${d >= 0 ? '+' : ''}${d.toFixed(2)}`}</div>
       ${m ? `<div class="text-xs mt-1">Moteur principal : <strong>${COMP_LABEL[m.key] || m.key}</strong>${m.d == null ? '' : ` (${m.d >= 0 ? '+' : ''}${m.d.toFixed(1)} pt)`}</div>` : ''}
       <div class="mt-2">${rows}</div></div>`;
   };

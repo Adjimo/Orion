@@ -2,7 +2,7 @@
 
 export const DB_NAME = 'orion';
 
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 
 export let _db;
 
@@ -27,6 +27,8 @@ export function openDB() {
       // v4 : page Planning (modifications d'emploi du temps, to-do hebdomadaire).
       if (!db.objectStoreNames.contains('planOverrides')) db.createObjectStore('planOverrides', { keyPath: 'id' });
       if (!db.objectStoreNames.contains('planTodo'))      db.createObjectStore('planTodo', { keyPath: 'id' });
+      // v5 : historique hebdomadaire des caractéristiques (clé = lundi de la semaine close).
+      if (!db.objectStoreNames.contains('caracHistory'))  db.createObjectStore('caracHistory', { keyPath: 'week' });
     };
     req.onsuccess = () => { _db = req.result; resolve(_db); };
   });

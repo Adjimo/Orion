@@ -2,24 +2,31 @@
 import { dbPut } from './db.js';
 import { State } from './state.js';
 
-export function xpForLevelUp(level) {
-  // Courbe quasi-linéaire : chaque niveau coûte ~1200 XP, +5 par level.
-  // L1 = 1200, L100 = 1695, cumul L100 ≈ 145k.
-  // Calibrée pour atteindre L100 aux concours avec 25-30h travail/sem
-  // + 3 sorties/sem depuis sept 2026. Évite les level-ups instantanés en début
-  // tout en restant tendu vers la fin (pas de plateau).
-  return Math.round(1200 + (level - 1) * 5);
-}
+// ── Niveaux façon Donjons & Dragons (5e) : niveau 1 → 20, courbe très progressive.
+// Seuils D&D 5e (XP cumulés pour atteindre chaque niveau), remis à l'échelle pour que le
+// niveau 20 tombe aux oraux (mi/fin juin 2027) : seuil(n) = DND_XP[n] × LEVEL20_XP / 355 000.
+// Calibrage : l'ancien système donnait niveau 35 au 11/11/2026 ≈ 43 600 XP (≈ 3 600 XP/sem depuis
+// le 15 août). À ce rythme, vacances et semaines allégées déduites, on atteint ≈ 140-150 k XP fin juin.
+// Pour décaler la date du niveau 20, ne changer que LEVEL20_XP (aucune XP stockée n'est modifiée).
+export const MAX_LEVEL = 20;
+export const LEVEL20_XP = 145000;
+const DND_XP = [0, 0, 300, 900, 2700, 6500, 14000, 23000, 34000, 48000, 64000, 85000, 100000, 120000, 140000, 165000, 195000, 225000, 265000, 305000, 355000];
+export const LEVEL_THRESHOLDS = DND_XP.map(x => Math.round(x * LEVEL20_XP / 355000));   // index = niveau
 
 export function deriveLevel(totalXp) {
-  let level = 1, remaining = totalXp;
-  while (remaining >= xpForLevelUp(level)) {
-    remaining -= xpForLevelUp(level);
-    level++;
-    if (level > 200) break;
-  }
-  const need = xpForLevelUp(level);
-  return { level, xpInLevel: remaining, xpToNext: need, progress: need > 0 ? remaining / need : 0 };
+  let level = 1;
+  while (level < MAX_LEVEL && totalXp >= LEVEL_THRESHOLDS[level + 1]) level++;
+  if (level >= MAX_LEVEL) return { level, xpInLevel: totalXp - LEVEL_THRESHOLDS[MAX_LEVEL], xpToNext: 0, progress: 1, max: true };
+  const from = LEVEL_THRESHOLDS[level], need = LEVEL_THRESHOLDS[level + 1] - from;
+  return { level, xpInLevel: totalXp - from, xpToNext: need, progress: (totalXp - from) / need, max: false };
+}
+
+// Niveaux de compétence (non affichés, conservés pour les données existantes) : ancienne courbe linéaire.
+export function xpForLevelUp(level) { return Math.round(1200 + (level - 1) * 5); }
+export function deriveSkillLevel(xp) {
+  let level = 1, remaining = xp;
+  while (remaining >= xpForLevelUp(level) && level <= 200) { remaining -= xpForLevelUp(level); level++; }
+  return { level };
 }
 
 export const SKILL_META = {
@@ -32,28 +39,6 @@ export const SKILL_META = {
   lettres:    { label: 'Lettres',    icon: 'pen', color: '#c8975a', desc: 'Français, philo.' },
   discipline: { label: 'Discipline', icon: 'lotus', color: '#9C6335', desc: 'Régularité, focus.' }
 };
-
-export const RANKS = [
-  { from: 1,   to: 4,   title: 'Mortel',              color: '#8C8579' },
-  { from: 5,   to: 9,   title: 'Initié',              color: '#A39B8D' },
-  { from: 10,  to: 14,  title: 'Aspirant',            color: '#C8814A' },
-  { from: 15,  to: 19,  title: 'Coureur',             color: '#E3B089' },
-  { from: 20,  to: 29,  title: 'Marcheur du Soleil',  color: '#E3B089' },
-  { from: 30,  to: 49,  title: 'Cendres',             color: '#b0705a' },
-  { from: 50,  to: 74,  title: 'Renaissance',         color: '#D08A4E' },
-  { from: 75,  to: 99,  title: 'Phénix',              color: '#e89a3c' },
-  { from: 100, to: 999, title: 'Orion',               color: '#F1DEC8' }
-];
-
-export function getRank(level) {
-  for (const r of RANKS) if (level >= r.from && level <= r.to) return r;
-  return RANKS[0];
-}
-
-export function getNextRank(level) {
-  for (const r of RANKS) if (level < r.from) return { rank: r, levelsAway: r.from - level };
-  return null;
-}
 
 export const DEFAULT_PROFILE = {
   id: 'me',
@@ -84,9 +69,9 @@ export async function awardXp(amount, skillGains = {}) {
   const skillLevelUps = [];
   for (const [skill, gain] of Object.entries(skillGains)) {
     if (!profile.skills[skill]) continue;
-    const oldL = deriveLevel(profile.skills[skill].xp).level;
+    const oldL = deriveSkillLevel(profile.skills[skill].xp).level;
     profile.skills[skill].xp += gain;
-    const newL = deriveLevel(profile.skills[skill].xp).level;
+    const newL = deriveSkillLevel(profile.skills[skill].xp).level;
     profile.skills[skill].level = newL;
     if (newL > oldL) skillLevelUps.push({ skill, from: oldL, to: newL });
   }
@@ -101,7 +86,7 @@ export async function removeXp(amount, skillGains = {}) {
   for (const [skill, gain] of Object.entries(skillGains)) {
     if (!profile.skills[skill]) continue;
     profile.skills[skill].xp = Math.max(0, profile.skills[skill].xp - gain);
-    profile.skills[skill].level = deriveLevel(profile.skills[skill].xp).level;
+    profile.skills[skill].level = deriveSkillLevel(profile.skills[skill].xp).level;
   }
   profile.level = deriveLevel(profile.totalXp).level;
   await dbPut('profile', profile);

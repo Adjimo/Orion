@@ -2015,7 +2015,7 @@ button, a, label, input, select, .tab { touch-action: manipulation; }
 .cr-ghost { fill: rgba(236, 232, 225, 0.05); stroke: var(--text-mute); stroke-width: 1.2; stroke-dasharray: 3 3; }
 .cr-dot { stroke: var(--bg-0); stroke-width: 1.5; }
 .cr-hit { cursor: pointer; }
-.cr-ico { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); pointer-events: none; }
+.cr-ico { position: absolute; width: 26px; height: 26px; transform: translate(-50%, -50%); cursor: pointer; }
 .cr-ico .ico, .cr-ico svg { width: 100%; height: 100%; }
 .cr-list { display: grid; gap: 4px; }
 .cr-row { display: flex; justify-content: space-between; align-items: center; background: var(--bg-3); color: var(--text); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 8px 12px; font: inherit; text-align: left; }
@@ -2042,3 +2042,14 @@ button, a, label, input, select, .tab { touch-action: manipulation; }
 .cs-hint { margin: 4px 0 2px; font-size: 0.74rem; color: var(--text-mute); line-height: 1.4; }
 .cs-actions { display: flex; gap: 10px; margin-top: 18px; }
 .cs-actions .btn { flex: 1; }
+
+/* Mini détail d'un sommet du radar */
+.cr-tip { position: absolute; z-index: 3; transform: translate(-50%, calc(-100% - 12px)); min-width: 160px; max-width: 220px; padding: 8px 10px; border-radius: 10px; background: var(--bg-2, #26221e); border: 1px solid var(--border-strong); box-shadow: 0 6px 18px rgba(0,0,0,.45); font-size: 0.78rem; line-height: 1.35; pointer-events: none; }
+.cr-tip.below { transform: translate(-50%, 12px); }
+.cr-tip-title { display: flex; align-items: center; gap: 4px; font-size: 0.85rem; }
+.cr-tip-title .ico, .cr-tip-title svg { width: 16px; height: 16px; }
+.cr-tip-line { color: var(--text-dim, #bdb5a8); }
+.cr-tip-line.mute { color: var(--text-mute, #8c857a); font-size: 0.72rem; }
+
+/* Cases à cocher dans le style de l'app (cuivre, jamais le bleu du navigateur) */
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }

@@ -152,3 +152,12 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.26
 - Échelle des caractéristiques façon D&D (moyen 8-12, bon ≥ 15, très bon 17-20, mauvais < 7) : objectif atteint = 12 (au lieu de 14), score hebdomadaire borné entre un plancher de 3 et un plafond de 20 (au lieu de 0-24). Réglable dans Options › Échelle des scores (clés `goalScore`, `scoreFloor`, `scoreCap`) ; recalcul complet depuis les données brutes, XP et malus intacts. La carte affiche « / plafond ».
+
+### v4.27
+- Échelle des caractéristiques : rien de fait = 4, objectif atteint = 15, objectif dépassé de 25 % = 18, plafond 20 (interpolation linéaire entre ces points). Réglable dans Options › Échelle des scores. Les anciens réglages (échelle 14/12, pondérations, objectifs) sont ignorés au chargement, seuls α et les deux cases de cas particuliers sont conservés (`ver` = 2 dans `caracSettings`).
+- Objectifs d'heures : Maths 19 h, Physique 11 h, SI / Info 1 h (Info 0 h), Verbe 3 h (anglais 2 h + français 1 h).
+- La to-do et l'allure ne comptent plus. Matières : 100 % heures. Dextérité : 60 % volume (sorties / objectif) + 40 % régularité (moyenne sur 4 semaines des sorties / objectif, semaines justifiées exclues). Discipline : 70 % quêtes + 30 % sommeil (7 nuits sur 7 = objectif atteint). Retirés : jours travaillés attendus, sensibilités (l'écart perso reste à 0,1 pt par %).
+- Radar : un appui sur un sommet ou une icône ouvre un mini détail (valeur, variation, score et parts de la semaine) ; la liste et le détail sous la toile sont supprimés. Le bouton roue de la carte ouvre Options (ancien bug : changer le poids de l'historique pouvait faire disparaître la toile).
+- Options : icône roue (Accueil, titre Options, carte), réglages des caractéristiques en premier, « Cas particuliers » en dernier, cases à cocher en cuivre (`accent-color`).
+- Sport : mois repliés par défaut, dernière sortie affichée par défaut.
+- To-do : plus de vocabulaire d'anglais le mardi et le mercredi (`VOCAB_DAYS`, semaines à générer).

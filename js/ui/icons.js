@@ -21,6 +21,7 @@ const ICONS = {
   mountain: `<path ${f} d="M2.5 20 9 8.5l4 6.5 2.5-3.5 6 8.5z"/><path d="M2.5 20 9 8.5l4 6.5 2.5-3.5 6 8.5z"/>`,
   peak: `<path ${f} d="M2.5 20 12 4l9.5 16z"/><path d="M2.5 20 12 4l9.5 16zM8.3 10.8l2.2 2 1.5-1.6 1.7 1.6 2.3-2"/>`,
   sunrise: `<path ${f} d="M4 18a8 8 0 0 1 16 0z"/><path d="M4 18a8 8 0 0 1 16 0M2.5 18h19M12 4.5V7M5 8.5l1.7 1.7M19 8.5l-1.7 1.7M7 21.5h10"/>`,
+  gear: `<path ${f} d="M12 8.6a3.4 3.4 0 1 0 0 6.8 3.4 3.4 0 0 0 0-6.8z"/><path d="M10.3 2.8h3.4l.5 2.4 1.5.7 2.1-1.3 2.4 2.4-1.3 2.1.7 1.5 2.4.5v3.4l-2.4.5-.7 1.5 1.3 2.1-2.4 2.4-2.1-1.3-1.5.7-.5 2.4h-3.4l-.5-2.4-1.5-.7-2.1 1.3-2.4-2.4 1.3-2.1-.7-1.5-2.4-.5v-3.4l2.4-.5.7-1.5-1.3-2.1 2.4-2.4 2.1 1.3 1.5-.7z"/><circle cx="12" cy="12" r="3.4"/>`,
   scale: `<path d="M12 4v16M7 20h10M4 7h16"/><path ${f} d="M4 7 1.8 13.3a3 3 0 0 0 4.4 0zM20 7l-2.2 6.3a3 3 0 0 0 4.4 0z"/><path d="M4 7 1.8 13.3a3 3 0 0 0 4.4 0zM20 7l-2.2 6.3a3 3 0 0 0 4.4 0z"/>`,
   bandage: `<g transform="rotate(-45 12 12)"><rect x="2" y="8" width="20" height="8" rx="4" ${f}/><rect x="2" y="8" width="20" height="8" rx="4"/><rect x="9" y="8" width="6" height="8"/><path d="M11 11h.01M13 11h.01M11 13h.01M13 13h.01" stroke-width="1.7"/></g>`,
   pencil: `<path ${f} d="M4 20l1-5L16.4 3.6a2.1 2.1 0 0 1 3 3L8 18z"/><path d="M4 20l1-5L16.4 3.6a2.1 2.1 0 0 1 3 3L8 18zM14.5 5.5l3 3"/>`,
@@ -45,7 +46,7 @@ const ICONS = {
 export const COLORS = {
   run: '#E0794A', bolt: '#F4D06F', books: '#C99A5B', book: '#D9B77E', chip: '#D4735F', globe: '#E8A13A',
   pen: '#D68F86', stopwatch: '#E3C07A', warning: '#F0A030', chart: '#D08A5A', moon: '#E8D3A0', calendar: '#C9A27A',
-  sigma: '#E39A3B', atom: '#D2694B', mountain: '#B98A5C', peak: '#C4A27A', sunrise: '#F09A5B', scale: '#BBA677',
+  sigma: '#E39A3B', atom: '#D2694B', mountain: '#B98A5C', peak: '#C4A27A', sunrise: '#F09A5B', scale: '#BBA677', gear: '#C9A27A',
   bandage: '#E5A08A', pencil: '#C9B27C', trophy: '#F0B93B', sparkles: '#F6D98A', party: '#E67A6B', building: '#CDB68A',
   pickaxe: '#C8794A', boot: '#A87A4E', lotus: '#E0A39A', stethoscope: '#D07A6A', thermo: '#E0735E', bell: '#F0C46A',
   disk: '#D5C09A', target: '#DE6F4A', star: '#F2C14E', check: '#E8B86A', wind: '#C9B79A',

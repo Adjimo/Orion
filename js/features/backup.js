@@ -324,10 +324,10 @@ export async function showWeekReportIfDue() {
   await showWeekReport(wk);
 }
 
-// RAPPELS (notifications locales + export calendrier)
+// RAPPELS (notifications locales)
 // meta `reminders` : { work: {on, time}, sleep: {on, time}, lastFired: { work: 'YYYY-MM-DD', sleep: ... } }
-// Sans serveur push, l'app ne peut notifier QUE lorsqu'elle est ouverte (ou en arrière-plan
-// récent). Pour des rappels fiables app fermée : export .ics → alarmes du calendrier du téléphone.
+// Sans serveur push, l'app ne peut notifier QUE lorsqu'elle est ouverte (ou en arrière-plan récent).
+// Notifications personnalisées (meta `customReminders`) : [{ id, label, time, daily, date, lastFired }].
 export const REMINDER_DEFS = {
   work:  { icon: 'books', label: 'Saisir le travail du jour', title: 'Orion · Travail', body: "N'oublie pas de saisir ton travail d'aujourd'hui.", def: '21:30' },
   sleep: { icon: 'moon', label: 'Se coucher avant 23h30', title: 'Orion · Sommeil', body: 'Il est temps de se préparer : couché avant 23h30.', def: '22:45' },
@@ -346,18 +346,28 @@ export async function saveReminders(r) { await dbPut('meta', { key: 'reminders',
 
 export function timeToMin(t) { const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); }
 
-export async function showReminderNotification(kind) {
-  const d = REMINDER_DEFS[kind];
-  showToast({ type: 'xp', icon: d.icon, title: d.title.replace('Orion · ', ''), text: d.body }, 6000);
+async function notify({ icon, title, body, tag }) {
+  showToast({ type: 'xp', icon, title: title.replace('Orion · ', ''), text: body }, 6000);
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
-      const opts = { body: d.body, icon: 'icons/orion-192.png', badge: 'icons/badge.png', tag: 'orion-' + kind };
+      const opts = { body, icon: 'icons/orion-192.png', badge: 'icons/badge.png', tag };
       const reg = await navigator.serviceWorker?.getRegistration();
-      if (reg?.showNotification) await reg.showNotification(d.title, opts);
-      else new Notification(d.title, opts);
+      if (reg?.showNotification) await reg.showNotification(title, opts);
+      else new Notification(title, opts);
     }
   } catch (e) { /* silencieux */ }
 }
+
+export async function showReminderNotification(kind) {
+  const d = REMINDER_DEFS[kind];
+  await notify({ icon: d.icon, title: d.title, body: d.body, tag: 'orion-' + kind });
+}
+
+export async function getCustomReminders() {
+  const v = (await dbGet('meta', 'customReminders'))?.value;
+  return Array.isArray(v) ? v : [];
+}
+export async function saveCustomReminders(list) { await dbPut('meta', { key: 'customReminders', value: list }); }
 
 // Vérifie si un rappel doit partir maintenant (appelé au lancement, au retour au premier plan et toutes les 30 s).
 export async function checkReminders() {
@@ -379,6 +389,23 @@ export async function checkReminders() {
     await showReminderNotification(kind);
   }
   if (changed) await saveReminders(r);
+
+  // Notifications personnalisées : une seule fois (à la date prévue) ou tous les jours.
+  const list = await getCustomReminders();
+  const keep = []; let listChanged = false;
+  for (const c of list) {
+    const t = timeToMin(c.time);
+    const inWindow = nowMin >= t && nowMin <= t + REMINDER_WINDOW_MIN;
+    if (c.daily) {
+      if (c.lastFired !== today && inWindow) { c.lastFired = today; listChanged = true; await notify({ icon: 'bell', title: 'Orion · ' + c.label, body: c.label, tag: 'orion-c-' + c.id }); }
+      keep.push(c);
+    } else if (c.date === today && inWindow) {
+      listChanged = true; await notify({ icon: 'bell', title: 'Orion · ' + c.label, body: c.label, tag: 'orion-c-' + c.id });
+    } else if (c.date < today || (c.date === today && nowMin > t + REMINDER_WINDOW_MIN)) {
+      listChanged = true;   // date passée : on la retire sans notifier
+    } else keep.push(c);
+  }
+  if (listChanged) await saveCustomReminders(keep);
 }
 
 export let _reminderTimer = null;
@@ -390,35 +417,62 @@ export function startReminderLoop() {
   document.addEventListener('visibilitychange', () => { if (!document.hidden) checkReminders().catch(() => {}); });
 }
 
-// Fichier .ics : événements quotidiens récurrents avec alarme à l'heure pile (fiable app fermée).
-export function buildRemindersIcs(r) {
-  const pad = (n) => String(n).padStart(2, '0');
-  const d0 = new Date(); const ymd = `${d0.getFullYear()}${pad(d0.getMonth() + 1)}${pad(d0.getDate())}`;
-  const lines = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//Orion//Rappels//FR', 'CALSCALE:GREGORIAN'];
-  for (const kind of Object.keys(REMINDER_DEFS)) {
-    const c = r[kind]; if (!c.on) continue;
-    const t = timeToMin(c.time); const end = t + 15;
-    const f = (m) => `${pad(Math.floor(m / 60) % 24)}${pad(m % 60)}00`;
-    lines.push('BEGIN:VEVENT', `UID:orion-${kind}@orion.local`, `DTSTAMP:${ymd}T000000Z`,
-      `DTSTART:${ymd}T${f(t)}`, `DTEND:${ymd}T${f(end)}`, 'RRULE:FREQ=DAILY',
-      `SUMMARY:${REMINDER_DEFS[kind].label}`,
-      'BEGIN:VALARM', 'ACTION:DISPLAY', `DESCRIPTION:${REMINDER_DEFS[kind].body}`, 'TRIGGER:PT0S', 'END:VALARM', 'END:VEVENT');
-  }
-  lines.push('END:VCALENDAR');
-  return lines.join('\r\n');
-}
+// Fenêtre « Ajouter une notification » : motif + heure (+ répétition quotidienne).
+const NOTIF_MOTIFS = ['Saisir mon travail', 'Se coucher', 'Sortie running', 'Réviser', 'Préparer une colle', 'Rendre un devoir'];
 
-export function downloadRemindersIcs(r) {
-  const blob = new Blob([buildRemindersIcs(r)], { type: 'text/calendar' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = 'orion-rappels.ics';
-  document.body.appendChild(a); a.click(); document.body.removeChild(a);
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+function openNotificationModal(onAdded) {
+  const overlay = el('div', { class: 'gpx-preview-overlay' });
+  const modal = el('div', { class: 'gpx-preview-modal' });
+  const nextHour = new Date(Date.now() + 3600e3);
+  const defTime = `${String(nextHour.getHours()).padStart(2, '0')}:00`;
+  modal.innerHTML = `
+    <div class="gpx-preview-head">
+      <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('bell')}</span><span>Nouvelle notification</span></div>
+      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+    </div>
+    <div style="padding: 16px 18px; overflow-y: auto;">
+      <div class="dim text-xs mb-1">Motif</div>
+      <input class="input nt-label" type="text" maxlength="60" placeholder="Ex. : Réviser les séries" style="width:100%;" />
+      <div class="nt-chips mt-2">${NOTIF_MOTIFS.map(m => `<button type="button" class="nt-chip">${m}</button>`).join('')}</div>
+      <div class="dim text-xs mb-1 mt-3">Heure</div>
+      <input class="input nt-time" type="time" value="${defTime}" style="color-scheme: dark;" />
+      <label class="nt-daily mt-3"><input class="nt-daily-on" type="checkbox" /> Répéter tous les jours</label>
+      <div class="dim text-xs mt-2 nt-err" style="color:#c4584a;"></div>
+      <div class="cs-actions">
+        <button class="btn ghost nt-cancel">Annuler</button>
+        <button class="btn primary nt-ok">Ajouter</button>
+      </div>
+    </div>`;
+  overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+  const close = () => overlay.remove();
+  const input = modal.querySelector('.nt-label');
+  modal.querySelectorAll('.nt-chip').forEach(b => b.addEventListener('click', () => { input.value = b.textContent; input.focus(); }));
+  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
+  modal.querySelector('.nt-cancel').addEventListener('click', close);
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+  modal.querySelector('.nt-ok').addEventListener('click', async () => {
+    const label = input.value.trim();
+    const time = modal.querySelector('.nt-time').value;
+    if (!label) { modal.querySelector('.nt-err').textContent = 'Choisis ou écris un motif.'; return; }
+    if (!time) { modal.querySelector('.nt-err').textContent = 'Choisis une heure.'; return; }
+    const daily = modal.querySelector('.nt-daily-on').checked;
+    const now = new Date();
+    const when = new Date(now.getFullYear(), now.getMonth(), now.getDate() + (now.getHours() * 60 + now.getMinutes() < timeToMin(time) ? 0 : 1));
+    const list = await getCustomReminders();
+    list.push({ id: Date.now().toString(36), label, time, daily, date: todayKey(when) });
+    await saveCustomReminders(list);
+    if ('Notification' in window && Notification.permission === 'default') { try { await Notification.requestPermission(); } catch (e) {} }
+    close();
+    showToast({ type: 'xp', icon: 'bell', title: 'Notification ajoutée', text: `${label} · ${time}${daily ? ' · tous les jours' : ''}` }, 3000);
+    onAdded?.();
+    checkReminders().catch(() => {});
+  });
 }
 
 export async function renderRemindersCard(card) {
   const r = await getReminders();
+  const custom = await getCustomReminders();
   const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
   const permTxt = perm === 'granted' ? 'Notifications autorisées' : perm === 'denied' ? 'Notifications bloquées (réglages du navigateur)' : perm === 'unsupported' ? 'Notifications non disponibles ici' : 'Notifications non autorisées';
   card.innerHTML = `
@@ -429,14 +483,20 @@ export async function renderRemindersCard(card) {
           <input class="input rem-time" type="time" value="${r[k].time}" />
           <input class="rem-on" type="checkbox" ${r[k].on ? 'checked' : ''} aria-label="Activer" />
         </div>`).join('')}
+      ${custom.map(c => `
+        <div class="rg-row rem-row" data-cid="${c.id}">
+          <span class="rg-reason">${iconHtml('bell')} ${escapeHtml(c.label)}</span>
+          <span class="mono text-xs dim">${c.time}${c.daily ? ' · chaque jour' : ''}</span>
+          <button class="btn ghost sm rem-del" aria-label="Supprimer">✕</button>
+        </div>`).join('')}
     </div>
     <div class="dim text-xs mt-2">${permTxt}.</div>
     <div class="save-actions mt-2">
       ${perm === 'default' ? '<button class="btn ghost sm" id="rem-perm">Autoriser les notifications</button>' : ''}
-      <button class="btn ghost sm" id="rem-ics">${iconHtml('calendar')} Ajouter au calendrier</button>
+      <button class="btn ghost sm" id="rem-add">${iconHtml('bell')} Ajouter une notification</button>
     </div>
   `;
-  card.querySelectorAll('.rem-row').forEach(row => {
+  card.querySelectorAll('.rem-row[data-kind]').forEach(row => {
     const k = row.dataset.kind;
     const save = async () => {
       const cur = await getReminders();
@@ -456,9 +516,10 @@ export async function renderRemindersCard(card) {
     try { await Notification.requestPermission(); } catch (e) {}
     renderRemindersCard(card);
   });
-  card.querySelector('#rem-ics').addEventListener('click', async () => {
-    const cur = await getReminders();
-    if (!Object.keys(REMINDER_DEFS).some(k => cur[k].on)) { showToast({ type: 'err', title: 'Rappels', text: 'Active au moins un rappel.' }, 3000); return; }
-    downloadRemindersIcs(cur);
-  });
+  card.querySelector('#rem-add').addEventListener('click', () => openNotificationModal(() => renderRemindersCard(card)));
+  card.querySelectorAll('.rem-del').forEach(btn => btn.addEventListener('click', async () => {
+    const id = btn.closest('.rem-row').dataset.cid;
+    await saveCustomReminders((await getCustomReminders()).filter(c => c.id !== id));
+    renderRemindersCard(card);
+  }));
 }

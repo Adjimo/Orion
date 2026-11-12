@@ -1,16 +1,21 @@
 // Catalogue de la to-do hebdomadaire (page Planning, vue « À faire »).
 // Physique : cycle dans l'ordre de la liste (EM8 = 12 pts, gros chapitre, seul dans sa semaine).
 
-export const TODO_SUBJECTS = [
-  { id: 'maths',    label: 'Mathématiques' },
-  { id: 'physique', label: 'Physique' },
+// Matières fixes (anglais, français, SI, autre) ; les matières à cycle (maths, physique, et celles de l'utilisateur)
+// viennent de todo-cycle.js, qui tient TODO_SUBJECTS à jour.
+export const TODO_FIXED_SUBJECTS = [
   { id: 'anglais',  label: 'Anglais' },
   { id: 'francais', label: 'Français' },
   { id: 'si',       label: 'Sciences de l\u2019ingénieur' },
   { id: 'autre',    label: 'Autre' }
 ];
+export const TODO_SUBJECTS = [
+  { id: 'maths',    label: 'Mathématiques' },
+  { id: 'physique', label: 'Physique' },
+  ...TODO_FIXED_SUBJECTS
+];
 
-// Chapitres avec poids ; le budget est en points par semaine.
+// Valeurs par défaut du cycle (chapitres avec poids ; budget en points par semaine).
 export const TODO_CATALOG = {
   maths: [
     { name: 'Applications linéaires / matricielle', w: 2 }, { name: 'Réduction', w: 4 }, { name: 'Dualité', w: 1 },

@@ -37,7 +37,7 @@ export const CARACS = [
   { id: 'phys', label: 'Physique',   short: 'PHY', icon: 'atom',   color: '#D2694B' },
   { id: 'si',   label: 'SI / Info',  short: 'SI',  icon: 'chip',   color: '#D4735F' },
   { id: 'verb', label: 'Verbe',      short: 'VER', icon: 'pen',    color: '#D68F86' },
-  { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: '#E8A13A' }
+  { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: '#E0A39A' }
 ];
 
 // ── Réglages (meta `caracSettings`), tous modifiables ; toute modification → recalcul complet.

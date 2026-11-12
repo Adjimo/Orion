@@ -4,7 +4,8 @@ import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { YEAR_END, SCHOOL_START, addDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { COLLES_G8, weekIndexOf } from './planning-data.js';
-import { ANGLAIS_FIXED, ANGLAIS_ROTATION, DAY_PLAN, FRANCAIS_ROTATION, SI_LABEL, TODO_BUDGET, TODO_CATALOG, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
+import { ANGLAIS_FIXED, ANGLAIS_ROTATION, DAY_PLAN, FRANCAIS_ROTATION, SI_LABEL, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
+import { cycleNow, loadCycle } from './todo-cycle.js';
 
 const STATE_KEY = 'todoState';
 const isoDay = (key) => parseKey(key).getDay() || 7;
@@ -30,7 +31,7 @@ function makeItem(w, subj, key, label) {
 // Répartition par jour : un chapitre de maths / de physique par jour, SI, anglais et français sur des jours fixes.
 export function assignDays(items, fromDay = 1) {
   const byOrder = (a, b) => (b.carried - a.carried) || ((a.ord || 0) - (b.ord || 0));
-  for (const subj of ['maths', 'physique']) {
+  for (const subj of cycleNow().subjects.map(x => x.id)) {
     items.filter(i => i.subj === subj && i.key && !i.custom).sort(byOrder).forEach((it, idx) => { it.day = Math.min(7, fromDay + idx); });
   }
   for (const it of items) {
@@ -47,19 +48,22 @@ function generate(w, st, items, fromDay = 1) {
   const has = (key) => items.some(i => i.key === key);
   const add = (subj, key, label) => { if (!has(key)) items.push(makeItem(w, subj, key, label)); };
 
-  for (const subj of ['maths', 'physique']) {
-    const cat = TODO_CATALOG[subj];
+  for (const sub of cycleNow().subjects) {
+    const subj = sub.id, cat = sub.items;
     if (!cat.length) continue;
     const weight = (key) => cat.find(c => `${subj}:${c.name}` === key)?.w || 0;
     let pts = items.filter(i => i.subj === subj && i.key).reduce((s, i) => s + weight(i.key), 0);
     let cur = (st.cursors[subj] || 0) % cat.length;
+    const period = sub.budgetMode === 'period' && sub.endDate && w <= sub.endDate;
+    const budget = cycleBudget(sub, w, cur);
     let guard = cat.length;
-    while ((pts < TODO_BUDGET[subj] || !items.some(i => i.subj === subj)) && guard-- > 0) {
+    while ((pts < budget || !items.some(i => i.subj === subj)) && guard-- > 0) {
       const c = cat[cur];
       cur = (cur + 1) % cat.length;
       if (has(`${subj}:${c.name}`)) continue;
       add(subj, `${subj}:${c.name}`, c.name);
       pts += c.w;
+      if (period && cur === 0) break;   // fin du tour : on ne recommence pas avant la date de fin
     }
     st.cursors[subj] = cur;
   }
@@ -78,6 +82,22 @@ function generate(w, st, items, fromDay = 1) {
   rotate('francais', FRANCAIS_ROTATION, 1);
   add('si', 'si:main', SI_LABEL);
   assignDays(items, fromDay);
+}
+
+// Semaines de to-do restantes (vacances, révisions et concours exclus) de la semaine `from` jusqu'à `end` incluse.
+function weeksLeft(from, end) {
+  let n = 0;
+  for (let m = from; m <= end; m = addDays(m, 7)) if (hasTodo(m)) n++;
+  return Math.max(1, n);
+}
+
+// Budget de points d'une matière pour la semaine `monday` (le curseur indique où en est le tour en cours).
+export function cycleBudget(sub, monday, cursor = 0) {
+  if (sub.budgetMode === 'period' && sub.endDate && monday <= sub.endDate && sub.items.length) {
+    const remaining = sub.items.slice(cursor % sub.items.length).reduce((s, c) => s + c.w, 0);
+    return Math.max(1, Math.ceil(remaining / weeksLeft(monday, sub.endDate)));
+  }
+  return sub.budget;
 }
 
 // Pas de to-do pendant les deux semaines de révisions ni pendant les concours.
@@ -110,6 +130,7 @@ async function run(today) {
   let target = mondayOf(today);
   if (target < first) return;
   if (target > last) target = last;
+  await loadCycle();
   let st = await loadState();
   let all = await dbAll('planTodo');
   // Remise à zéro unique : la to-do démarre aujourd'hui (pas de reports d'avant la fonctionnalité).
@@ -171,8 +192,7 @@ export function availableCatalog(items, day = 1) {
   const present = new Set(items.map(i => i.key).filter(Boolean));
   const groups = [];
   const push = (subj, entries) => { const e = entries.filter(x => !present.has(x.key)); if (e.length) groups.push({ subj, entries: e }); };
-  push('maths', TODO_CATALOG.maths.map(c => ({ key: `maths:${c.name}`, label: c.name })));
-  push('physique', TODO_CATALOG.physique.map(c => ({ key: `physique:${c.name}`, label: c.name })));
+  for (const sub of cycleNow().subjects) push(sub.id, sub.items.map(c => ({ key: `${sub.id}:${c.name}`, label: c.name })));
   push('anglais', [{ key: `anglais:vocab:${day}`, label: ANGLAIS_FIXED.vocab }, { key: 'anglais:gram', label: ANGLAIS_FIXED.gram }, ...ANGLAIS_ROTATION.map(n => ({ key: `anglais:${n}`, label: n }))]);
   push('francais', FRANCAIS_ROTATION.map(n => ({ key: `francais:${n}`, label: n })));
   push('si', [{ key: 'si:main', label: SI_LABEL }]);
@@ -185,4 +205,5 @@ export async function addTodo(monday, subj, key, label, day = 1) {
     : { ...makeItem(monday, 'autre', 'x', label), id: uid(monday), key: null, custom: true, day };
   await dbPut('planTodo', it);
 }
-export { TODO_SUBJECTS };
+export { TODO_SUBJECTS, cycleNow, loadCycle };
+export { saveCycle } from './todo-cycle.js';

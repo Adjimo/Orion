@@ -6,11 +6,18 @@ import { renderPlanning } from '../pages/planning.js';
 import { renderHebdo, renderToday } from '../pages/quests.js';
 import { renderSport } from '../pages/sport.js';
 import { renderStats } from '../pages/stats.js';
+import { prefetchCaracs } from '../pages/caracs-card.js';
 
-export function navigate(route) {
-  const prev = State.currentRoute;
-  State.currentRoute = route;
-  State.navStamp = (State.navStamp || 0) + 1;   // identifie cette navigation (animations jouées une fois par navigation)
+// ── Navigation ───────────────────────────────────────────────────────────────
+// Transition « fondu enchaîné » en deux temps : l'ancienne page s'efface en glissant légèrement,
+// la nouvelle est préparée pendant ce temps (données prêtes, pas de saut de mise en page),
+// puis elle apparaît en glissant depuis le côté d'où l'on vient. Le défilement revient en haut
+// pendant que la page est invisible : jamais de saut visible.
+let navToken = 0;
+let iconsPreloaded = false;
+const reduceMotion = () => window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+
+function syncTabs(route) {
   document.querySelectorAll('.tab').forEach(t => {
     const isActive = t.dataset.route === route;
     t.classList.toggle('active', isActive);
@@ -18,24 +25,51 @@ export function navigate(route) {
     const img = t.querySelector('.tab-icon');
     const iconName = t.dataset.icon;
     if (img && iconName) {
+      if (!iconsPreloaded) { new Image().src = `icons/ui/${iconName}.png?v=5`; new Image().src = `icons/ui/${iconName}-mono.png?v=5`; }
       img.src = isActive ? `icons/ui/${iconName}.png?v=5` : `icons/ui/${iconName}-mono.png?v=5`;
     }
   });
-  render();
-  animateTabChange(prev, route);
+  iconsPreloaded = true;
 }
 
-// Transition entre onglets : fondu + court glissement dans le sens de la navigation.
-function animateTabChange(prev, route) {
-  if (!prev || prev === route) return;
+// Données à charger avant d'afficher la page (évite qu'un bloc n'apparaisse après coup).
+async function prefetchRoute(route) {
+  if (route === 'home') await prefetchCaracs();
+}
+
+export function navigate(route) {
+  const prev = State.currentRoute;
+  State.currentRoute = route;
+  State.navStamp = (State.navStamp || 0) + 1;   // identifie cette navigation (animations jouées une fois par navigation)
+  syncTabs(route);
+  const token = ++navToken;
+  const view = document.getElementById('view');
+  view.getAnimations?.().forEach(a => a.cancel());
+
+  if (!prev || prev === route || reduceMotion() || !view.animate) {
+    prefetchRoute(route).catch(() => {}).then(() => { if (token === navToken) { render(); if (prev !== route) window.scrollTo(0, 0); } });
+    return;
+  }
+
   const routes = [...document.querySelectorAll('.tab')].map(t => t.dataset.route);
   const a = routes.indexOf(prev), b = routes.indexOf(route);
-  const view = document.getElementById('view');
-  view.classList.remove('view-in-next', 'view-in-prev', 'view-in-fade');
-  void view.offsetWidth;   // relance l'animation si on enchaîne vite
-  const cls = (a < 0 || b < 0) ? 'view-in-fade' : (b > a ? 'view-in-next' : 'view-in-prev');
-  view.classList.add(cls);
-  view.addEventListener('animationend', () => view.classList.remove(cls), { once: true });
+  const dir = (a < 0 || b < 0) ? 0 : (b > a ? 1 : -1);   // 0 : depuis ou vers Options → fondu simple
+  const out = view.animate(
+    [{ opacity: 1, transform: 'translate3d(0,0,0)' }, { opacity: 0, transform: `translate3d(${-dir * 14}px,0,0)` }],
+    { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
+  );
+  Promise.all([out.finished.catch(() => {}), prefetchRoute(route).catch(() => {})]).then(() => {
+    if (token !== navToken) return;   // une navigation plus récente a pris le relais
+    out.cancel();
+    render();
+    window.scrollTo(0, 0);
+    const from = dir ? `translate3d(${dir * 20}px,0,0)` : 'translate3d(0,8px,0)';
+    const inn = view.animate(
+      [{ opacity: 0, transform: from }, { opacity: 1, transform: 'translate3d(0,0,0)' }],
+      { duration: 280, easing: 'cubic-bezier(0.16, 1, 0.3, 1)', fill: 'both' }
+    );
+    inn.finished.then(() => inn.cancel()).catch(() => {});
+  });
 }
 
 export function render() {
@@ -81,6 +115,6 @@ export function initSwipeNav() {
     const routes = [...document.querySelectorAll('.tab')].map(x => x.dataset.route);
     if (!routes.includes(State.currentRoute)) return;   // pas de balayage depuis Options
     const i = routes.indexOf(State.currentRoute) + (dx < 0 ? 1 : -1);
-    if (i >= 0 && i < routes.length) { navigate(routes[i]); window.scrollTo(0, 0); }
+    if (i >= 0 && i < routes.length) navigate(routes[i]);
   }, { passive: true });
 }

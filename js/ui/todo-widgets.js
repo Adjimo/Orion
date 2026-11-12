@@ -3,6 +3,7 @@ import { mondayOf, parseKey } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { DAY_LABELS } from '../features/planning.js';
 import { TODO_SUBJECTS, addTodo, availableCatalog, ensureTodo, hasTodo, loadWeekTodo, removeTodo, toggleTodo } from '../features/todo.js';
+import { openCycleEditor } from './cycle-editor.js';
 import { el } from './helpers.js';
 import { iconHtml } from './icons.js';
 
@@ -52,7 +53,7 @@ export async function renderDayTodo(root, dateKey) {
   else if (!mine.length) box.appendChild(el('div', { class: 'pl-note' }, 'Rien de prévu : journée libre.'));
   mine.sort((a, b) => (a.ord || 0) - (b.ord || 0)).forEach(it => box.appendChild(itemRow(it, { editable, showSubj: true }, change)));
   root.appendChild(box);
-  if (editable && hasTodo(monday)) root.appendChild(el('button', { class: 'btn full sm pl-add', onclick: () => openTodoPicker(monday, day, false, rerender) }, '+ Ajouter à ce jour'));
+  if (editable && hasTodo(monday)) root.appendChild(el('button', { class: 'add-btn pl-add', onclick: () => openTodoPicker(monday, day, false, rerender), html: '<span class="add-plus">+</span> Ajouter à ce jour' }));
 }
 
 // ── To-do de la semaine (page Hebdo) ─────────────────────────────────────────
@@ -88,7 +89,10 @@ export async function renderWeekTodo(root, monday) {
     <div class="hq-bar"><div class="hq-fill" style="width:${pct}%; background:${color};"></div></div>
     <div class="hq-info"><span class="dim text-xs">${bySubj}</span><span></span></div>`;
   root.appendChild(card);
-  if (editable) root.appendChild(el('button', { class: 'btn full sm pl-add', onclick: () => openTodoPicker(monday, isoDay(todayKey()), true, rerender) }, '+ Ajouter à la to-do'));
+  root.appendChild(el('div', { class: 'td-actions' }, [
+    editable ? el('button', { class: 'add-btn', onclick: () => openTodoPicker(monday, isoDay(todayKey()), true, rerender), html: '<span class="add-plus">+</span> Ajouter à la to-do' }) : null,
+    el('button', { class: 'cy-btn', onclick: () => openCycleEditor(rerender), html: iconHtml('scale') + '<span>Cycle</span>' })
+  ]));
 }
 
 // ── Sélecteur d'ajout (catalogue d'abord, élément libre en dernier recours) ──
@@ -97,7 +101,7 @@ function openTodoPicker(monday, day, withDayChoice, onClose) {
   const overlay = el('div', { class: 'gpx-preview-overlay', onclick: (e) => { if (e.target === overlay) close(); } });
   const close = () => { overlay.remove(); onClose(); };
   const body = el('div', { class: 'pl-form' });
-  const inFree = el('input', { type: 'text', placeholder: 'Élément libre (dernier recours)' });
+  const inFree = el('input', { class: 'input', type: 'text', placeholder: 'Élément libre (dernier recours)', maxlength: 80 });
   const fill = async () => {
     body.innerHTML = '';
     if (withDayChoice) {
@@ -116,10 +120,10 @@ function openTodoPicker(monday, day, withDayChoice, onClose) {
     }
     body.appendChild(el('div', { class: 'td-pick-head' }, 'Autre'));
     body.appendChild(inFree);
-    body.appendChild(el('button', { class: 'btn full', onclick: async () => {
+    body.appendChild(el('button', { class: 'add-btn', onclick: async () => {
       const v = inFree.value.trim(); if (!v) return;
       await addTodo(monday, 'autre', null, v, curDay); inFree.value = ''; fill();
-    } }, 'Ajouter'));
+    }, html: '<span class="add-plus">+</span> Ajouter' }));
   };
   overlay.appendChild(el('div', { class: 'gpx-preview-modal' }, [
     el('div', { class: 'gpx-preview-head' }, [

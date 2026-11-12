@@ -2063,3 +2063,35 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hebdo-block { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 12px; padding-top: 12px; border-top: 1px solid var(--border-strong); font-size: 0.72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
 .hebdo-block span { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-mute); }
 .hebdo-block.first { margin-top: 4px; padding-top: 0; border-top: none; }
+
+/* Transition entre onglets (v4.30) */
+@keyframes view-in-next { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
+@keyframes view-in-prev { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
+.view-in-next { animation: view-in-next 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.view-in-prev { animation: view-in-prev 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.view-in-fade { animation: fade-in 0.2s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .view-in-next, .view-in-prev, .view-in-fade { animation: none; }
+}
+
+/* Radar : la toile se déploie depuis le centre, puis icônes et valeurs apparaissent (v4.31) */
+@keyframes cr-grow { from { opacity: 0; transform: scale(0); } 60% { opacity: 1; } to { opacity: 1; transform: scale(1); } }
+@keyframes cr-ico-in { from { opacity: 0; } to { opacity: 1; } }
+.cr-anim .cr-grow { transform-box: view-box; transform-origin: 50% 50%; animation: cr-grow 0.7s cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.cr-anim .cr-ico { animation: cr-ico-in 0.35s ease 0.45s both; }
+@media (prefers-reduced-motion: reduce) {
+  .cr-anim .cr-grow, .cr-anim .cr-ico { animation: none; }
+}
+
+/* To-do : « pop » cuivre à l'instant où une case est cochée (v4.32) */
+@keyframes td-pop {
+  0%   { transform: scale(0.8); box-shadow: 0 0 0 0 rgba(200, 129, 74, 0.55); }
+  45%  { transform: scale(1.25); }
+  100% { transform: scale(1); box-shadow: 0 0 0 9px rgba(200, 129, 74, 0); }
+}
+@keyframes td-name-dim { from { color: var(--text); } to { color: var(--text-mute); } }
+.td-item.pop .td-check { animation: td-pop 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+.td-item.pop .td-name { animation: td-name-dim 0.45s ease; }
+@media (prefers-reduced-motion: reduce) {
+  .td-item.pop .td-check, .td-item.pop .td-name { animation: none; }
+}

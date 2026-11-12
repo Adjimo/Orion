@@ -166,3 +166,15 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - Radar : la valeur entière de chaque caractéristique est écrite au bout de sa branche, à côté de l'icône ; le texte au-dessus de la toile est supprimé.
 - Hebdo : deux blocs séparés. « Manuel » (sorties, coucher avant 23h30, rigueur) puis « Automatique » (travail), puis la to-do de la semaine.
 - To-do de la semaine : plus de détail par jour ; seul reste un récapitulatif dans le style des cartes de quêtes (titre, pourcentage, barre, avancement par matière) et le bouton d'ajout.
+
+### v4.29
+- Planning : le jeudi, pause repas de 13h à 14h (travail personnel de 14h à 18h30 ; plus de travail entre 12h30 et 13h).
+
+### v4.30
+- Animation : transition entre onglets (fondu + glissement de 22 px dans le sens de la navigation, 0,22 s ; fondu simple depuis ou vers Options ; désactivée si « réduire les animations »).
+
+### v4.31
+- Animation : le radar se déploie depuis le centre (0,7 s) puis les icônes et valeurs apparaissent en fondu ; joué une fois par navigation vers l'Accueil, pas à chaque rafraîchissement ; désactivé si « réduire les animations ».
+
+### v4.32
+- Animation : case de to-do cochée = « pop » cuivre (agrandissement + halo, 0,38 s) et le libellé passe en gris atténué ; seulement à l'instant du cochage, pas à chaque rafraîchissement ; désactivée si « réduire les animations ». Les quêtes n'ont pas de case à cocher (compteurs) : leur animation relève de la barre de progression.

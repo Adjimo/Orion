@@ -4,6 +4,7 @@ import { dbAll, dbAllLive, dbClear, dbDelete, dbPut, isGhostDate } from '../core
 import { State } from '../core/state.js';
 import { awardXp, deriveLevel, removeXp } from '../core/xp.js';
 import { activityTypeIcon, activityXp, analyseIntervals, defaultActivityName, detectActivityType, formatDuration, formatPace, parseGpx } from '../features/gpx.js';
+import { recomputeCaracs } from '../features/caracs.js';
 import { applyPendingPenalties, withWeekRecalc } from '../features/penalties.js';
 import { computeCountXp, computeHoursXp, questSkillXp, recomputeAutoQuests } from '../features/quests.js';
 import { RECORD_TYPES, checkAndUpdateRecords, computeSplits, formatRecordValue, renderActivityDetailHtml } from '../features/records.js';
@@ -14,6 +15,9 @@ import { SUBJECTS, computeWorkXp } from '../features/work.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
+
+// Une sortie ajoutée, supprimée ou modifiée dans une semaine passée change les caractéristiques : on les recalcule (semaines closes, déterministe).
+const refreshCaracs = () => recomputeCaracs().catch(err => console.error('Caracs failed', err));
 
 export function renderSport(root) {
   const page = el('div', { class: 'page' });
@@ -411,6 +415,7 @@ export async function onGpxFile(e) {
       broken = await checkAndUpdateRecords(activity);
     });
     await recomputeAutoQuests();
+    await refreshCaracs();
     await loadAll();
     State.currentActivity = activity;
 
@@ -620,6 +625,7 @@ export async function deleteActivity(activity) {
     await recomputeAllRecords();
   });
   await recomputeAutoQuests();
+  await refreshCaracs();
   await loadAll();
   return true;
 }
@@ -688,6 +694,7 @@ export async function editActivity(activity) {
     await dbPut('activities', updated);
     });
     await recomputeAutoQuests();
+    await refreshCaracs();
     await loadAll();
     State.currentActivity = updated;
     close();

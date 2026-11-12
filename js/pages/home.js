@@ -43,72 +43,59 @@ export function renderHome(root) {
 
   const page = el('div', { class: 'page' });
 
-  // Header (nom modifiable, ancienneté, rouage Options)
+  // Header compact (nom modifiable, ancienneté, rouage Options)
   const editBtn = el('button', { class: 'btn ghost sm', 'aria-label': 'Modifier le nom', onclick: async () => {
     const name = prompt('Ton nom :', p.name);
     if (name && name.trim()) { p.name = name.trim(); await dbPut('profile', p); await loadAll(); render(); }
   }, html: iconHtml('pencil') });
-  page.appendChild(el('div', { class: 'header flex between' }, [
+  page.appendChild(el('div', { class: 'header home-head flex between' }, [
     el('div', {}, [
-      el('div', { class: 'dim text-sm' }, greeting()),
-      el('div', { class: 'text-2xl' }, p.name),
-      el('div', { class: 'dim text-xs mt-2' }, `Membre depuis ${formatDate(p.createdAt)}`)
+      el('div', { class: 'dim text-xs home-since' }, `${greeting()} · membre depuis ${new Date(p.createdAt).toLocaleDateString('fr-FR')}`),
+      el('div', { class: 'text-xl home-name' }, p.name)
     ]),
     el('div', { class: 'flex gap-2' }, [editBtn, el('button', { class: 'btn ghost sm', 'aria-label': 'Options', onclick: () => navigate('options'), html: iconHtml('gear') })])
   ]));
 
-  // Hero niveau
-  page.appendChild(el('div', { class: 'card hero mb-3' }, [
-    el('div', { class: 'flex between mb-3' }, [
-      el('div', {}, [
-        el('div', { class: 'dim text-xs' }, 'Niveau'),
-        el('div', { class: 'text-3xl grad-text' }, String(li.level) + ' / ' + MAX_LEVEL),
-        el('div', { class: 'text-xs mute mt-1' }, li.max ? 'Niveau maximum atteint' : `Niveau ${li.level + 1} dans ${li.xpToNext - li.xpInLevel} XP`)
-      ]),
-      el('div', { style: 'text-align:right;' }, [
-        el('div', { class: 'dim text-xs' }, 'Cette semaine'),
-        el('div', { class: 'text-xl' }, formatMinutes(weekWorkMin)),
-        el('div', { class: 'text-xs mute' }, `${weekActs.length} sortie${weekActs.length > 1 ? 's' : ''}`)
-      ])
-    ]),
-    el('div', { class: '', html: progressBar(li.progress, 12) }),
-    el('div', { class: 'flex between mt-2 text-xs dim' }, [
-      el('span', {}, li.max ? 'Niveau maximum' : `${li.xpInLevel} / ${li.xpToNext} XP`),
-      el('span', {}, `Total : ${p.totalXp} XP`)
-    ])
-  ]));
+  // Deux blocs côte à côte : niveau (dégradé) et prochaine échéance, puis le graphique en dessous.
+  const top = el('div', { class: 'home-top' });
+  page.appendChild(top);
 
-  // Countdown concours
+  top.appendChild(el('div', { class: 'card hero hm-card', html: `
+    <div>
+      <div class="hm-label hm-label-row"><span>Niveau</span><span>${p.totalXp} XP</span></div>
+      <div class="hm-big grad-text">${li.level}<span class="hm-of"> / ${MAX_LEVEL}</span></div>
+    </div>
+    <div>
+      ${progressBar(li.progress, 8)}
+      <div class="hm-sub mt-2">${li.max ? 'Niveau maximum atteint' : `${li.xpInLevel} / ${li.xpToNext} XP`}</div>
+      ${li.max ? '' : `<div class="hm-sub mute">Niv. ${li.level + 1} dans ${li.xpToNext - li.xpInLevel} XP</div>`}
+    </div>
+  ` }));
+
+  // Prochaine échéance
   if (nextExam) {
     const yearProgress = computeYearProgress(nextExam.date);
     const yearPct = Math.round(yearProgress * 100);
     const pctColor = yearPct < 25 ? '#E3B089' : yearPct < 50 ? '#C8814A' : yearPct < 75 ? '#D08A4E' : '#B5703B';
     const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#B5703B' : nextExam.days < 180 ? '#D08A4E' : '#E3B089';
-
-    page.appendChild(el('div', { class: 'mb-4', html: `
-      <div class="cd-card">
-        <div class="cd-main">
-          <div class="cd-info">
-            <div class="cd-label">Prochaine échéance</div>
-            <div class="cd-name">${iconHtml(nextExam.icon)} ${escapeHtml(nextExam.short)}</div>
-            <div class="cd-date">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
-          </div>
-          <div class="cd-stats">
-            <div class="cd-pct" style="color: ${pctColor};">${yearPct}<span class="pct-sign">%</span></div>
-            <div class="cd-pct-label">année écoulée</div>
-            <div class="cd-days" style="color: ${urg};">J-${nextExam.days}</div>
-            <div class="cd-days-sub">${formatCountdown(nextExam.days)}</div>
-          </div>
-        </div>
-        <div class="year-bar-wrap">
-          <div class="year-bar"><div class="year-fill" style="width: ${yearPct}%;"></div></div>
-        </div>
+    top.appendChild(el('div', { class: 'cd-card hm-card', html: `
+      <div class="cd-info">
+        <div class="hm-label">Prochaine échéance</div>
+        <div class="hm-name">${iconHtml(nextExam.icon)} ${escapeHtml(nextExam.short)}</div>
+        <div class="hm-sub">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
       </div>
-    `}));
+      <div class="hm-bottom">
+        <div class="hm-days-row"><span class="hm-days" style="color:${urg};">J-${nextExam.days}</span><span class="hm-sub">${formatCountdown(nextExam.days)}</span></div>
+        <div class="year-bar-wrap"><div class="year-bar"><div class="year-fill" style="width:${yearPct}%;"></div></div></div>
+        <div class="hm-sub mt-1"><span style="color:${pctColor};font-weight:700;">${yearPct} %</span> année écoulée</div>
+      </div>
+    ` }));
+  } else {
+    top.firstChild.classList.add('full');
   }
 
   // Caractéristiques hebdomadaires (recalculées à la clôture de chaque semaine)
-  const caracsBox = el('div');
+  const caracsBox = el('div', { class: 'home-radar' });
   page.appendChild(caracsBox);
   renderCaracsCard(caracsBox).catch(err => console.error('Caracs card failed', err));
 

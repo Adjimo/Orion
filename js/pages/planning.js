@@ -94,7 +94,7 @@ export async function renderPlanning(root) {
     ]));
   }
   root.appendChild(dayList(week.days[view.day], week.mode, (ev) => openEditor(ev, week, rerender)));
-  root.appendChild(el('button', { class: 'btn full sm pl-add', onclick: () => openEditor(null, week, rerender) }, '+ Ajouter un créneau'));
+  root.appendChild(el('button', { class: 'add-btn pl-add', onclick: () => openEditor(null, week, rerender), html: '<span class="add-plus">+</span> Ajouter un créneau' }));
 }
 
 // ── Édition d'un créneau (sans jamais toucher à l'emploi du temps de base) ───

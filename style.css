@@ -105,6 +105,7 @@ h3 { font-size: 1.05rem; }
   max-width: 720px;
   margin: 0 auto;
   background: var(--bg-1);
+  overflow-x: clip;   /* le glissement des pages ne crée jamais de défilement horizontal */
 }
 .page {
   flex: 1;
@@ -910,9 +911,11 @@ img[src*="icons/ui/"] {
   width: 26px;
   height: 26px;
   object-fit: contain;
-  transition: opacity 0.2s;
+  transition: opacity 0.2s, transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
   display: block;
 }
+.tab.active .tab-icon { transform: translateY(-1px) scale(1.08); }
+@media (prefers-reduced-motion: reduce) { .tab-icon { transition: none; } .tab.active .tab-icon { transform: none; } }
 
 /* ===== Carte résumé "Mon objectif" cliquable ===== */
 .goal-summary-card {
@@ -1269,6 +1272,8 @@ img[src*="icons/ui/"] {
 
 /* Header accueil */
 .header { margin-bottom: var(--s-4); }
+.header.home-head { margin-bottom: var(--s-3); }
+.home-name { line-height: 1.2; }
 .rank-pill {
   display: inline-block;
   margin-top: 6px;
@@ -2064,16 +2069,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hebdo-block span { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-mute); }
 .hebdo-block.first { margin-top: 4px; padding-top: 0; border-top: none; }
 
-/* Transition entre onglets (v4.30) */
-@keyframes view-in-next { from { opacity: 0; transform: translateX(22px); } to { opacity: 1; transform: none; } }
-@keyframes view-in-prev { from { opacity: 0; transform: translateX(-22px); } to { opacity: 1; transform: none; } }
-.view-in-next { animation: view-in-next 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.view-in-prev { animation: view-in-prev 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
-.view-in-fade { animation: fade-in 0.2s ease; }
-@media (prefers-reduced-motion: reduce) {
-  .view-in-next, .view-in-prev, .view-in-fade { animation: none; }
-}
-
 /* Radar : la toile se déploie depuis le centre, puis icônes et valeurs apparaissent (v4.31) */
 @keyframes cr-grow { from { opacity: 0; transform: scale(0); } 60% { opacity: 1; } to { opacity: 1; transform: scale(1); } }
 @keyframes cr-ico-in { from { opacity: 0; } to { opacity: 1; } }
@@ -2095,3 +2090,77 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 @media (prefers-reduced-motion: reduce) {
   .td-item.pop .td-check, .td-item.pop .td-name { animation: none; }
 }
+
+/* ── Accueil : niveau + échéance côte à côte, graphique en dessous (v4.33) ── */
+.home-top { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.home-top > .full { grid-column: 1 / -1; }
+.hm-card { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; padding: 14px; min-width: 0; text-align: left; }
+.cd-card.hm-card { padding: 14px; }
+.hm-label { font-size: 0.64rem; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; white-space: nowrap; }
+.hm-big { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
+.hm-of { font-size: 1rem; font-weight: 600; opacity: 0.7; letter-spacing: 0; }
+.hm-name { font-size: 1rem; font-weight: 600; line-height: 1.25; display: flex; align-items: center; gap: 6px; }
+.hm-name .ico { width: 18px; height: 18px; flex: none; }
+.hm-sub { font-size: 0.7rem; color: var(--text-dim); line-height: 1.35; }
+.hm-sub.mute { color: var(--text-mute); }
+.hm-days-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
+.hm-days { font-family: var(--font-mono); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
+.hm-bottom .year-bar-wrap { margin-top: 0; }
+
+.carac-card { padding: 10px 12px 12px; }
+.carac-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
+.carac-title { font-size: 0.64rem; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.08em; }
+.carac-legend { font-size: 0.64rem; color: var(--text-mute); }
+/* Le radar garde sa taille maximale (340 px) et ne rétrécit que si l'écran est vraiment court. */
+.home-radar .cr-wrap {
+  max-width: min(340px, max(230px, calc(100vh - 372px - env(safe-area-inset-top) - env(safe-area-inset-bottom))));
+  max-width: min(340px, max(230px, calc(100svh - 372px - env(safe-area-inset-top) - env(safe-area-inset-bottom))));
+}
+.home-radar { margin-bottom: var(--s-4); }
+.home-since { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; }
+.hm-label-row { display: flex; justify-content: space-between; gap: 6px; }
+.hm-label-row span:last-child { color: var(--text-dim); letter-spacing: 0.02em; }
+
+/* Notifications personnalisées (v4.34) */
+.nt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.nt-chip { padding: 6px 10px; border-radius: 999px; background: var(--bg-3); border: 1px solid var(--border); font-size: 0.78rem; color: var(--text-dim); }
+.nt-chip:active { border-color: var(--accent); color: var(--text); }
+.nt-daily { display: flex; align-items: center; gap: 8px; font-size: 0.88rem; }
+.rem-list { display: grid; gap: 6px; }
+.rem-row .rem-del { padding: 2px 8px; }
+
+/* ── Boutons d'ajout et cycle de la to-do (v4.35) ── */
+.add-btn { display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 13px 16px; border-radius: var(--r-md); border: 1px dashed var(--accent-2); background: linear-gradient(135deg, rgba(200,129,74,.12), rgba(200,129,74,.03)); color: var(--gold); font-weight: 600; font-size: .9rem; transition: transform .1s, border-color .2s, background .2s; }
+.add-btn .add-plus { width: 22px; height: 22px; flex: none; border-radius: 50%; background: var(--grad); color: var(--brown-900); display: inline-grid; place-items: center; font-weight: 800; font-size: 1rem; line-height: 1; }
+.add-btn:active { transform: scale(.98); border-style: solid; border-color: var(--accent); }
+.td-actions { display: flex; gap: 10px; margin-top: 12px; }
+.td-actions .add-btn { flex: 1; margin-top: 0; }
+.cy-btn { flex: none; display: inline-flex; align-items: center; gap: 7px; padding: 0 16px; border-radius: var(--r-md); border: 1px solid var(--border-strong); background: var(--bg-3); color: var(--text); font-size: .85rem; font-weight: 600; }
+.cy-btn .ico { width: 18px; height: 18px; }
+.cy-btn:active { transform: scale(.97); border-color: var(--accent); }
+.pl-form .input { width: 100%; }
+
+.cy-body { gap: 12px; }
+.cy-new { flex: none; border-style: dashed; color: var(--gold); }
+.cy-line { display: flex; align-items: center; gap: 10px; }
+.cy-line .input { flex: 1; min-width: 0; }
+.cy-lab { flex: 1; font-size: .88rem; color: var(--text-dim); }
+.cy-del-subj { flex: none; width: 40px; height: 40px; border-radius: var(--r-md); border: 1px solid var(--border-strong); background: var(--bg-3); color: var(--text-mute); }
+.cy-sum { font-size: .78rem; color: var(--text-dim); padding: 8px 12px; border-radius: var(--r-sm); background: var(--bg-2); border: 1px solid var(--border); text-align: center; }
+.cy-list { display: grid; gap: 6px; }
+.cy-row { display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: var(--r-sm); background: var(--bg-2); border: 1px solid var(--border); }
+.cy-name { flex: 1; min-width: 0; padding: 8px 6px; background: transparent; border: none; color: var(--text); font-size: .9rem; outline: none; }
+.cy-name:focus { box-shadow: 0 1px 0 var(--accent); }
+.cy-move { display: flex; flex-direction: column; flex: none; }
+.cy-move button { width: 26px; height: 16px; font-size: .55rem; line-height: 1; color: var(--text-mute); background: none; border: none; }
+.cy-move button:disabled { opacity: .25; }
+.cy-step { display: inline-flex; align-items: center; flex: none; border: 1px solid var(--border-strong); border-radius: 999px; background: var(--bg-3); }
+.cy-step button { width: 30px; height: 30px; border-radius: 50%; color: var(--gold); font-size: 1.05rem; font-weight: 700; background: none; border: none; }
+.cy-step button:disabled { opacity: .3; }
+.cy-step .cy-val { min-width: 24px; text-align: center; font-family: var(--font-mono); font-weight: 700; font-size: .88rem; }
+.cy-add { display: flex; align-items: center; gap: 8px; }
+.cy-add .input { flex: 1; min-width: 0; }
+.cy-add-btn { flex: none; width: 44px; height: 44px; padding: 0; border-style: solid; }
+.cy-reset { margin-top: 4px; font-size: .78rem; color: var(--text-mute); background: none; border: none; text-decoration: underline; }
+.cy-list { grid-template-columns: minmax(0, 1fr); }
+.cy-name { flex: 1 1 0; width: 0; }

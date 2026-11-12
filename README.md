@@ -178,3 +178,18 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.32
 - Animation : case de to-do cochée = « pop » cuivre (agrandissement + halo, 0,38 s) et le libellé passe en gris atténué ; seulement à l'instant du cochage, pas à chaque rafraîchissement ; désactivée si « réduire les animations ». Les quêtes n'ont pas de case à cocher (compteurs) : leur animation relève de la barre de progression.
+
+### v4.33
+- Couleur : le chiffre de chaque caractéristique prend la couleur exacte de son icône (`COLORS` de `js/ui/icons.js`) ; le chiffre de Discipline n'était pas de la couleur de la lotus (corrigé aussi dans `CARACS`).
+- Transition entre pages refaite (`navigate` dans `js/ui/router.js`) : l'ancienne page s'efface (120 ms), la nouvelle est préparée (données prêtes) puis apparaît en glissant (280 ms) ; retour en haut de page pendant que la vue est invisible (plus de saut). Navigations rapides gérées (la plus récente gagne), icônes d'onglets préchargées, `overflow-x: clip` sur `.app`, désactivée si « réduire les animations ».
+- Accueil : le niveau (dégradé) et la prochaine échéance sont côte à côte, le graphique en dessous ; les trois blocs tiennent à l'écran. L'accès aux Options depuis la carte du graphique est supprimé (reste le rouage de l'en-tête). Le radar garde 340 px et ne rétrécit (jusqu'à 230 px) que sur les écrans courts. La carte se peint depuis un cache préchargé : plus de saut de mise en page à l'arrivée.
+
+### v4.34
+- Rappels : le bouton « Ajouter au calendrier » (fichier .ics) est remplacé par « Ajouter une notification » (icône cloche) : fenêtre avec un motif (texte libre ou raccourcis), une heure et « Répéter tous les jours ». Stockage : meta `customReminders`. Une notification unique part à l'heure prévue (aujourd'hui, sinon demain) puis disparaît ; les quotidiennes restent. Liste et suppression dans la carte Rappels (Options). Comme les autres rappels, elle ne part que si l'app est ouverte ou récemment en arrière-plan.
+- Caractéristiques : ajouter, supprimer ou modifier une sortie (GPX) recalcule l'historique (`recomputeCaracs`), y compris pour une semaine passée. L'import JSON recharge l'app, qui recalcule déjà au démarrage.
+- « 15/16 » fixé à 15 : validé.
+
+### v4.35
+- To-do : boutons d'ajout restylés (`.add-btn` : pointillés cuivre, pastille « + » en dégradé), utilisés dans Hebdo, Aujourd'hui, Planning et dans le sélecteur d'ajout (le champ libre était blanc : il prend maintenant la classe `.input`).
+- Cycle de la to-do éditable (`features/todo-cycle.js`, `ui/cycle-editor.js`, meta `todoCycle`) : bouton « Cycle » dans Hebdo. Matières à cycle libres (Maths et Physique par défaut, reprises de `todo-data.js`), éléments avec poids (1 à 30), ordre modifiable, ajout/suppression/renommage. Deux rythmes par matière : « Points par semaine » (budget fixe) ou « Finir avant le… » (budget recalculé chaque semaine = points restants du tour ÷ semaines de to-do restantes, vacances et révisions exclues ; le tour ne recommence pas avant la date). Les changements s'appliquent aux semaines générées ensuite. Les éléments ponctuels (ajout libre) restent distincts du cycle.
+- `todo.js` lit le cycle (plus de constantes `TODO_CATALOG` / `TODO_BUDGET` dans la génération) ; `TODO_SUBJECTS` est tenu à jour par `todo-cycle.js`.

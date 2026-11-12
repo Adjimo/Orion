@@ -4,6 +4,7 @@ import { CARACS, fmtMod, getCaracSettings, loadCaracHistory, modifier } from '..
 import { el, escapeHtml } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 import { navigate } from '../ui/router.js';
+import { State } from '../core/state.js';
 
 // Échelle du graphe : 0 → 20 (anneau extérieur = 20) ; une valeur au-delà est écrêtée au bord.
 const SIZE = 320, C = SIZE / 2, RMAX = 20, R_OUT = 126, ICON_R = 144;
@@ -42,7 +43,10 @@ export async function renderCaracsCard(root) {
     const side = (i === 4 || i === 5) ? 'l' : 'r';          // la valeur s'écrit du côté extérieur de l'icône
     return `<span class="cr-ico" data-i="${i}" style="left:${((C + ICON_R * Math.cos(a)) / SIZE * 100).toFixed(2)}%;top:${((C + ICON_R * Math.sin(a)) / SIZE * 100).toFixed(2)}%">${iconHtml(c.icon)}<span class="cr-val ${side}" style="color:${c.color}">${Math.round(last.values[c.id])}</span></span>`;
   }).join('');
-  const wrap = el('div', { class: 'cr-wrap', html: `<svg viewBox="0 0 ${SIZE} ${SIZE}" role="img" aria-label="Graphe des caractéristiques">${rings}${axes}${ghost}<polygon points="${pts(last.values)}" class="cr-poly"/>${dots}</svg>${icons}` });
+  // Déploiement joué une fois par navigation (pas à chaque rafraîchissement de la page).
+  const play = State.radarPlayed !== State.navStamp;
+  State.radarPlayed = State.navStamp;
+  const wrap = el('div', { class: 'cr-wrap' + (play ? ' cr-anim' : ''), html: `<svg viewBox="0 0 ${SIZE} ${SIZE}" role="img" aria-label="Graphe des caractéristiques">${rings}${axes}${ghost}<g class="cr-grow"><polygon points="${pts(last.values)}" class="cr-poly"/>${dots}</g></svg>${icons}` });
   card.appendChild(wrap);
   if (old) card.appendChild(el('div', { class: 'dim text-xs', style: 'text-align:center' }, 'Filigrane : il y a 4 semaines'));
 

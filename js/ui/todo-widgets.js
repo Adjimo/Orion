@@ -10,9 +10,14 @@ const subjLabel = (id) => TODO_SUBJECTS.find(s => s.id === id)?.label || '';
 const fmtShort = (k) => parseKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 const isoDay = (dateKey) => parseKey(dateKey).getDay() || 7;
 
+// Identifiant de la case qui vient d'être cochée : la ligne rejoue une animation « pop » au rendu suivant.
+let justChecked = null;
+
 function itemRow(it, { editable, chip, showSubj }, change) {
-  return el('div', { class: `td-item${it.done ? ' done' : ''}` }, [
-    el('button', { class: 'td-check', 'aria-label': 'Cocher', disabled: editable ? null : 'disabled', onclick: () => change(() => toggleTodo(it)) }, it.done ? '✓' : ''),
+  const pop = it.done && justChecked === it.id;
+  if (pop) justChecked = null;
+  return el('div', { class: `td-item${it.done ? ' done' : ''}${pop ? ' pop' : ''}` }, [
+    el('button', { class: 'td-check', 'aria-label': 'Cocher', disabled: editable ? null : 'disabled', onclick: () => change(async () => { await toggleTodo(it); if (it.done) justChecked = it.id; }) }, it.done ? '✓' : ''),
     el('div', { class: 'td-label' }, [
       showSubj ? el('span', { class: 'td-subj' }, subjLabel(it.subj)) : null,
       el('span', { class: 'td-name' }, it.label),

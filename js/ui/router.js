@@ -8,7 +8,9 @@ import { renderSport } from '../pages/sport.js';
 import { renderStats } from '../pages/stats.js';
 
 export function navigate(route) {
+  const prev = State.currentRoute;
   State.currentRoute = route;
+  State.navStamp = (State.navStamp || 0) + 1;   // identifie cette navigation (animations jouées une fois par navigation)
   document.querySelectorAll('.tab').forEach(t => {
     const isActive = t.dataset.route === route;
     t.classList.toggle('active', isActive);
@@ -20,6 +22,20 @@ export function navigate(route) {
     }
   });
   render();
+  animateTabChange(prev, route);
+}
+
+// Transition entre onglets : fondu + court glissement dans le sens de la navigation.
+function animateTabChange(prev, route) {
+  if (!prev || prev === route) return;
+  const routes = [...document.querySelectorAll('.tab')].map(t => t.dataset.route);
+  const a = routes.indexOf(prev), b = routes.indexOf(route);
+  const view = document.getElementById('view');
+  view.classList.remove('view-in-next', 'view-in-prev', 'view-in-fade');
+  void view.offsetWidth;   // relance l'animation si on enchaîne vite
+  const cls = (a < 0 || b < 0) ? 'view-in-fade' : (b > a ? 'view-in-next' : 'view-in-prev');
+  view.classList.add(cls);
+  view.addEventListener('animationend', () => view.classList.remove(cls), { once: true });
 }
 
 export function render() {

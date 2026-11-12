@@ -64,24 +64,25 @@ export async function renderWeekTodo(root, monday) {
 
   const done = items.filter(i => i.done).length;
   const carried = items.filter(i => (i.carried || i.rolled) && !i.done).length;
-  const subjChips = TODO_SUBJECTS.map(s => {
+  const pct = Math.round(done / items.length * 100);
+  const bySubj = TODO_SUBJECTS.map(s => {
     const l = items.filter(i => i.subj === s.id);
-    return l.length ? el('span', { class: `pl-chip td-sum${l.every(i => i.done) ? ' full' : ''}` }, `${s.label.split(' ')[0]} ${l.filter(i => i.done).length}/${l.length}`) : null;
-  });
-  root.appendChild(el('div', { class: 'td-total' }, [
-    el('div', { class: 'td-total-row' }, [el('span', {}, 'Cette semaine'), el('strong', {}, `${done}/${items.length}`)]),
-    el('div', { class: 'td-bar' }, el('div', { class: 'td-bar-fill', style: `width:${done / items.length * 100}%` })),
-    el('div', { class: 'td-chips' }, subjChips),
-    carried ? el('div', { class: 'pl-hint' }, `${carried} reporté(s)`) : null
-  ]));
-
-  for (let d = 1; d <= 7; d++) {
-    const rows = items.filter(i => i.day === d).sort((a, b) => (a.ord || 0) - (b.ord || 0));
-    if (!rows.length) continue;
-    const g = el('div', { class: 'td-group' }, [countHead(`${DAY_LABELS[d - 1]}`, rows)]);
-    rows.forEach(it => g.appendChild(itemRow(it, { editable, showSubj: true }, change)));
-    root.appendChild(g);
-  }
+    return l.length ? `${s.label.split(' ')[0]} ${l.filter(i => i.done).length}/${l.length}` : null;
+  }).filter(Boolean).join(' · ');
+  const color = '#D08A4E';
+  const card = el('div', { class: 'hq' + (done === items.length ? ' done' : ''), style: `--hq-c: ${color};` });
+  card.innerHTML = `
+    <div class="hq-head">
+      <span class="hq-icon">${iconHtml('check')}</span>
+      <div class="hq-titles">
+        <div class="hq-title">Cette semaine</div>
+        <div class="hq-goal">${done} / ${items.length} faits${carried ? ` · ${carried} reporté(s)` : ''}</div>
+      </div>
+      <div class="hq-pct" style="color:${color}">${pct}%</div>
+    </div>
+    <div class="hq-bar"><div class="hq-fill" style="width:${pct}%; background:${color};"></div></div>
+    <div class="hq-info"><span class="dim text-xs">${bySubj}</span><span></span></div>`;
+  root.appendChild(card);
   if (editable) root.appendChild(el('button', { class: 'btn full sm pl-add', onclick: () => openTodoPicker(monday, isoDay(todayKey()), true, rerender) }, '+ Ajouter à la to-do'));
 }
 

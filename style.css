@@ -2053,3 +2053,13 @@ button, a, label, input, select, .tab { touch-action: manipulation; }
 
 /* Cases à cocher dans le style de l'app (cuivre, jamais le bleu du navigateur) */
 input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+
+/* Valeur entière au bout de chaque branche du radar */
+.cr-val { position: absolute; top: 50%; transform: translateY(-50%); font-family: var(--font-mono); font-weight: 700; font-size: 0.9rem; line-height: 1; text-shadow: 0 0 4px var(--bg-1, #1c1916); }
+.cr-val.r { left: calc(100% + 3px); }
+.cr-val.l { right: calc(100% + 3px); }
+
+/* Page Hebdo : séparation du bloc manuel et du bloc automatique */
+.hebdo-block { display: flex; align-items: baseline; gap: 8px; margin: 22px 0 12px; padding-top: 12px; border-top: 1px solid var(--border-strong); font-size: 0.72rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--gold); }
+.hebdo-block span { font-weight: 400; letter-spacing: 0; text-transform: none; color: var(--text-mute); }
+.hebdo-block.first { margin-top: 4px; padding-top: 0; border-top: none; }

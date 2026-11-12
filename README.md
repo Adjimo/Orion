@@ -161,3 +161,8 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - Options : icône roue (Accueil, titre Options, carte), réglages des caractéristiques en premier, « Cas particuliers » en dernier, cases à cocher en cuivre (`accent-color`).
 - Sport : mois repliés par défaut, dernière sortie affichée par défaut.
 - To-do : plus de vocabulaire d'anglais le mardi et le mercredi (`VOCAB_DAYS`, semaines à générer).
+
+### v4.28
+- Radar : la valeur entière de chaque caractéristique est écrite au bout de sa branche, à côté de l'icône ; le texte au-dessus de la toile est supprimé.
+- Hebdo : deux blocs séparés. « Manuel » (sorties, coucher avant 23h30, rigueur) puis « Automatique » (travail), puis la to-do de la semaine.
+- To-do de la semaine : plus de détail par jour ; seul reste un récapitulatif dans le style des cartes de quêtes (titre, pourcentage, barre, avancement par matière) et le bouton d'ajout.

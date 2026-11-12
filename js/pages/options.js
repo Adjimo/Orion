@@ -9,9 +9,8 @@ export function renderOptions(root) {
   const page = el('div', { class: 'page' });
   page.appendChild(el('div', { class: 'flex between mb-3' }, [
     el('button', { class: 'btn ghost sm', onclick: () => { navigate('home'); window.scrollTo(0, 0); } }, '← Accueil'),
-    el('h1', { class: 'opt-title', html: iconHtml('scale') + ' Options' })
+    el('h1', { class: 'opt-title', html: iconHtml('gear') + ' Options' })
   ]));
-  renderProfileSections(page);   // bilan hebdo, rappels, sauvegarde, version
-  renderCaracsSettings(page);
+  renderCaracsSettings(page).then(() => renderProfileSections(page));   // d'abord les réglages des caractéristiques, puis bilan hebdo, rappels, sauvegarde, version
   root.appendChild(page);
 }

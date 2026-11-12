@@ -47,7 +47,7 @@ export function renderSport(root) {
     return;
   }
 
-  if (!State.currentActivity) State.currentActivity = State.activities[0];
+  if (!State.currentActivity) State.currentActivity = [...State.activities].sort((a, b) => b.date.localeCompare(a.date))[0];   // par défaut : la dernière sortie
 
   // Map
   const mapWrap = el('div', { class: 'map-wrap mb-3' });
@@ -126,7 +126,7 @@ export function renderSport(root) {
   State._monthsOpen = State._monthsOpen || {};
   const selYm = sel?.date?.slice(0, 7);
   months.forEach((m, idx) => {
-    if (State._monthsOpen[m.ym] === undefined) State._monthsOpen[m.ym] = (idx === 0 || m.ym === selYm);
+    if (State._monthsOpen[m.ym] === undefined) State._monthsOpen[m.ym] = false;   // tous repliés par défaut
     const open = !!State._monthsOpen[m.ym];
     const monthName = new Date(m.ym + '-01T12:00:00').toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' });
     const km = Math.round(m.acts.reduce((t, a) => t + (parseFloat(a.distanceKm) || 0), 0) * 10) / 10;

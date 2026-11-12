@@ -54,7 +54,7 @@ export function renderHome(root) {
       el('div', { class: 'text-2xl' }, p.name),
       el('div', { class: 'dim text-xs mt-2' }, `Membre depuis ${formatDate(p.createdAt)}`)
     ]),
-    el('div', { class: 'flex gap-2' }, [editBtn, el('button', { class: 'btn ghost sm', 'aria-label': 'Options', onclick: () => navigate('options'), html: iconHtml('scale') })])
+    el('div', { class: 'flex gap-2' }, [editBtn, el('button', { class: 'btn ghost sm', 'aria-label': 'Options', onclick: () => navigate('options'), html: iconHtml('gear') })])
   ]));
 
   // Hero niveau

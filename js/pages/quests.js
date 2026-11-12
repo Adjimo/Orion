@@ -26,19 +26,35 @@ export function renderToday(root) {
   renderDayDashboard(dashWrap, (dateKey) => renderDayTodo(todoWrap, dateKey));
 }
 
-// Page « Hebdo » : objectifs de la semaine (sport, travail, rigueur) + to-do de la semaine.
+// Page « Hebdo » : bloc manuel (sport, coucher avant 23h30, rigueur), bloc automatique (travail), to-do de la semaine.
 export function renderHebdo(root) {
   const page = el('div', { class: 'page' });
   page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Hebdo')]));
 
-  // ── SPORT (quête sorties principales) ─────────────────────────────
+  const blockTitle = (title, sub, first = false) => el('div', { class: 'hebdo-block' + (first ? ' first' : ''), html: `${title}<span>${sub}</span>` });
+
+  // ── BLOC MANUEL : ce que tu règles ou coches toi-même ─────────────
+  page.appendChild(blockTitle('Manuel', 'à régler et à cocher', true));
+
   page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('run') + ' Sport' }));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Sorties de course de la semaine'));
   const sportWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(sportWrap);
 
-  // ── TRAVAIL (quêtes travail + sommeil + secondaires) ──────────────
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('books') + ' Travail &amp; autres' }));
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('moon') + ' Coucher avant 23h30' }));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Coche chaque nuit tenue.'));
+  const sleepWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(sleepWrap);
+
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('scale') + ' Rigueur' }));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
+  const rigueurWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(rigueurWrap);
+
+  // ── BLOC AUTOMATIQUE : calculé depuis ton temps de travail ────────
+  page.appendChild(blockTitle('Automatique', 'calculé pour toi'));
+
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('books') + ' Travail' }));
   page.appendChild(el('div', { class: 'dim text-xs mb-2' },
     arePenaltiesActive()
       ? 'Malus si non atteint · bonus si dépassé.'
@@ -46,22 +62,16 @@ export function renderHebdo(root) {
   const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(travailWrap);
 
-  // ── TO-DO DE LA SEMAINE ───────────────────────────────────────────
   page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('check') + ' To-do de la semaine' }));
   const todoWrap = el('div', { class: 'mb-5' });
   page.appendChild(todoWrap);
-
-  // ── RIGUEUR (auto-sanctions) ─────────────────────
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('scale') + ' Rigueur' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
-  const rigueurWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(rigueurWrap);
 
   root.appendChild(page);
   renderRigueurSection(rigueurWrap);
   renderWeekTodo(todoWrap, mondayOf(todayKey()));
   renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']);
-  renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-sleep', 'wq-langues', 'wq-lettres', 'wq-si']);
+  renderWeeklyQuestsFiltered(sleepWrap, ['wq-sleep']);
+  renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-langues', 'wq-lettres', 'wq-si']);
 }
 
 // Variante de renderWeeklyQuests qui filtre par liste d'IDs (au lieu de catégorie main/secondary).

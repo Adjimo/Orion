@@ -1,7 +1,5 @@
 // Carte « Caractéristiques » (page Accueil) : toile d'araignée SVG, sans dépendance.
 // Un appui sur un sommet (point, icône) affiche un mini détail à côté de ce sommet.
-import { formatDate } from '../core/dates.js';
-import { addDays } from '../core/calendar.js';
 import { CARACS, fmtMod, getCaracSettings, loadCaracHistory, modifier } from '../features/caracs.js';
 import { el, escapeHtml } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
@@ -34,7 +32,6 @@ export async function renderCaracsCard(root) {
     return;
   }
   const last = hist[hist.length - 1], prev = hist[hist.length - 2], old = hist[hist.length - 5];
-  card.appendChild(el('div', { class: 'dim text-xs mb-2' }, `Bilan de la semaine du ${formatDate(last.week)} au ${formatDate(addDays(last.week, 6))} · poids de l'historique ${Math.round(cfg.alpha * 100)} %`));
 
   const rings = [5, 10, 15, 20].map(v => `<polygon points="${ring(v)}" class="cr-ring"/>`).join('');
   const axes = CARACS.map((_, i) => { const [x, y] = polar(i, RMAX); return `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="cr-axis"/>`; }).join('');
@@ -42,7 +39,8 @@ export async function renderCaracsCard(root) {
   const dots = CARACS.map((c, i) => { const [x, y] = polar(i, last.values[c.id]); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${c.color}" class="cr-dot"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="18" fill="transparent" data-i="${i}" class="cr-hit"/>`; }).join('');
   const icons = CARACS.map((c, i) => {
     const a = (-90 + i * 60) * Math.PI / 180;
-    return `<span class="cr-ico" data-i="${i}" style="left:${((C + ICON_R * Math.cos(a)) / SIZE * 100).toFixed(2)}%;top:${((C + ICON_R * Math.sin(a)) / SIZE * 100).toFixed(2)}%">${iconHtml(c.icon)}</span>`;
+    const side = (i === 4 || i === 5) ? 'l' : 'r';          // la valeur s'écrit du côté extérieur de l'icône
+    return `<span class="cr-ico" data-i="${i}" style="left:${((C + ICON_R * Math.cos(a)) / SIZE * 100).toFixed(2)}%;top:${((C + ICON_R * Math.sin(a)) / SIZE * 100).toFixed(2)}%">${iconHtml(c.icon)}<span class="cr-val ${side}" style="color:${c.color}">${Math.round(last.values[c.id])}</span></span>`;
   }).join('');
   const wrap = el('div', { class: 'cr-wrap', html: `<svg viewBox="0 0 ${SIZE} ${SIZE}" role="img" aria-label="Graphe des caractéristiques">${rings}${axes}${ghost}<polygon points="${pts(last.values)}" class="cr-poly"/>${dots}</svg>${icons}` });
   card.appendChild(wrap);

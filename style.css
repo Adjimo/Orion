@@ -2185,3 +2185,30 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
   .hm-big { font-size: 2.2rem; }
   .hm-days { font-size: 2rem; }
 }
+
+/* Les icônes du pack gardent leur couleur propre, y compris dans un bouton (v4.37) */
+.btn .ico svg, .btn-gpx .ico svg, .btn:hover .ico svg { color: inherit; width: 100%; height: 100%; stroke-width: 1.9; }
+.home-head .btn .ico { width: 20px; height: 20px; }
+
+/* v4.38 : avertissement discret en début de semaine, cases des rappels, to-do */
+.hq-malus.early { color: var(--text-mute); }
+.rem-row .rem-on { appearance: none; -webkit-appearance: none; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--border-strong); background: var(--bg-3); display: inline-grid; place-items: center; transition: background .15s, border-color .15s; }
+.rem-row .rem-on:checked { background: var(--grad); border-color: var(--accent); }
+.rem-row .rem-on:checked::after { content: ''; width: 6px; height: 11px; margin-top: -2px; border: solid var(--brown-900); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
+.add-btn.mt-2 { margin-top: 8px; }
+#rem-add { width: 100%; flex: 1 1 100%; white-space: nowrap; }
+
+/* ── Panneaux « Notes » de Hebdo (v4.39) ── */
+.cp { border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--border); overflow: hidden; }
+.cp-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-3); }
+.cp-icon { font-size: 1.3rem; display: inline-flex; }
+.cp-title { flex: 1; min-width: 0; font-weight: 600; font-size: 0.88rem; color: var(--gold); }
+.cp-note { font-size: 0.85rem; white-space: nowrap; }
+.cp-body { padding: 8px 14px 12px; }
+.cp-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 0.78rem; color: var(--text-mute); }
+.cp-val { color: var(--text); font-weight: 600; }
+.cp-bar { height: 6px; margin-top: 5px; background: var(--bg-0); border-radius: 3px; overflow: hidden; }
+.cp-fill { height: 100%; border-radius: 3px; }
+.cp-sub { margin-top: 4px; font-size: 0.72rem; color: var(--text-mute); }
+.cp-w { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--bg-0); border: 1px solid var(--border); font-size: 0.68rem; color: var(--text-dim); }
+.cp-total { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--text-mute); }

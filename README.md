@@ -156,7 +156,7 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 ### v4.27
 - Échelle des caractéristiques : rien de fait = 4, objectif atteint = 15, objectif dépassé de 25 % = 18, plafond 20 (interpolation linéaire entre ces points). Réglable dans Options › Échelle des scores. Les anciens réglages (échelle 14/12, pondérations, objectifs) sont ignorés au chargement, seuls α et les deux cases de cas particuliers sont conservés (`ver` = 2 dans `caracSettings`).
 - Objectifs d'heures : Maths 19 h, Physique 11 h, SI / Info 1 h (Info 0 h), Verbe 3 h (anglais 2 h + français 1 h).
-- La to-do et l'allure ne comptent plus. Matières : 100 % heures. Dextérité : 60 % volume (sorties / objectif) + 40 % régularité (moyenne sur 4 semaines des sorties / objectif, semaines justifiées exclues). Discipline : 70 % quêtes + 30 % sommeil (7 nuits sur 7 = objectif atteint). Retirés : jours travaillés attendus, sensibilités (l'écart perso reste à 0,1 pt par %).
+- La to-do et l'allure ne comptent plus. Matières : 100 % heures. Dextérité : 60 % volume (sorties / objectif) + 40 % régularité (moyenne sur 4 semaines des sorties / objectif, semaines justifiées exclues). Discipline : 70 % quêtes + 30 % sommeil (7 nuits sur 7 = objectif atteint) ; remplacé en v4.40 par quêtes 49 / to-do 30 / sommeil 21. Retirés : jours travaillés attendus, sensibilités (l'écart perso reste à 0,1 pt par %).
 - Radar : un appui sur un sommet ou une icône ouvre un mini détail (valeur, variation, score et parts de la semaine) ; la liste et le détail sous la toile sont supprimés. Le bouton roue de la carte ouvre Options (ancien bug : changer le poids de l'historique pouvait faire disparaître la toile).
 - Options : icône roue (Accueil, titre Options, carte), réglages des caractéristiques en premier, « Cas particuliers » en dernier, cases à cocher en cuivre (`accent-color`).
 - Sport : mois repliés par défaut, dernière sortie affichée par défaut.
@@ -198,3 +198,27 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - Hebdo et Aujourd'hui : construites hors écran puis posées d'un bloc (`STAGED` dans `js/ui/router.js`, `renderHebdo` / `renderToday` renvoient une promesse) : plus de cartes qui apparaissent ou se déforment au chargement, ni au rafraîchissement. Stats : graphiques tracés tout de suite (plus de `setTimeout`) et sans animation Chart.js.
 - Accueil : en-tête + 3 blocs dans `.home-fit` (hauteur = l'écran, sans « Cette semaine » qui dépasse) ; niveau et échéance plus grands (ils absorbent la place libre, jusqu'à 300 px) ; radar réduit seulement sur écran court. Échéance : le pourcentage de l'année écoulée en grand, « J-X avant échéance » en petit.
 - Nouvelle icône `cycle` (deux flèches en boucle avec un +) pour les cycles ; boutons de la to-do distincts : « Ajouter un élément » (plein, cuivre) et « Cycles » (contour sable).
+
+### v4.37
+- Les icônes du pack gardent leur couleur dans les boutons : la règle `.btn svg { color: accent-2 }` écrasait la couleur propre de chaque icône (rouage et crayon de l'Accueil plus sombres que celui du titre d'Options, et plus petits). Rouage et crayon de l'en-tête de l'Accueil = 20 px, couleur d'origine.
+- Options : section « Bilan hebdo » supprimée (le bilan s'affiche toujours automatiquement au changement de semaine).
+
+### v4.38
+- **Objectifs unifiés** : les quêtes d'heures de Hebdo reprennent les objectifs de la toile (`caracSettings.hoursGoal`, réglables dans Options). `syncQuestGoals()` (`features/seed.js`, appelée par `loadAll()` et après chaque réglage) : Verbe = Anglais (2/3) + Français (1/3) ; SI = SI ; Heures de travail = Maths + Physique + SI + Verbe (34 h par défaut). Maths et Physique n'ont pas de quête (voir prompt).
+- Nommage : « Lettres » → « Français » (quête), SI partout « SI / Info », Maths/Physique en court dans le cycle par défaut, section « Sommeil » (au lieu de « Coucher avant 23h30 » en doublon), « Avancement » pour la carte de la to-do, sous-titre de Aujourd'hui sans doublon, « Caractéristiques et objectifs » dans Options.
+- Durées : `formatHours()` (`features/work.js`) → « 2h », « 1h30 » partout dans Hebdo et Aujourd'hui.
+- Couleurs : quêtes, camembert de Stats et matières de la to-do prennent la couleur de l'icône de la matière (`COLORS`).
+- Hebdo : avertissement « Malus prévu : −80 % d'XP » discret (gris) du lundi au mercredi ; badge AUTO retiré de Sport et Sommeil.
+- Boutons : « Ajouter un écart » et « Ajouter une notification » au style `.add-btn` ; cases des Rappels personnalisées ; message de notifications bloquées plus clair ; libellé « Télécharger une sauvegarde » ; Stats : « Records de travail / sportifs » avec icône, « 0 h » au lieu de « — ».
+- To-do : le curseur du cycle suit le nom du chapitre (insérer/déplacer un élément ne décale plus le tour) ; fichiers `tab-profil*.png` supprimés.
+
+### v4.39
+- **Notes dans Hebdo** : nouveau bloc « Notes » (`js/pages/hebdo-panels.js`), 6 panneaux (Dextérité, Discipline, Maths, Physique, SI / Info, Verbe) : note actuelle → note projetée si la semaine s'arrêtait maintenant, avec les sources de la semaine (sorties, nuits, quêtes tenues, heures). Calcul : `projectCurrentWeek()` dans `caracs.js` (lecture seule, même `scoreWeek`).
+- `caracs.js` : boucle de rejeu factorisée (`replay`), partagée par `run()` et la projection ; `scoreWeek` renvoie en plus `meta` (compteurs) sans changer les scores.
+- **Écarts perso / Rigueur supprimés** : section et fenêtre retirées de Hebdo, retrait du calcul de la Discipline (réglage `ecartPointsPerPct` supprimé). Les données `selfMalus` restent stockées, ignorées par les notes. `penalties.js` (XP) inchangé.
+- Textes « Malus prévu » / « +X XP bonus » retirés des quêtes de Hebdo ; l'XP, le bilan de fin de semaine et l'historique des malus passés ne changent pas.
+
+### v4.40
+- **To-do dans la Discipline** : Discipline = quêtes 49 % + to-do 30 % + sommeil 21 % (`DEFAULT_SETTINGS.weights.disc`). Part to-do = éléments de `planTodo` de la semaine (`weekKey` = lundi, reportés compris) cochés / total. Aucun élément (avant novembre 2026, révisions, concours) : part ignorée, poids renormalisés = ancien 70/30 exact. Les réglages Discipline enregistrés avant v4.40 repassent aux valeurs par défaut (migration dans `getCaracSettings`). Vérifié : sans données de to-do, l'historique est identique à la v4.39 ; avec, seule la semaine concernée change.
+- **Sous-matières reliées** : chaque part de `combine()` porte `share` (poids normalisé) et `info` (réalisé / objectif). Les panneaux Notes de Hebdo (`hebdo-panels.js`) affichent pour chaque note ses sous-matières (valeur, poids, sous-note, apport), la somme = score de la semaine, puis note actuelle → projetée (α lu dans les réglages). Verbe détaille Anglais / Français sans changer le total d'heures.
+- Hebdo : mention « alimente : … » (couleurs des notes) sur les blocs Sport, Sommeil, Travail et To-do. Options : réglage du poids de la To-do. SW `orion-v108`.

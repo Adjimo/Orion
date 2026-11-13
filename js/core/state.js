@@ -1,7 +1,7 @@
 // État global de l'application
 
 // Version sémantique app affichée dans le profil. Incrémente à chaque release.
-export const APP_VERSION = '4.41';
+export const APP_VERSION = '4.42';
 
 export const State = {
   profile: null,

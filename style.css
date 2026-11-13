@@ -2113,8 +2113,8 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .carac-legend { font-size: 0.64rem; color: var(--text-mute); }
 /* Le radar garde sa taille maximale (340 px) et ne rétrécit que si l'écran est vraiment court. */
 .home-radar .cr-wrap {
-  max-width: min(340px, max(230px, calc(100vh - 372px - env(safe-area-inset-top) - env(safe-area-inset-bottom))));
-  max-width: min(340px, max(230px, calc(100svh - 372px - env(safe-area-inset-top) - env(safe-area-inset-bottom))));
+  max-width: min(340px, max(205px, calc(100vh - 410px - env(safe-area-inset-top) - env(safe-area-inset-bottom))));
+  max-width: min(340px, max(205px, calc(100svh - 410px - env(safe-area-inset-top) - env(safe-area-inset-bottom))));
 }
 .home-radar { margin-bottom: var(--s-4); }
 .home-since { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 62vw; }
@@ -2164,3 +2164,24 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .cy-reset { margin-top: 4px; font-size: .78rem; color: var(--text-mute); background: none; border: none; text-decoration: underline; }
 .cy-list { grid-template-columns: minmax(0, 1fr); }
 .cy-name { flex: 1 1 0; width: 0; }
+
+/* ── v4.36 : Accueil qui remplit l'écran, échéance, boutons de la to-do ── */
+.home-fit { display: flex; flex-direction: column; min-height: calc(100vh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); min-height: calc(100svh - 72px - env(safe-area-inset-top) - env(safe-area-inset-bottom) - 16px); margin-bottom: 16px; }
+.home-fit .home-top { flex: 1 1 auto; max-height: 300px; }
+.home-fit .home-radar { flex: none; margin-bottom: 8px; }
+.hm-card { padding: 16px; }
+.hm-big { font-size: 2.7rem; }
+.hm-days { font-size: 2.5rem; }
+.hm-name { font-size: 1.05rem; }
+.hm-sub { font-size: 0.72rem; }
+
+.add-btn.solid { border: none; background: var(--grad); color: var(--brown-900); box-shadow: 0 4px 14px rgba(200,129,74,.28); }
+.add-btn.solid .add-plus { background: rgba(42,26,15,.88); color: var(--gold); }
+.add-btn.solid:active { transform: scale(.98); filter: brightness(.95); }
+.cy-btn { border: 1px solid rgba(232,178,94,.45); background: rgba(232,178,94,.08); color: #E8B25E; }
+.cy-btn span { color: var(--text); }
+@media (max-height: 700px) {
+  .hm-card { padding: 13px; gap: 8px; }
+  .hm-big { font-size: 2.2rem; }
+  .hm-days { font-size: 2rem; }
+}

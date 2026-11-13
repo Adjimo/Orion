@@ -2260,3 +2260,32 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hn-sum b { color: var(--hn-c); font-family: var(--font-mono); }
 .hn-extra { margin-top: 14px; padding-top: 4px; border-top: 1px dashed var(--border-strong); }
 .hn-legend { margin-top: 2px; }
+
+.tab span { white-space: nowrap; letter-spacing: -0.02em; }
+.tab[data-route="hebdo"] span { font-size: 0.6rem; }
+
+/* v4.41 : carte « Objectifs de la semaine » (temps libre × % de travail, répartition par matière) */
+.wp-card { border-radius: 16px; border: 1px solid var(--border-strong); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--bg-2)), var(--bg-2) 60%); padding: 14px; margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.28); }
+.wp-title { font-weight: 700; font-size: 0.95rem; color: var(--gold); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+.wp-title span { font-size: 0.7rem; font-weight: 500; color: var(--text-mute); }
+.wp-calc { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 10px; margin: 12px 0; font-family: var(--font-mono); }
+.wp-calc .wp-box { text-align: center; }
+.wp-calc .wp-box b { display: block; font-size: 1.15rem; color: var(--text); }
+.wp-calc .wp-box small { font-size: 0.62rem; color: var(--text-mute); font-family: var(--font-body, inherit); }
+.wp-calc .wp-op { color: var(--text-mute); font-size: 1rem; }
+.wp-calc .wp-res b { color: var(--accent); font-size: 1.5rem; text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
+.wp-pct { display: inline-flex; align-items: center; gap: 6px; }
+.wp-pct .cnt-btn { width: 28px; height: 28px; }
+.wp-rows { display: grid; gap: 7px; }
+.wp-row { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 8px; font-size: 0.78rem; }
+.wp-row .wp-bar { height: 8px; border-radius: 5px; background: var(--bg-0); overflow: hidden; }
+.wp-row .wp-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, #000), var(--c)); box-shadow: 0 0 7px color-mix(in srgb, var(--c) 55%, transparent); }
+.wp-row .wp-h { font-family: var(--font-mono); white-space: nowrap; text-align: right; }
+.wp-row .wp-h small { color: var(--text-mute); margin-left: 4px; }
+.wp-note { margin-top: 10px; font-size: 0.7rem; color: var(--text-mute); line-height: 1.35; }
+
+.pl-runs { margin: 8px 0 12px; padding: 10px 14px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--border); }
+.pl-runs .hq-goal-pick { margin-top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.pl-runs .hq-goal-pick .hq-count-row { margin-top: 0; }
+.wp-calc .wp-box small { display: block; margin-top: 4px; }
+.wp-pct { white-space: nowrap; }

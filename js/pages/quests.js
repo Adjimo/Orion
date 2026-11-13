@@ -12,7 +12,8 @@ import { el, escapeHtml, showToast } from '../ui/helpers.js';
 import { COLORS, iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 import { renderDayTodo } from '../ui/todo-widgets.js';
-import { renderCaracPanels } from './hebdo-panels.js';
+import { dailyGoalHours } from '../features/work-goals.js';
+import { renderCaracPanels, renderWorkPlan } from './hebdo-panels.js';
 
 // Page « Aujourd'hui » : tableau de bord du jour (sport, temps de travail par matière) + to-do du jour.
 export function renderToday(root) {
@@ -27,23 +28,23 @@ export function renderToday(root) {
 }
 
 
-// Page « Hebdo » : une seule vue, une boîte par caractéristique (sous-matières, poids, sous-notes).
-// Les sorties (auto) et les heures de travail (auto) n'ont plus de bloc propre ; le sommeil se coche chaque jour dans Aujourd'hui ;
-// la to-do compte dans la Discipline et se gère dans Planning / Aujourd'hui. Seuls l'objectif de sorties et la justification
-// d'une semaine sans sortie restent ici, dans la boîte Dextérité.
+// Page « Compétences » (route interne `hebdo`) : calculateur d'objectifs de la semaine (temps libre × % de travail, réparti
+// par matière) puis une boîte par caractéristique (sous-matières, poids, sous-notes). Rien de hebdomadaire à régler ici :
+// l'objectif de sorties et la justification d'une semaine se font dans Planning ; le sommeil se coche dans Aujourd'hui.
 export async function renderHebdo(root) {
   const page = el('div', { class: 'page' });
-  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Hebdo')]));
+  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Compétences')]));
+  const planWrap = el('div', {});
   const panelsWrap = el('div', { class: 'hebdo-notes' });
-  page.appendChild(panelsWrap);
+  page.append(planWrap, panelsWrap);
   root.appendChild(page);
-  const runsQ = State.quests.find(q => q.id === 'wq-runs');
-  await renderCaracPanels(panelsWrap, { dex: runsQ ? await buildRunsControls(runsQ) : null });
+  await Promise.all([renderWorkPlan(planWrap, async () => { await loadAll(); render(); }), renderCaracPanels(panelsWrap)]);
 }
 
-// Objectif de sorties de la semaine (− / +) et justification d'une semaine sans sortie (malus).
-async function buildRunsControls(q) {
-  const goal = await runsGoalFor(weekKey(), q);
+// Objectif de sorties d'une semaine (− / +) et justification d'une semaine sans sortie (malus). Utilisé par la page Planning.
+// wk : semaine concernée (YYYY-Www) ; modifiable pour la semaine en cours et les suivantes ; justification : semaine en cours.
+export async function buildRunsControls(q, wk = weekKey()) {
+  const goal = await runsGoalFor(wk, q);
   const wrap = el('div', { class: 'hq-runs-ctl' });
   const gRow = el('div', { class: 'hq-goal-pick' });
   gRow.innerHTML = '<div class="dim text-xs">Mon objectif de la semaine (sorties)</div>';
@@ -53,15 +54,15 @@ async function buildRunsControls(q) {
   const plus = el('button', { class: 'cnt-btn plus' }, '+');
   minus.disabled = goal <= 1;
   plus.disabled = goal >= RUNS_GOAL_MAX;
-  const changeGoal = async (delta) => { await setRunsGoal(weekKey(), goal + delta); await loadAll(); render(); };
+  const changeGoal = async (delta) => { await setRunsGoal(wk, goal + delta); await loadAll(); render(); };
   minus.addEventListener('click', () => changeGoal(-1));
   plus.addEventListener('click', () => changeGoal(+1));
   ctr.appendChild(minus); ctr.appendChild(val); ctr.appendChild(plus);
   gRow.appendChild(ctr);
   wrap.appendChild(gRow);
-  if (arePenaltiesActive()) {
+  if (arePenaltiesActive() && wk === weekKey()) {
     const excuses = await getMalusExcuses();
-    const cur = excuses[`${weekKey()}|${q.id}`];
+    const cur = excuses[`${wk}|${q.id}`];
     const row = el('div', { class: 'hq-excuse-row' });
     row.innerHTML = cur ? `<span class="hq-excused">✓ Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>` : '<span></span>';
     const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier une semaine sans sortie');
@@ -88,7 +89,7 @@ export async function renderDayDashboard(root, afterRender) {
   const workLog = await dbGet('workLog', dateKey);
   const slept = !!(await getSleepLog())[dateKey];       // case cochée = couché avant 23h30 la veille au soir
   const actualMinutes = workLog?.totalMinutes || 0;
-  const goalHours = todayPlan.workHours || 0;
+  const goalHours = await dailyGoalHours(dateKey);          // % du temps libre du jour (cf. work-goals.js)
   const wi = computeWorkXp(actualMinutes, goalHours);
   const progress = goalHours > 0 ? Math.min(1, actualMinutes / (goalHours * 60)) : 0;
   // On affiche le sport du jour pour required ET weekend (sortie longue flexible).

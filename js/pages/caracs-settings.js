@@ -9,7 +9,8 @@ const PART_LABELS = {
   dex:  { volume: 'Volume (sorties de la semaine)', regularite: 'Régularité (4 dernières semaines)' },
   disc: { quetes: 'Quêtes', todo: 'To-do (éléments faits)', sommeil: 'Sommeil (nuits avant 23h30)' }
 };
-const HOURS_LABELS = { math: 'Maths', phys: 'Physique', si: 'SI / Info', verb: 'Verbe (anglais + français)' };
+// Répartition du travail entre matières (poids en %, normalisés) ; l'objectif en heures vient du temps libre × % de travail.
+const SUBJECT_LABELS = { maths: 'Maths', physique: 'Physique', si: 'SI / Info', langues: 'Anglais', francais: 'Français' };
 
 const num = (v) => parseFloat(String(v).replace(',', '.'));
 
@@ -46,9 +47,11 @@ export async function renderCaracsSettings(root, forceOpen = false) {
     el('div', { class: 'cs-hint' }, 'Part de la valeur précédente dans la nouvelle valeur ; le reste vient du score de la semaine.')
   ]));
 
-  card.appendChild(group('Objectifs hebdomadaires', [
-    ...Object.keys(HOURS_LABELS).map(k => field(HOURS_LABELS[k], `cs-h-${k}`, cfg.hoursGoal[k], { max: 60, step: 0.5, unit: 'h' })),
-    el('div', { class: 'cs-hint' }, 'Par défaut : Maths 19 h, Physique 11 h, SI 1 h (Info 0 h), Verbe 3 h (anglais 2 h + français 1 h).')
+  card.appendChild(group('Objectifs de travail', [
+    field('Part du temps libre travaillée', 'cs-pct', cfg.workPct, { min: 10, max: 100, step: 5, unit: '%' }),
+    el('div', { class: 'cs-hint' }, 'Objectif de chaque jour et de chaque semaine = ce % du temps libre de l\'emploi du temps (calcul automatique dès le ' + cfg.dynamicFrom.split('-').reverse().slice(0, 2).join('/') + ').'),
+    ...Object.keys(SUBJECT_LABELS).map(k => field(SUBJECT_LABELS[k], `cs-sw-${k}`, cfg.subjectWeights[k], { max: 100, unit: '%' })),
+    el('div', { class: 'cs-hint' }, 'Répartition du travail entre matières (normalisée si le total n\'est pas 100). Par défaut : proportions des anciens objectifs.')
   ]));
 
   card.appendChild(group('Échelle des scores', [
@@ -81,15 +84,20 @@ export async function renderCaracsSettings(root, forceOpen = false) {
 
   const save = async () => {
     const q = (id) => num(card.querySelector('#' + id).value);
-    const patch = { hoursGoal: {}, weights: {} };
+    const patch = { subjectWeights: {}, weights: {} };
     const alpha = q('cs-alpha');
     if (isNaN(alpha) || alpha < 0 || alpha > 100) return bad('Poids de l\'historique entre 0 et 100.');
     patch.alpha = alpha / 100;
-    for (const k of Object.keys(HOURS_LABELS)) {
-      const v = q(`cs-h-${k}`);
-      if (isNaN(v) || v <= 0) return bad(`Objectif d'heures invalide : ${HOURS_LABELS[k]}.`);
-      patch.hoursGoal[k] = v;
+    const pct = q('cs-pct');
+    if (isNaN(pct) || pct < 10 || pct > 100) return bad('Part du temps libre entre 10 et 100 %.');
+    patch.workPct = pct;
+    let swTotal = 0;
+    for (const k of Object.keys(SUBJECT_LABELS)) {
+      const v = q(`cs-sw-${k}`);
+      if (isNaN(v) || v < 0) return bad(`Poids invalide : ${SUBJECT_LABELS[k]}.`);
+      patch.subjectWeights[k] = v; swTotal += v;
     }
+    if (swTotal <= 0) return bad('Au moins une matière doit avoir un poids supérieur à 0.');
     const z = q('cs-zero'), gs = q('cs-goalscore'), ov = q('cs-over');
     if (isNaN(z) || isNaN(gs) || isNaN(ov) || z < 0 || z >= gs || gs >= ov || ov > DEFAULT_SETTINGS.scoreCap) return bad('Échelle : rien de fait < objectif atteint < objectif dépassé ≤ 20.');
     patch.scoreZero = z; patch.goalScore = gs; patch.overScore = ov;
@@ -113,6 +121,7 @@ export async function renderCaracsSettings(root, forceOpen = false) {
     if (!confirm('Rétablir tous les réglages par défaut et recalculer les caractéristiques ?')) return;
     await saveCaracSettings({
       alpha: DEFAULT_SETTINGS.alpha, hoursGoal: { ...DEFAULT_SETTINGS.hoursGoal },
+      workPct: DEFAULT_SETTINGS.workPct, subjectWeights: { ...DEFAULT_SETTINGS.subjectWeights },
       prorateFirstWeek: DEFAULT_SETTINGS.prorateFirstWeek, neutralizeExcused: DEFAULT_SETTINGS.neutralizeExcused,
       scoreZero: DEFAULT_SETTINGS.scoreZero, goalScore: DEFAULT_SETTINGS.goalScore, overScore: DEFAULT_SETTINGS.overScore,
       weights: JSON.parse(JSON.stringify(DEFAULT_SETTINGS.weights))

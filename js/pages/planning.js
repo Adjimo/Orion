@@ -1,6 +1,8 @@
 // Page Planning : agenda de la semaine (cours, colles, DS, temps de travail personnel)
 import { MODE_LABELS, SCHOOL_START, YEAR_END, addDays, mondayOf, parseKey } from '../core/calendar.js';
-import { todayKey } from '../core/dates.js';
+import { todayKey, weekKey } from '../core/dates.js';
+import { State } from '../core/state.js';
+import { buildRunsControls } from './quests.js';
 import { DAY_LABELS, buildWeek, formatDuration, loadOverrides, removeOverride, saveOverride, toMin } from '../features/planning.js';
 import { el } from '../ui/helpers.js';
 
@@ -76,6 +78,11 @@ export async function renderPlanning(root) {
   root.appendChild(el('div', { class: 'pl-summary' }, [
     el('span', {}, 'Travail personnel disponible'), el('strong', {}, formatDuration(week.freeMinutes))
   ]));
+  // Objectif de sorties de CETTE semaine (varie d'une semaine à l'autre) : réglable pour la semaine en cours et les suivantes.
+  const runsQ = State.quests.find(q => q.id === 'wq-runs');
+  if (runsQ && week.monday >= mondayOf(today)) {
+    root.appendChild(el('div', { class: 'pl-runs' }, [await buildRunsControls(runsQ, weekKey(parseKey(week.monday)))]));
+  }
 
   root.appendChild(el('div', { class: 'pl-days' }, week.days.map((d, i) => el('button', {
     class: `pl-day${i === view.day ? ' active' : ''}${d.date === today ? ' today' : ''}`,

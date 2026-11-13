@@ -7,7 +7,7 @@ import { el, showToast } from '../ui/helpers.js';
 // Libellés des parts pondérées (seules la Dextérité et la Discipline ont plusieurs parts).
 const PART_LABELS = {
   dex:  { volume: 'Volume (sorties de la semaine)', regularite: 'Régularité (4 dernières semaines)' },
-  disc: { quetes: 'Quêtes', sommeil: 'Sommeil (nuits avant 23h30)' }
+  disc: { quetes: 'Quêtes', todo: 'To-do (éléments faits)', sommeil: 'Sommeil (nuits avant 23h30)' }
 };
 const HOURS_LABELS = { math: 'Maths', phys: 'Physique', si: 'SI / Info', verb: 'Verbe (anglais + français)' };
 
@@ -33,7 +33,7 @@ function group(title, children, open = false) {
 export async function renderCaracsSettings(root, forceOpen = false) {
   const cfg = await getCaracSettings();
   const wasOpen = forceOpen || root.querySelector('.cs-fold')?.hasAttribute('open');
-  const fold = el('details', { class: 'card mb-4 cs-fold' }, [el('summary', { class: 'cs-fold-head' }, 'Réglage des caractéristiques')]);
+  const fold = el('details', { class: 'card mb-4 cs-fold' }, [el('summary', { class: 'cs-fold-head' }, 'Caractéristiques et objectifs')]);
   if (wasOpen) fold.setAttribute('open', '');
   const card = el('div', { class: 'cs-card' });
   fold.appendChild(card);
@@ -106,6 +106,7 @@ export async function renderCaracsSettings(root, forceOpen = false) {
     patch.prorateFirstWeek = card.querySelector('#cs-prorate').checked;
     patch.neutralizeExcused = card.querySelector('#cs-excused').checked;
     await saveCaracSettings(patch);
+    await (await import('../features/seed.js')).loadAll();
     showToast({ type: 'xp', icon: 'check', title: 'Caractéristiques recalculées', text: 'Réglages enregistrés.' }, 3000);
   };
   const reset = async () => {

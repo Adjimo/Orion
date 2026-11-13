@@ -14,7 +14,7 @@ const polar = (i, v) => {
 };
 const pts = (vals) => CARACS.map((c, i) => polar(i, vals[c.id]).map(n => n.toFixed(1)).join(',')).join(' ');
 const ring = (v) => CARACS.map((_, i) => polar(i, v).map(n => n.toFixed(1)).join(',')).join(' ');
-const COMP_LABEL = { volume: 'Volume', regularite: 'Régularité', heures: 'Heures', quetes: 'Quêtes', sommeil: 'Sommeil', ecarts: 'Écarts' };
+const COMP_LABEL = { volume: 'Volume', regularite: 'Régularité', heures: 'Heures', quetes: 'Quêtes', todo: 'To-do', sommeil: 'Sommeil' };
 const f1 = (n) => n.toFixed(1).replace('.', ',');
 // Le chiffre prend toujours la couleur exacte de l'icône (source unique : COLORS dans icons.js).
 const colorOf = (c) => COLORS[c.icon] || c.color;

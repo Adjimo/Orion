@@ -1,4 +1,4 @@
-// Page Options (rouage de l'Accueil) : bilan hebdo, rappels, sauvegarde, numéro de version
+// Page Options (rouage de l'Accueil) : caractéristiques, rappels, sauvegarde, numéro de version
 import { el } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 import { navigate } from '../ui/router.js';
@@ -11,6 +11,6 @@ export function renderOptions(root) {
     el('button', { class: 'btn ghost sm', onclick: () => navigate('home') }, '← Accueil'),
     el('h1', { class: 'opt-title', html: iconHtml('gear') + ' Options' })
   ]));
-  renderCaracsSettings(page).then(() => renderProfileSections(page));   // d'abord les réglages des caractéristiques, puis bilan hebdo, rappels, sauvegarde, version
+  renderCaracsSettings(page).then(() => renderProfileSections(page));   // d'abord les réglages des caractéristiques, puis rappels, sauvegarde, version
   root.appendChild(page);
 }

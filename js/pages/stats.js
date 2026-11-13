@@ -5,7 +5,7 @@ import { formatDuration } from '../features/gpx.js';
 import { RECORD_TYPES, activityVO2maxPoints, formatRecordValue, getRollingRecords } from '../features/records.js';
 import { SUBJECTS, formatMinutes } from '../features/work.js';
 import { el } from '../ui/helpers.js';
-import { iconHtml } from '../ui/icons.js';
+import { COLORS, iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 
 export function renderStats(root) {
@@ -59,7 +59,7 @@ export function renderStats(root) {
     el('div', { class: 'chart-wrap chart-wrap-donut' }, [el('canvas', { id: 'chart-work-subjects' })])
   ]));
 
-  page.appendChild(el('h3', { class: 'mb-2' }, 'Records personnels'));
+  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('trophy') + ' Records de travail' }));
   page.appendChild(el('div', { class: 'card mb-5', html: `
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">${iconHtml('calendar')}</span><span class="rec-label">Plus grosse journée</span></div><div class="rec-value">${bestDayMin > 0 ? formatMinutes(bestDayMin) : '—'}</div></div>
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">${iconHtml('calendar')}</span><span class="rec-label">Plus grosse semaine</span></div><div class="rec-value">${bestWeekMin > 0 ? (bestWeekMin/60).toFixed(1) + 'h' : '—'}</div></div>
@@ -75,7 +75,7 @@ export function renderStats(root) {
     <div class="totals">
       <div><div class="t-val grad-text">${totalKm.toFixed(1)}</div><div class="t-lbl">km cumulés</div></div>
       <div><div class="t-val grad-text">${Math.round(totalDplus)}</div><div class="t-lbl">m de D+</div></div>
-      <div><div class="t-val grad-text">${formatDuration(totalDur)}</div><div class="t-lbl">temps en sport</div></div>
+      <div><div class="t-val grad-text">${totalDur > 0 ? formatDuration(totalDur) : '0 h'}</div><div class="t-lbl">temps en sport</div></div>
       <div><div class="t-val grad-text">${acts.length}</div><div class="t-lbl">sorties</div></div>
     </div>
   `}));
@@ -101,7 +101,7 @@ export function renderStats(root) {
   `}));
 
   // ── Records personnels (existant, fin de page) ─────────────────────────
-  page.appendChild(el('h3', { class: 'mb-2 mt-4' }, 'Records personnels'));
+  page.appendChild(el('h3', { class: 'mb-2 mt-4', html: iconHtml('trophy') + ' Records sportifs' }));
   let recsHtml = '';
   for (const t of RECORD_TYPES) {
     const r = State.records[t.id];
@@ -409,11 +409,11 @@ export function renderSubjectsDonut(logs) {
     return;
   }
   const palette = {
-    maths: CHART_COLORS.violet,
-    physique: '#cdbb8a',
-    si: CHART_COLORS.pink,
-    langues: CHART_COLORS.cool,
-    francais: CHART_COLORS.gold,
+    maths: COLORS.sigma,        // couleurs = celles des icônes de chaque matière
+    physique: COLORS.atom,
+    si: COLORS.chip,
+    langues: COLORS.globe,
+    francais: COLORS.pen,
     autre: '#7d7664'
   };
   const totalH = entries.reduce((s, [_, m]) => s + m, 0) / 60;

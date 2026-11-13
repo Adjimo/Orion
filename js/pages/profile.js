@@ -1,23 +1,16 @@
 // Page Profil
-import { formatDate, prevWeekKey, weekKey } from '../core/dates.js';
+import { formatDate } from '../core/dates.js';
 import { dbAll } from '../core/db.js';
 import { APP_VERSION, State } from '../core/state.js';
 import { SKILL_META, deriveLevel } from '../core/xp.js';
 import { storageStatus, daysSince } from '../features/storage.js';
-import { downloadAutoBackup, exportData, onImportFile, renderRemindersCard, showWeekReport } from '../features/backup.js';
+import { downloadAutoBackup, exportData, onImportFile, renderRemindersCard } from '../features/backup.js';
 import { el, progressBar } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 
 // Sections du profil (compétences, bilan, rappels, sauvegarde), affichées en bas de l'Accueil.
 export function renderProfileSections(page) {
   const p = State.profile;
-
-  // Bilan
-  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('chart') + ' Bilan hebdo' }));
-  const wrCard = el('div', { class: 'card mb-4' });
-  wrCard.innerHTML = '<div class="dim text-sm mb-2">Affiché automatiquement à chaque changement de semaine.</div><button class="btn ghost sm" id="wr-open">Voir le bilan de la semaine dernière</button>';
-  wrCard.querySelector('#wr-open').addEventListener('click', () => showWeekReport(prevWeekKey(weekKey())));
-  page.appendChild(wrCard);
 
   // Rappels
   page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('bell') + ' Rappels' }));
@@ -65,7 +58,7 @@ export function renderProfileSections(page) {
       const items = backups.map(b => `<button class="auto-backup-item" data-date="${b.date}">${formatDate(b.date)}</button>`).join('');
       infoEl.innerHTML = `
         Dernière sauvegarde auto : <strong>${formatDate(last.date)}</strong> · ${sizeKb} Ko<br>
-        <div class="auto-backup-list">${items}</div>
+        <div class="mt-2">Télécharger une sauvegarde :</div><div class="auto-backup-list">${items}</div>
       `;
       infoEl.querySelectorAll('.auto-backup-item').forEach(btn => {
         btn.addEventListener('click', async () => {

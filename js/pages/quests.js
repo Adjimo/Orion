@@ -2,16 +2,18 @@
 import { dayKeyFromDate, formatDate, prevWeekKey, todayKey, weekDateKeys, weekKey, weekStartDate } from '../core/dates.js';
 import { GHOST_BEFORE, dbAll, dbGet } from '../core/db.js';
 import { State } from '../core/state.js';
-import { PENALTIES_START, SELF_PCT_CAP, arePenaltiesActive, bonusFactorFromRatio, cancelExcuse, excuseQuestWeek, getMalusExcuses, getSelfMalus, malusFactorFromRatio, questFullXp, saveSelfMalus, setSubjectMinutesSmart, usesFullMalusRules, xpEarnedInWeek } from '../features/penalties.js';
+import { PENALTIES_START, arePenaltiesActive, cancelExcuse, excuseQuestWeek, getMalusExcuses, setSubjectMinutesSmart, xpEarnedInWeek } from '../features/penalties.js';
 import { getCurrentCompletion, recomputeAutoQuests, setQuestValue } from '../features/quests.js';
 import { DAYS, SPORT_TYPES } from '../features/schedule.js';
 import { loadAll } from '../features/seed.js';
 import { RUNS_GOAL_MAX, getSleepLog, runsGoalFor, setRunsGoal, toggleSleepNight } from '../features/weekly-goals.js';
-import { SUBJECTS, computeWorkXp, formatMinutes, parseTimeInput } from '../features/work.js';
+import { SUBJECTS, computeWorkXp, formatHours, formatMinutes, parseTimeInput } from '../features/work.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
-import { iconHtml } from '../ui/icons.js';
+import { COLORS, iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 import { renderDayTodo, renderWeekTodo } from '../ui/todo-widgets.js';
+import { renderCaracPanels } from './hebdo-panels.js';
+import { CARACS } from '../features/caracs.js';
 import { mondayOf } from '../core/calendar.js';
 
 // Page « Aujourd'hui » : tableau de bord du jour (sport, temps de travail par matière) + to-do du jour.
@@ -26,7 +28,11 @@ export function renderToday(root) {
   return renderDayDashboard(dashWrap, (dateKey) => renderDayTodo(todoWrap, dateKey));
 }
 
-// Page « Hebdo » : bloc manuel (sport, coucher avant 23h30, rigueur), bloc automatique (travail), to-do de la semaine.
+
+// Mention « alimente : … » (noms colorés comme les notes) : montre quel bloc de Hebdo nourrit quelle note.
+const feeds = (ids) => 'alimente ' + ids.map(id => { const c = CARACS.find(x => x.id === id); return `<span style="color:${COLORS[c.icon] || c.color}">${c.label}</span>`; }).join(', ');
+
+// Page « Hebdo » : bloc manuel (sport, sommeil), bloc automatique (travail), panneaux Notes, to-do de la semaine.
 export function renderHebdo(root) {
   const page = el('div', { class: 'page' });
   page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Hebdo')]));
@@ -37,38 +43,35 @@ export function renderHebdo(root) {
   page.appendChild(blockTitle('Manuel', 'à régler et à cocher', true));
 
   page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('run') + ' Sport' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Sorties de course de la semaine'));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Sorties de course de la semaine · ' + feeds(['dex']) }));
   const sportWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(sportWrap);
 
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('moon') + ' Coucher avant 23h30' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Coche chaque nuit tenue.'));
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('moon') + ' Sommeil' }));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Coche chaque nuit tenue · ' + feeds(['disc']) }));
   const sleepWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(sleepWrap);
-
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('scale') + ' Rigueur' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' }, 'Pourcentage d\'XP de la semaine retiré à son terme.'));
-  const rigueurWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(rigueurWrap);
 
   // ── BLOC AUTOMATIQUE : calculé depuis ton temps de travail ────────
   page.appendChild(blockTitle('Automatique', 'calculé pour toi'));
 
   page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('books') + ' Travail' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2' },
-    arePenaltiesActive()
-      ? 'Malus si non atteint · bonus si dépassé.'
-      : `À partir du ${formatDate(PENALTIES_START)} : malus si non atteint, bonus si dépassé.`));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Heures saisies dans Aujourd\'hui · ' + feeds(['math', 'phys', 'si', 'verb']) }));
   const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
   page.appendChild(travailWrap);
 
-  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('check') + ' To-do de la semaine' }));
+  page.appendChild(blockTitle('Notes', 'impact de la semaine'));
+  const panelsWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  page.appendChild(panelsWrap);
+
+  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('check') + ' To-do de la semaine' }));
+  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Éléments cochés dans la semaine · ' + feeds(['disc']) }));
   const todoWrap = el('div', { class: 'mb-5' });
   page.appendChild(todoWrap);
 
   root.appendChild(page);
   return Promise.all([
-    renderRigueurSection(rigueurWrap),
+    renderCaracPanels(panelsWrap),
     renderWeekTodo(todoWrap, mondayOf(todayKey())),
     renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']),
     renderWeeklyQuestsFiltered(sleepWrap, ['wq-sleep']),
@@ -141,14 +144,14 @@ export async function renderDayDashboard(root, afterRender) {
         <div class="block-icon">${iconHtml('books')}</div>
         <div class="block-body">
           <div class="flex between">
-            <div class="block-title">Travail · objectif ${goalHours}h${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>
+            <div class="block-title">Travail · objectif ${formatHours(goalHours)}${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>
             <div class="work-pct" style="color:${barColor};">${Math.round(wi.ratio * 100)}%</div>
           </div>
           <div class="work-bar">
             <div class="work-fill" style="width:${Math.min(100, progress * 100)}%; background:${barColor};"></div>
           </div>
           <div class="dim text-xs mt-1">
-            ${formatMinutes(actualMinutes)} / ${goalHours}h
+            ${formatMinutes(actualMinutes)} / ${formatHours(goalHours)}
             ${wi.xp > 0 ? ` · <span style="color:var(--accent);">${wi.xp} XP</span>` : ''}
           </div>
         </div>
@@ -163,7 +166,7 @@ export async function renderDayDashboard(root, afterRender) {
   root.innerHTML = `
     <div class="dash">
       <div class="dash-head">
-        <div class="dim text-xs">${isToday ? 'Aujourd\'hui' : 'Jour modifié'} · ${dayLabel}</div>
+        <div class="dim text-xs">${isToday ? dayLabel : 'Jour modifié · ' + dayLabel}</div>
         ${wi.ratio >= 1 ? '<span class="text-xs" style="color:var(--accent);">Objectif atteint ✓</span>' : ''}
       </div>
       <div class="day-picker">
@@ -172,7 +175,7 @@ export async function renderDayDashboard(root, afterRender) {
         <button class="btn ghost sm" id="dp-next" aria-label="Jour suivant" ${isToday ? 'disabled' : ''}>›</button>
         ${isToday ? '' : '<button class="btn ghost sm" id="dp-today">Aujourd\'hui</button>'}
       </div>
-      ${!isToday && !inCurrentWeek ? '<div class="dim text-xs day-warn">Semaine passée : quêtes, malus et bonus de cette semaine sont recalculés automatiquement.</div>' : ''}
+      ${!isToday && !inCurrentWeek ? '<div class="dim text-xs day-warn">Semaine passée : quêtes et notes de cette semaine sont recalculées automatiquement.</div>' : ''}
       ${sportBlock}
       ${workBlock}
     </div>
@@ -248,49 +251,30 @@ export async function _renderOneQuest(root, q, category) {
   const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
   const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi || q.autoFromSleep;
 
-  let forecast = '';
-  if (arePenaltiesActive()) {
-    if (q.category === 'main') {
-      const f = malusFactorFromRatio(ratio);
-      if (f > 0) {
-        forecast = `<span class="hq-malus">−${Math.round(f * 100)}% XP semaine prévu</span>`;
-      }
-    } else if (q.category === 'secondary') {
-      const f = bonusFactorFromRatio(ratio);
-      const mf = usesFullMalusRules(weekKey()) ? malusFactorFromRatio(ratio) : 0;
-      if (mf > 0) {
-        forecast = `<span class="hq-malus">−${Math.round(mf * 100)}% XP semaine prévu</span>`;
-      } else if (f > 0) {
-        const fullXp = questFullXp(q);
-        const bonusXp = Math.round(fullXp * f);
-        forecast = `<span class="hq-bonus">+${bonusXp} XP bonus</span>`;
-      }
-    }
-  }
-
+  const showAuto = isAuto && !['wq-runs', 'wq-sleep'].includes(q.id);   // ces deux-là sont dans la section « Manuel »
+  const col = COLORS[q.icon] || q.color;                                 // couleur = celle de l'icône
   const div = el('div', {
     class: 'hq' + (ratio >= 1 ? ' done' : ''),
-    style: `--hq-c: ${q.color || '#D08A4E'};`
+    style: `--hq-c: ${col || '#D08A4E'};`
   });
   div.innerHTML = `
     <div class="hq-head">
       <span class="hq-icon">${iconHtml(q.icon)}</span>
       <div class="hq-titles">
         <div class="hq-title">${escapeHtml(q.title)}</div>
-        <div class="hq-goal">Objectif : ${goal} ${unit}${isAuto ? '<span class="auto-tag">auto</span>' : ''}</div>
+        <div class="hq-goal">Objectif : ${isHours ? formatHours(goal) : goal + ' ' + unit}${showAuto ? '<span class="auto-tag">auto</span>' : ''}</div>
       </div>
-      <div class="hq-pct" style="color:${q.color}">${Math.round(ratio * 100)}%</div>
+      <div class="hq-pct" style="color:${col}">${Math.round(ratio * 100)}%</div>
     </div>
     <div class="hq-bar">
-      <div class="hq-fill" style="width:${Math.min(100, progress * 100)}%; background:${q.color};"></div>
+      <div class="hq-fill" style="width:${Math.min(100, progress * 100)}%; background:${col};"></div>
     </div>
     <div class="hq-info">
       ${isHours
-        ? `<span class="dim text-xs">${formatMinutes(actual)} / ${goal}h</span>`
+        ? `<span class="dim text-xs">${formatMinutes(actual)} / ${formatHours(goal)}</span>`
         : `<span class="dim text-xs">${actual} / ${goal} ${unit}</span>`}
       ${xp > 0 ? `<span class="hq-xp">+${xp} XP</span>` : '<span></span>'}
     </div>
-    ${forecast ? `<div class="hq-forecast">${forecast}</div>` : ''}
   `;
 
   if (!isAuto) {
@@ -404,89 +388,6 @@ export async function _renderOneQuest(root, q, category) {
   }
 
   root.appendChild(div);
-}
-
-// Section « Rigueur » : carte auto-sanctions.
-export async function renderRigueurSection(root) {
-  root.innerHTML = '';
-  const wk = weekKey();
-  const weekXp = await xpEarnedInWeek(wk);
-  const selfAll = await getSelfMalus();
-  const entries = selfAll[wk] || [];
-  const selfPct = Math.min(SELF_PCT_CAP, entries.reduce((a, e) => a + (e.percent || 0), 0));
-  const xpOf = (pct) => Math.round(weekXp * pct / 100);
-
-  // ── Carte 1 : mes écarts ──
-  const c1 = el('div', { class: 'card rg-card' });
-  c1.innerHTML = `
-    <div class="rg-head">
-      <div><div class="rg-title">${iconHtml('bandage')} Mes écarts</div>
-      <div class="dim text-xs">Une mauvaise action ? Inflige-toi un malus.</div></div>
-      <div class="rg-total">${selfPct ? '−' + selfPct + '%' : '—'}</div>
-    </div>
-    <div class="rg-list">
-      ${entries.length ? entries.map(e => `
-        <div class="rg-row" data-id="${e.id}">
-          <span class="rg-reason">${escapeHtml(e.reason)}</span>
-          <span class="rg-pct">−${e.percent}%</span>
-          <button class="rg-del" aria-label="Supprimer">✕</button>
-        </div>`).join('') : '<div class="dim text-xs">Aucun écart déclaré cette semaine.</div>'}
-    </div>
-    ${selfPct ? `<div class="dim text-xs mt-2">Impact estimé : −${xpOf(selfPct)} XP (sur ${weekXp} XP gagnés cette semaine)</div>` : ''}
-    <button class="btn ghost sm mt-2" id="rg-add">+ Ajouter un écart</button>
-  `;
-  root.appendChild(c1);
-
-  // Événements
-  c1.querySelectorAll('.rg-del').forEach(b => b.addEventListener('click', async () => {
-    const id = b.closest('.rg-row').dataset.id;
-    const all = await getSelfMalus();
-    all[wk] = (all[wk] || []).filter(e => e.id !== id);
-    await saveSelfMalus(all);
-    renderRigueurSection(root);
-  }));
-  c1.querySelector('#rg-add').addEventListener('click', () => showSelfMalusModal(wk, () => renderRigueurSection(root)));
-}
-
-// Modal : déclarer un écart (motif + pourcentage).
-export function showSelfMalusModal(wk, onDone) {
-  const overlay = el('div', { class: 'gpx-preview-overlay' });
-  const modal = el('div', { class: 'gpx-preview-modal' });
-  modal.innerHTML = `
-    <div class="gpx-preview-head">
-      <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('bandage')}</span><span>Déclarer un écart</span></div>
-      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
-    </div>
-    <div style="padding: 16px 18px;">
-      <label class="dim text-xs" style="display:block; margin-bottom:6px;">Qu'est-ce qui n'allait pas ?</label>
-      <input class="input" id="sm-reason" type="text" maxlength="80" placeholder="ex : soirée jeux au lieu de réviser" style="width:100%;" />
-      <label class="dim text-xs" style="display:block; margin:14px 0 6px;">Malus : <b id="sm-val">10</b> % de l'XP de la semaine</label>
-      <input id="sm-pct" type="range" min="1" max="30" value="10" style="width:100%;" />
-      <div class="rg-chips">
-        ${[5, 10, 15, 20, 30].map(v => `<button class="btn ghost sm" data-v="${v}">${v}%</button>`).join('')}
-      </div>
-      <p class="dim text-xs mt-3">Appliqué à la fin de la semaine. Tu peux le supprimer d'ici là.</p>
-    </div>
-    <div class="gpx-preview-actions">
-      <button class="btn primary" id="sm-save">Ajouter</button>
-    </div>
-  `;
-  overlay.appendChild(modal);
-  document.body.appendChild(overlay);
-  const close = () => overlay.remove();
-  modal.querySelector('.gpx-preview-close').addEventListener('click', close);
-  const range = modal.querySelector('#sm-pct'), val = modal.querySelector('#sm-val');
-  range.addEventListener('input', () => { val.textContent = range.value; });
-  modal.querySelectorAll('[data-v]').forEach(b => b.addEventListener('click', () => { range.value = b.dataset.v; val.textContent = b.dataset.v; }));
-  modal.querySelector('#sm-save').addEventListener('click', async () => {
-    const reason = modal.querySelector('#sm-reason').value.trim();
-    if (!reason) { showToast({ type: 'err', title: 'Motif requis', text: 'Décris brièvement l\'écart.' }); return; }
-    const all = await getSelfMalus();
-    (all[wk] = all[wk] || []).push({ id: Date.now().toString(36), percent: parseInt(range.value), reason, createdAt: new Date().toISOString() });
-    await saveSelfMalus(all);
-    close();
-    onDone && onDone();
-  });
 }
 
 // Modal : choisir une semaine, un motif (Malade / Autre) et une note facultative.

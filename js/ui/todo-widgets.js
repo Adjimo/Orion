@@ -5,7 +5,10 @@ import { DAY_LABELS } from '../features/planning.js';
 import { TODO_SUBJECTS, addTodo, availableCatalog, ensureTodo, hasTodo, loadWeekTodo, removeTodo, toggleTodo } from '../features/todo.js';
 import { openCycleEditor } from './cycle-editor.js';
 import { el } from './helpers.js';
-import { iconHtml } from './icons.js';
+import { COLORS, iconHtml } from './icons.js';
+
+// Couleur de chaque matière = celle de son icône (maths = sigma, physique = atome…).
+const SUBJ_COLOR = { maths: COLORS.sigma, physique: COLORS.atom, si: COLORS.chip, anglais: COLORS.globe, francais: COLORS.pen };
 
 const subjLabel = (id) => TODO_SUBJECTS.find(s => s.id === id)?.label || '';
 const fmtShort = (k) => parseKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
@@ -20,7 +23,7 @@ function itemRow(it, { editable, chip, showSubj }, change) {
   return el('div', { class: `td-item${it.done ? ' done' : ''}${pop ? ' pop' : ''}` }, [
     el('button', { class: 'td-check', 'aria-label': 'Cocher', disabled: editable ? null : 'disabled', onclick: () => change(async () => { await toggleTodo(it); if (it.done) justChecked = it.id; }) }, it.done ? '✓' : ''),
     el('div', { class: 'td-label' }, [
-      showSubj ? el('span', { class: 'td-subj' }, subjLabel(it.subj)) : null,
+      showSubj ? el('span', { class: 'td-subj', style: `color:${SUBJ_COLOR[it.subj] || 'var(--text-mute)'}` }, subjLabel(it.subj)) : null,
       el('span', { class: 'td-name' }, it.label),
       (it.carried || it.rolled) ? el('span', { class: 'pl-chip td-carried' }, 'reporté') : null,
       chip ? el('span', { class: 'pl-chip td-carried' }, chip) : null
@@ -81,7 +84,7 @@ export async function renderWeekTodo(root, monday) {
     <div class="hq-head">
       <span class="hq-icon">${iconHtml('check')}</span>
       <div class="hq-titles">
-        <div class="hq-title">Cette semaine</div>
+        <div class="hq-title">Avancement</div>
         <div class="hq-goal">${done} / ${items.length} faits${carried ? ` · ${carried} reporté(s)` : ''}</div>
       </div>
       <div class="hq-pct" style="color:${color}">${pct}%</div>

@@ -62,7 +62,7 @@ export function renderHome(root) {
   const top = el('div', { class: 'home-top' });
   fit.appendChild(top);
 
-  top.appendChild(el('div', { class: 'card hero hm-card', html: `
+  top.appendChild(el('div', { class: 'card hero hm-card hm-level', html: `
     <div>
       <div class="hm-label hm-label-row"><span>Niveau</span><span>${p.totalXp} XP</span></div>
       <div class="hm-big grad-text">${li.level}<span class="hm-of"> / ${MAX_LEVEL}</span></div>
@@ -87,7 +87,7 @@ export function renderHome(root) {
         <div class="hm-sub">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
       </div>
       <div class="hm-bottom">
-        <div class="hm-days-row"><span class="hm-days" style="color:${pctColor};">${yearPct} %</span><span class="hm-sub">année écoulée</span></div>
+        <div class="hm-days-row"><span class="hm-days" style="color:${pctColor};">${yearPct}<span class="hm-pct">%</span></span><span class="hm-sub">année écoulée</span></div>
         <div class="year-bar-wrap"><div class="year-bar"><div class="year-fill" style="width:${yearPct}%;"></div></div></div>
         <div class="hm-sub mt-2"><b style="color:${urg};">J-${nextExam.days}</b> avant échéance · ${formatCountdown(nextExam.days)}</div>
       </div>

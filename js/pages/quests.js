@@ -11,10 +11,8 @@ import { SUBJECTS, computeWorkXp, formatHours, formatMinutes, parseTimeInput } f
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
 import { COLORS, iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
-import { renderDayTodo, renderWeekTodo } from '../ui/todo-widgets.js';
+import { renderDayTodo } from '../ui/todo-widgets.js';
 import { renderCaracPanels } from './hebdo-panels.js';
-import { CARACS } from '../features/caracs.js';
-import { mondayOf } from '../core/calendar.js';
 
 // Page « Aujourd'hui » : tableau de bord du jour (sport, temps de travail par matière) + to-do du jour.
 export function renderToday(root) {
@@ -29,66 +27,49 @@ export function renderToday(root) {
 }
 
 
-// Mention « alimente : … » (noms colorés comme les notes) : montre quel bloc de Hebdo nourrit quelle note.
-const feeds = (ids) => 'alimente ' + ids.map(id => { const c = CARACS.find(x => x.id === id); return `<span style="color:${COLORS[c.icon] || c.color}">${c.label}</span>`; }).join(', ');
-
-// Page « Hebdo » : bloc manuel (sport, sommeil), bloc automatique (travail), panneaux Notes, to-do de la semaine.
-export function renderHebdo(root) {
+// Page « Hebdo » : une seule vue, une boîte par caractéristique (sous-matières, poids, sous-notes).
+// Les sorties (auto) et les heures de travail (auto) n'ont plus de bloc propre ; le sommeil se coche chaque jour dans Aujourd'hui ;
+// la to-do compte dans la Discipline et se gère dans Planning / Aujourd'hui. Seuls l'objectif de sorties et la justification
+// d'une semaine sans sortie restent ici, dans la boîte Dextérité.
+export async function renderHebdo(root) {
   const page = el('div', { class: 'page' });
   page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Hebdo')]));
-
-  const blockTitle = (title, sub, first = false) => el('div', { class: 'hebdo-block' + (first ? ' first' : ''), html: `${title}<span>${sub}</span>` });
-
-  // ── BLOC MANUEL : ce que tu règles ou coches toi-même ─────────────
-  page.appendChild(blockTitle('Manuel', 'à régler et à cocher', true));
-
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('run') + ' Sport' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Sorties de course de la semaine · ' + feeds(['dex']) }));
-  const sportWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(sportWrap);
-
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('moon') + ' Sommeil' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Coche chaque nuit tenue · ' + feeds(['disc']) }));
-  const sleepWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(sleepWrap);
-
-  // ── BLOC AUTOMATIQUE : calculé depuis ton temps de travail ────────
-  page.appendChild(blockTitle('Automatique', 'calculé pour toi'));
-
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('books') + ' Travail' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Heures saisies dans Aujourd\'hui · ' + feeds(['math', 'phys', 'si', 'verb']) }));
-  const travailWrap = el('div', { class: 'flex col gap-2 mb-5' });
-  page.appendChild(travailWrap);
-
-  page.appendChild(blockTitle('Notes', 'impact de la semaine'));
-  const panelsWrap = el('div', { class: 'flex col gap-2 mb-5' });
+  const panelsWrap = el('div', { class: 'hebdo-notes' });
   page.appendChild(panelsWrap);
-
-  page.appendChild(el('h3', { class: 'mb-1', html: iconHtml('check') + ' To-do de la semaine' }));
-  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: 'Éléments cochés dans la semaine · ' + feeds(['disc']) }));
-  const todoWrap = el('div', { class: 'mb-5' });
-  page.appendChild(todoWrap);
-
   root.appendChild(page);
-  return Promise.all([
-    renderCaracPanels(panelsWrap),
-    renderWeekTodo(todoWrap, mondayOf(todayKey())),
-    renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']),
-    renderWeeklyQuestsFiltered(sleepWrap, ['wq-sleep']),
-    renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-langues', 'wq-lettres', 'wq-si'])
-  ]);
+  const runsQ = State.quests.find(q => q.id === 'wq-runs');
+  await renderCaracPanels(panelsWrap, { dex: runsQ ? await buildRunsControls(runsQ) : null });
 }
 
-// Variante de renderWeeklyQuests qui filtre par liste d'IDs (au lieu de catégorie main/secondary).
-export async function renderWeeklyQuestsFiltered(root, questIds) {
-  const wks = State.quests.filter(q =>
-    (q.type === 'weekly-hours' || q.type === 'weekly-count') && questIds.includes(q.id)
-  );
-  // Réutilise la logique de renderWeeklyQuests mais avec un set explicite
-  root.innerHTML = '';
-  for (const q of wks) {
-    await _renderOneQuest(root, q, null);
+// Objectif de sorties de la semaine (− / +) et justification d'une semaine sans sortie (malus).
+async function buildRunsControls(q) {
+  const goal = await runsGoalFor(weekKey(), q);
+  const wrap = el('div', { class: 'hq-runs-ctl' });
+  const gRow = el('div', { class: 'hq-goal-pick' });
+  gRow.innerHTML = '<div class="dim text-xs">Mon objectif de la semaine (sorties)</div>';
+  const ctr = el('div', { class: 'hq-count-row' });
+  const minus = el('button', { class: 'cnt-btn' }, '−');
+  const val = el('div', { class: 'cnt-val' }, String(goal));
+  const plus = el('button', { class: 'cnt-btn plus' }, '+');
+  minus.disabled = goal <= 1;
+  plus.disabled = goal >= RUNS_GOAL_MAX;
+  const changeGoal = async (delta) => { await setRunsGoal(weekKey(), goal + delta); await loadAll(); render(); };
+  minus.addEventListener('click', () => changeGoal(-1));
+  plus.addEventListener('click', () => changeGoal(+1));
+  ctr.appendChild(minus); ctr.appendChild(val); ctr.appendChild(plus);
+  gRow.appendChild(ctr);
+  wrap.appendChild(gRow);
+  if (arePenaltiesActive()) {
+    const excuses = await getMalusExcuses();
+    const cur = excuses[`${weekKey()}|${q.id}`];
+    const row = el('div', { class: 'hq-excuse-row' });
+    row.innerHTML = cur ? `<span class="hq-excused">✓ Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>` : '<span></span>';
+    const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier une semaine sans sortie');
+    eb.addEventListener('click', () => showRunsExcuseModal(q));
+    row.appendChild(eb);
+    wrap.appendChild(row);
   }
+  return wrap;
 }
 
 export async function renderDayDashboard(root, afterRender) {
@@ -105,6 +86,7 @@ export async function renderDayDashboard(root, afterRender) {
   const dayName = DAYS.find(d => d.key === dayKeyFromDate(dayDate))?.label || '';
   const dayLabel = isToday ? dayName : `${dayName} ${dayDate.getDate()} ${dayDate.toLocaleDateString('fr-FR', { month: 'long' })}`;
   const workLog = await dbGet('workLog', dateKey);
+  const slept = !!(await getSleepLog())[dateKey];       // case cochée = couché avant 23h30 la veille au soir
   const actualMinutes = workLog?.totalMinutes || 0;
   const goalHours = todayPlan.workHours || 0;
   const wi = computeWorkXp(actualMinutes, goalHours);
@@ -135,6 +117,16 @@ export async function renderDayDashboard(root, afterRender) {
       </div>
     `;
   }
+
+  const sleepBlock = `
+      <div class="block sleep ${slept ? 'done' : ''}">
+        <div class="block-icon">${iconHtml('moon')}</div>
+        <div class="block-body">
+          <div class="block-title">Couché avant 23h30</div>
+          <div class="dim text-xs">${isToday ? 'Hier soir' : 'La veille de ce jour'} · alimente la Discipline</div>
+        </div>
+        <button class="btn sm ${slept ? '' : 'ghost'}" id="sleep-toggle">${slept ? '✓ Oui' : 'Cocher'}</button>
+      </div>`;
 
   let workBlock = '';
   if (goalHours > 0) {
@@ -177,9 +169,16 @@ export async function renderDayDashboard(root, afterRender) {
       </div>
       ${!isToday && !inCurrentWeek ? '<div class="dim text-xs day-warn">Semaine passée : quêtes et notes de cette semaine sont recalculées automatiquement.</div>' : ''}
       ${sportBlock}
+      ${sleepBlock}
       ${workBlock}
     </div>
   `;
+
+  root.querySelector('#sleep-toggle')?.addEventListener('click', async () => {
+    await toggleSleepNight(dateKey);
+    await loadAll();
+    render();
+  });
 
   // Sélecteur de jour
   const gotoDay = async (key) => {
@@ -239,7 +238,7 @@ export async function renderWeeklyQuests(root, category = null) {
   }
 }
 
-// Rendu d'une carte quête individuelle. Utilisé par renderWeeklyQuests et renderWeeklyQuestsFiltered.
+// Rendu d'une carte quête individuelle. Utilisé par renderWeeklyQuests.
 export async function _renderOneQuest(root, q, category) {
   const c = await getCurrentCompletion(q);
   const actual = c?.actualValue || 0;
@@ -352,40 +351,8 @@ export async function _renderOneQuest(root, q, category) {
     div.appendChild(row);
   }
 
-  // Quête « Sorties course » : je choisis mon nombre de sorties de la semaine ;
-  // si je n'en fais aucune, le malus ne saute qu'avec une justification (malade, autre).
-  if (q.id === 'wq-runs') {
-    const gRow = el('div', { class: 'hq-goal-pick' });
-    gRow.innerHTML = '<div class="dim text-xs">Mon objectif de la semaine (sorties)</div>';
-    const ctr = el('div', { class: 'hq-count-row' });
-    const minus = el('button', { class: 'cnt-btn' }, '−');
-    const val = el('div', { class: 'cnt-val' }, String(goal));
-    const plus = el('button', { class: 'cnt-btn plus' }, '+');
-    minus.disabled = goal <= 1;
-    plus.disabled = goal >= RUNS_GOAL_MAX;
-    const changeGoal = async (delta) => {
-      await setRunsGoal(weekKey(), goal + delta);
-      await loadAll();
-      render();
-    };
-    minus.addEventListener('click', () => changeGoal(-1));
-    plus.addEventListener('click', () => changeGoal(+1));
-    ctr.appendChild(minus); ctr.appendChild(val); ctr.appendChild(plus);
-    gRow.appendChild(ctr);
-    div.appendChild(gRow);
-  }
-  if (q.id === 'wq-runs' && arePenaltiesActive()) {
-    const excuses = await getMalusExcuses();
-    const cur = excuses[`${weekKey()}|${q.id}`];
-    const row = el('div', { class: 'hq-excuse-row' });
-    row.innerHTML = cur
-      ? `<span class="hq-excused">✓ Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>`
-      : '<span></span>';
-    const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier une semaine sans sortie');
-    eb.addEventListener('click', () => showRunsExcuseModal(q));
-    row.appendChild(eb);
-    div.appendChild(row);
-  }
+  // Quête « Sorties course » : objectif choisi + justification (même bloc que dans la boîte Dextérité de Hebdo).
+  if (q.id === 'wq-runs') div.appendChild(await buildRunsControls(q));
 
   root.appendChild(div);
 }

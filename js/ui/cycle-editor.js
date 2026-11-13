@@ -110,7 +110,7 @@ export async function openCycleEditor(onClose) {
 
   overlay.appendChild(el('div', { class: 'gpx-preview-modal' }, [
     el('div', { class: 'gpx-preview-head' }, [
-      el('div', { class: 'gpx-preview-title', html: `<span class="gpx-preview-icon">${iconHtml('scale')}</span><span>Cycle de la to-do</span>` }),
+      el('div', { class: 'gpx-preview-title', html: `<span class="gpx-preview-icon">${iconHtml('cycle')}</span><span>Cycle de la to-do</span>` }),
       el('button', { class: 'gpx-preview-close', 'aria-label': 'Fermer', onclick: close }, '✕')
     ]), body
   ]));

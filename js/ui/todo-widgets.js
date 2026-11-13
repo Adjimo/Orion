@@ -90,8 +90,8 @@ export async function renderWeekTodo(root, monday) {
     <div class="hq-info"><span class="dim text-xs">${bySubj}</span><span></span></div>`;
   root.appendChild(card);
   root.appendChild(el('div', { class: 'td-actions' }, [
-    editable ? el('button', { class: 'add-btn', onclick: () => openTodoPicker(monday, isoDay(todayKey()), true, rerender), html: '<span class="add-plus">+</span> Ajouter à la to-do' }) : null,
-    el('button', { class: 'cy-btn', onclick: () => openCycleEditor(rerender), html: iconHtml('scale') + '<span>Cycle</span>' })
+    editable ? el('button', { class: 'add-btn solid', onclick: () => openTodoPicker(monday, isoDay(todayKey()), true, rerender), html: '<span class="add-plus">+</span> Ajouter un élément' }) : null,
+    el('button', { class: 'cy-btn', onclick: () => openCycleEditor(rerender), html: iconHtml('cycle') + '<span>Cycles</span>' })
   ]));
 }
 

@@ -46,8 +46,13 @@ export function navigate(route) {
   const view = document.getElementById('view');
   view.getAnimations?.().forEach(a => a.cancel());
 
+  const prep = STAGED.has(route) ? buildStage(route) : prefetchRoute(route).then(() => null);
+  const show = (stage) => {
+    if (stage) { renderToken++; commit(view, stage); } else render();
+  };
+
   if (!prev || prev === route || reduceMotion() || !view.animate) {
-    prefetchRoute(route).catch(() => {}).then(() => { if (token === navToken) { render(); if (prev !== route) window.scrollTo(0, 0); } });
+    prep.catch(() => null).then(stage => { if (token === navToken) { show(stage); if (prev !== route) window.scrollTo(0, 0); } });
     return;
   }
 
@@ -58,10 +63,10 @@ export function navigate(route) {
     [{ opacity: 1, transform: 'translate3d(0,0,0)' }, { opacity: 0, transform: `translate3d(${-dir * 14}px,0,0)` }],
     { duration: 120, easing: 'cubic-bezier(0.4, 0, 1, 1)', fill: 'forwards' }
   );
-  Promise.all([out.finished.catch(() => {}), prefetchRoute(route).catch(() => {})]).then(() => {
+  Promise.all([out.finished.catch(() => {}), prep.catch(() => null)]).then(([, stage]) => {
     if (token !== navToken) return;   // une navigation plus récente a pris le relais
     out.cancel();
-    render();
+    show(stage);
     window.scrollTo(0, 0);
     const from = dir ? `translate3d(${dir * 20}px,0,0)` : 'translate3d(0,8px,0)';
     const inn = view.animate(
@@ -72,18 +77,30 @@ export function navigate(route) {
   });
 }
 
+const PAGES = { home: renderHome, planning: renderPlanning, today: renderToday, hebdo: renderHebdo, sport: renderSport, stats: renderStats, options: renderOptions };
+// Pages dont le contenu se remplit après coup (lectures de données) : on les construit hors écran,
+// puis on les pose d'un seul bloc, pour qu'aucune carte n'apparaisse ni ne se déforme en cours de route.
+const STAGED = new Set(['hebdo', 'today']);
+let renderToken = 0;
+
+async function buildStage(route) {
+  const stage = document.createElement('div');
+  await PAGES[route](stage);
+  return stage;
+}
+const commit = (view, stage) => view.replaceChildren(...stage.childNodes);
+
 export function render() {
   const view = document.getElementById('view');
-  view.innerHTML = '';
-  switch (State.currentRoute) {
-    case 'home': renderHome(view); break;
-    case 'planning': renderPlanning(view); break;
-    case 'today': renderToday(view); break;
-    case 'hebdo': renderHebdo(view); break;
-    case 'sport': renderSport(view); break;
-    case 'stats': renderStats(view); break;
-    case 'options': renderOptions(view); break;
+  const route = State.currentRoute;
+  if (!PAGES[route]) return;
+  if (STAGED.has(route)) {
+    const token = ++renderToken;
+    return buildStage(route).then(stage => { if (token === renderToken) commit(view, stage); });
   }
+  renderToken++;
+  view.innerHTML = '';
+  PAGES[route](view);
 }
 
 // ── Navigation par balayage horizontal entre les onglets ─────────────────────

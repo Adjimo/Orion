@@ -171,7 +171,7 @@ export async function showWeekReport(wk) {
         <div><div class="dim text-xs">Malus</div><div class="mono ${r.malusTotal ? 'wr-ko' : ''}">${r.malusTotal ? '−' + r.malusTotal : '0'}</div></div>
         <div><div class="dim text-xs">Bonus</div><div class="mono">${r.bonusXp ? '+' + r.bonusXp : '0'}</div></div>
       </div>
-      ${r.malusTotal ? `<div class="dim text-xs mt-1">Détail malus : travail quotidien −${r.dailyMalus} · quêtes −${r.weeklyMalus} · rigueur −${r.selfMalus}</div>` : ''}
+      ${r.malusTotal ? `<div class="dim text-xs mt-1">Détail malus : travail quotidien −${r.dailyMalus} · quêtes −${r.weeklyMalus} ${r.selfMalus ? `· rigueur −${r.selfMalus}` : ''}</div>` : ''}
       <div class="wr-title">Quêtes · ${r.okCount}/${r.list.length} réussies</div>
       <div class="rg-list">${rows}</div>
       <div class="wr-title">Vs semaine précédente</div>
@@ -474,7 +474,7 @@ export async function renderRemindersCard(card) {
   const r = await getReminders();
   const custom = await getCustomReminders();
   const perm = ('Notification' in window) ? Notification.permission : 'unsupported';
-  const permTxt = perm === 'granted' ? 'Notifications autorisées' : perm === 'denied' ? 'Notifications bloquées (réglages du navigateur)' : perm === 'unsupported' ? 'Notifications non disponibles ici' : 'Notifications non autorisées';
+  const permTxt = perm === 'granted' ? 'Notifications autorisées' : perm === 'denied' ? 'Notifications bloquées : autorise-les pour ce site dans les réglages du téléphone ou du navigateur' : perm === 'unsupported' ? 'Notifications non disponibles ici' : 'Notifications non autorisées';
   card.innerHTML = `
     <div class="rem-list">
       ${Object.keys(REMINDER_DEFS).map(k => `
@@ -493,7 +493,7 @@ export async function renderRemindersCard(card) {
     <div class="dim text-xs mt-2">${permTxt}.</div>
     <div class="save-actions mt-2">
       ${perm === 'default' ? '<button class="btn ghost sm" id="rem-perm">Autoriser les notifications</button>' : ''}
-      <button class="btn ghost sm" id="rem-add">${iconHtml('bell')} Ajouter une notification</button>
+      <button class="add-btn" id="rem-add"><span class="add-plus">+</span> Ajouter une notification</button>
     </div>
   `;
   card.querySelectorAll('.rem-row[data-kind]').forEach(row => {

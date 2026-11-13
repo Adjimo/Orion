@@ -11,7 +11,7 @@ const KEY = 'todoCycle';
 let cache = null;
 
 export function defaultCycle() {
-  const lab = { maths: 'Mathématiques', physique: 'Physique' };
+  const lab = { maths: 'Maths', physique: 'Physique' };
   return {
     v: 1,
     subjects: Object.keys(TODO_CATALOG).map(id => ({

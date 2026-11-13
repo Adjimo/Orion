@@ -1,5 +1,6 @@
 // Initialisation des données par défaut
 import { dbAll, dbAllLive, dbGet, dbPut } from '../core/db.js';
+import { getCaracSettings } from './caracs.js';
 import { State } from '../core/state.js';
 import { DEFAULT_PROFILE } from '../core/xp.js';
 import { SEED_EXAMS } from './exams.js';
@@ -156,7 +157,21 @@ export async function migrateData() {
   }
 }
 
+// Objectifs unifiés : les quêtes d'heures de l'onglet Hebdo reprennent les objectifs de la toile (réglables dans Options).
+// Verbe = Anglais + Français (2/3 – 1/3) ; Heures de travail = Maths + Physique + SI + Verbe.
+export async function syncQuestGoals() {
+  const h = (await getCaracSettings()).hoursGoal;
+  const ang = Math.round(h.verb * 2 / 3 * 4) / 4, fr = Math.round((h.verb - ang) * 4) / 4;
+  const goals = { 'wq-langues': ang, 'wq-lettres': fr, 'wq-si': h.si, 'wq-work': h.math + h.phys + h.si + h.verb };
+  const titles = { 'wq-langues': 'Anglais', 'wq-lettres': 'Français', 'wq-si': 'SI / Info' };
+  for (const q of await dbAll('quests')) {
+    const g = goals[q.id], t = titles[q.id];
+    if ((g != null && q.goalHours !== g) || (t && q.title !== t)) await dbPut('quests', { ...q, ...(g != null ? { goalHours: g } : {}), ...(t ? { title: t } : {}) });
+  }
+}
+
 export async function loadAll() {
+  await syncQuestGoals().catch(err => console.error('Quest goals failed', err));
   State.profile = await dbGet('profile', 'me');
   State.quests = await dbAll('quests');
   State.completions = await dbAllLive('completions');

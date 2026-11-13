@@ -15,7 +15,7 @@ const uid = (w) => `${w}|c:${Date.now().toString(36)}${(seq++).toString(36)}`;
 
 async function loadState() {
   const v = (await dbGet('meta', STATE_KEY))?.value;
-  return { v: v?.v || 0, startDate: v?.startDate || null, lastWeek: v?.lastWeek || null, cursors: v?.cursors || {}, lastDone: v?.lastDone || {} };
+  return { v: v?.v || 0, startDate: v?.startDate || null, lastWeek: v?.lastWeek || null, cursors: v?.cursors || {}, lastDone: v?.lastDone || {}, cursorNames: v?.cursorNames || {} };
 }
 const saveState = (st) => dbPut('meta', { key: STATE_KEY, value: st });
 
@@ -54,6 +54,8 @@ function generate(w, st, items, fromDay = 1) {
     const weight = (key) => cat.find(c => `${subj}:${c.name}` === key)?.w || 0;
     let pts = items.filter(i => i.subj === subj && i.key).reduce((s, i) => s + weight(i.key), 0);
     let cur = (st.cursors[subj] || 0) % cat.length;
+    const named = cat.findIndex(c => c.name === st.cursorNames?.[subj]);   // le curseur suit le nom du chapitre : insérer ou déplacer ne décale plus le cycle
+    if (named >= 0) cur = named;
     const period = sub.budgetMode === 'period' && sub.endDate && w <= sub.endDate;
     const budget = cycleBudget(sub, w, cur);
     let guard = cat.length;
@@ -66,6 +68,7 @@ function generate(w, st, items, fromDay = 1) {
       if (period && cur === 0) break;   // fin du tour : on ne recommence pas avant la date de fin
     }
     st.cursors[subj] = cur;
+    (st.cursorNames ||= {})[subj] = cat[cur].name;
   }
 
   // Rotation par élément le plus ancien non fait (jamais fait = prioritaire).

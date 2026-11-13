@@ -1,6 +1,6 @@
 // Caractéristiques « façon D&D » : 6 valeurs recalculées UNE FOIS PAR SEMAINE CLOSE.
 // Indépendant de l'XP, des malus et des niveaux : on part des données brutes
-// (activités, temps de travail, quêtes, sommeil, écarts perso).
+// (activités, temps de travail, quêtes, sommeil).
 //
 // Règles :
 //  - semaine = lundi → dimanche ; une semaine n'est calculée qu'une fois close
@@ -14,8 +14,9 @@
 //  - Maths, Physique, SI / Info, Verbe : 100 % heures de travail vs objectif de la semaine.
 //  - Dextérité : 60 % volume (sorties de la semaine / objectif de sorties) + 40 % régularité
 //    (moyenne, sur les 4 dernières semaines non justifiées, de sorties / objectif de chaque semaine).
-//  - Discipline : 70 % quêtes réussies + 30 % sommeil (7 nuits sur 7 avant 23h30 = objectif atteint = 15),
-//    moins les écarts perso.
+//  - Discipline : quêtes tenues (49 %) + to-do faite (30 %) + sommeil (21 %, 7 nuits sur 7 avant 23h30 = objectif atteint = 15).
+//    To-do = éléments cochés dans la semaine / tous les éléments de la semaine (reportés compris). Semaine sans to-do
+//    (avant novembre 2026, révisions, concours) : part ignorée, poids renormalisés = ancien calcul 70 % quêtes / 30 % sommeil.
 //  - sorties justifiées (wq-runs) : volume et régularité ignorés ; la semaine sort de la fenêtre de
 //    régularité ; si rien n'est mesurable, la valeur reste inchangée.
 //  - sommeil : max(cases cochées, compteur de la quête wq-sleep) car l'historique des cases ne commence qu'en nov. 2026.
@@ -26,7 +27,7 @@
 import { weekKey } from '../core/dates.js';
 import { addDays, mondayOf, parseKey } from '../core/calendar.js';
 import { dbAll, dbAllLive, dbDelete, dbGet, dbPut } from '../core/db.js';
-import { getMalusExcuses, getSelfMalus } from './penalties.js';
+import { getMalusExcuses } from './penalties.js';
 import { isRunActivity } from './schedule.js';
 import { getRunsGoals, getSleepLog } from './weekly-goals.js';
 
@@ -51,15 +52,14 @@ export const DEFAULT_SETTINGS = {
   prorateFirstWeek: true,       // semaine partielle (début le 01/09) : objectifs proratisés au nombre de jours comptés
   weights: {                    // pondérations (en %, normalisées si une part manque)
     dex:  { volume: 60, regularite: 40 },
-    disc: { quetes: 70, sommeil: 30 }
+    disc: { quetes: 49, todo: 30, sommeil: 21 }   // la to-do prend 30 % ; le reste garde le découpage 70/30
   },
   scoreZero: 4,                 // score quand rien n'est fait (et plancher de tout score)
   goalScore: 15,                // score quand l'objectif est atteint
   overScore: 18,                // score quand l'objectif est dépassé de 25 %
   overRatio: 1.25,
   scoreCap: 20,                 // score maximum
-  regulariteWeeks: 4,           // fenêtre de la régularité (semaines)
-  ecartPointsPerPct: 0.1        // points de Discipline retirés par % d'écart perso (60 % ⇒ −6)
+  regulariteWeeks: 4            // fenêtre de la régularité (semaines)
 };
 
 export async function getCaracSettings() {
@@ -67,6 +67,7 @@ export async function getCaracSettings() {
   const s = stored.ver === SETTINGS_VERSION ? stored
     : { alpha: stored.alpha, neutralizeExcused: stored.neutralizeExcused, prorateFirstWeek: stored.prorateFirstWeek };
   const clean = Object.fromEntries(Object.entries(s).filter(([k, v]) => v !== undefined && k !== 'ver'));
+  if (clean.weights?.disc && clean.weights.disc.todo === undefined) delete clean.weights.disc;   // réglage d'avant la to-do : valeurs par défaut (30 % to-do)
   return {
     ...DEFAULT_SETTINGS, ...clean,
     hoursGoal: { ...DEFAULT_SETTINGS.hoursGoal, ...(clean.hoursGoal || {}) },
@@ -97,18 +98,18 @@ export const fmtMod = (m) => (m >= 0 ? `+${m}` : `${m}`);
 export function combine(parts, cap = DEFAULT_SETTINGS.scoreCap) {
   const ok = parts.filter(p => p.score != null && p.w > 0);
   const tw = ok.reduce((s, p) => s + p.w, 0);
-  const comps = parts.map(p => ({ key: p.key, w: p.w, score: p.score, contrib: (p.score != null && tw > 0 && p.w > 0) ? (p.w / tw) * p.score : 0, note: p.note || '' }));
+  const comps = parts.map(p => ({ key: p.key, w: p.w, score: p.score, share: (p.score != null && tw > 0 && p.w > 0) ? p.w / tw : 0, contrib: (p.score != null && tw > 0 && p.w > 0) ? (p.w / tw) * p.score : 0, note: p.note || '', info: p.info || null }));
   const S = clamp(comps.reduce((s, c) => s + c.contrib, 0), 0, cap);
   return { S, comps, empty: ok.length === 0 };   // empty : aucune part mesurable → la valeur n'est pas mise à jour
 }
 
 // ── Chargement des données brutes (une seule fois par recalcul) ───────────────
 async function loadRaw() {
-  const [acts, logs, comps, quests, sleep, self, runsGoals, excuses] = await Promise.all([
+  const [acts, logs, comps, quests, sleep, runsGoals, excuses, todo] = await Promise.all([
     dbAllLive('activities'), dbAllLive('workLog'), dbAll('completions'),
-    dbAll('quests'), getSleepLog(), getSelfMalus(), getRunsGoals(), getMalusExcuses()
+    dbAll('quests'), getSleepLog(), getRunsGoals(), getMalusExcuses(), dbAll('planTodo')
   ]);
-  return { acts: acts.filter(isRunActivity), logs, comps, quests, sleep, self, runsGoals, excuses };
+  return { acts: acts.filter(isRunActivity), logs, comps, quests, sleep, runsGoals, excuses, todo };
 }
 
 const sumMinutes = (logs, days, subjects) => logs
@@ -136,19 +137,22 @@ export function scoreWeek(ctx) {
   const regAvg = win.reduce((s, x) => s + x, 0) / win.length;
   const exNote = runsExcused ? 'sorties justifiées' : '';
   out.dex = combine([
-    { key: 'volume', w: W.dex.volume, score: runsExcused ? null : bs(runs.length / runsGoal), note: exNote },
-    { key: 'regularite', w: W.dex.regularite, score: runsExcused ? null : bs(regAvg), note: exNote }
+    { key: 'volume', w: W.dex.volume, score: runsExcused ? null : bs(runs.length / runsGoal), note: exNote, info: { kind: 'count', value: runs.length, goal: runsGoal, unit: 'sorties' } },
+    { key: 'regularite', w: W.dex.regularite, score: runsExcused ? null : bs(regAvg), note: exNote, info: { kind: 'pct', value: regAvg, window: win.length } }
   ], cfg.scoreCap);
-  out.dex.meta = { runRatio: ratio, runsExcused };
+  out.dex.meta = { runRatio: ratio, runsExcused, runs: runs.length, runsGoal };
 
   // Matières : 100 % heures de travail vs objectif de la matière
   const subj = { math: ['maths'], phys: ['physique'], si: ['si'], verb: ['langues', 'francais'] };
   for (const id of ['math', 'phys', 'si', 'verb']) {
     const goal = cfg.hoursGoal[id] * 60 * f;
-    out[id] = combine([{ key: 'heures', w: 100, score: goal > 0 ? bs(sumMinutes(raw.logs, days, subj[id]) / goal) : null }], cfg.scoreCap);
+    const minutes = sumMinutes(raw.logs, days, subj[id]);
+    const parts = subj[id].map(k => ({ key: k, minutes: sumMinutes(raw.logs, days, [k]) }));
+    out[id] = combine([{ key: 'heures', w: 100, score: goal > 0 ? bs(minutes / goal) : null, info: { kind: 'minutes', value: minutes, goal, parts } }], cfg.scoreCap);
+    out[id].meta = { minutes, goalMin: goal, parts };
   }
 
-  // Discipline : quêtes réussies + nuits avant 23h30 (7/7 = objectif), − écarts perso
+  // Discipline : quêtes réussies + nuits avant 23h30 (7/7 = objectif)
   const isExcused = (q) => cfg.neutralizeExcused && !!raw.excuses?.[`${wk}|${q.id}`];
   const allQs = raw.quests.filter(q => q.category === 'main' || q.category === 'secondary');
   const qs = allQs.filter(q => !isExcused(q));                 // quêtes justifiées neutralisées (hors dénominateur)
@@ -162,15 +166,16 @@ export function scoreWeek(ctx) {
   // sommeil de la semaine existe → on retient le plus grand des deux (jamais plus que les jours comptés).
   const sleepComp = raw.comps.find(x => x.questId === 'wq-sleep' && x.weekKey === wk);
   const nights = Math.min(days.length, Math.max(days.filter(d => raw.sleep[d]).length, Math.round(sleepComp?.actualValue || 0)));
+  // To-do : éléments de la semaine (reportés compris) cochés / total. Aucun élément (avant la to-do, révisions, concours) : part ignorée.
+  const todoItems = (raw.todo || []).filter(i => i.weekKey === monday);   // planTodo.weekKey = lundi de la semaine
+  const todoDone = todoItems.filter(i => i.done).length;
   const disc = combine([
-    { key: 'quetes', w: W.disc.quetes, score: qs.length ? bs(done / qs.length) : null, note: nbExcused ? `${nbExcused} quête(s) justifiée(s) ignorée(s)` : '' },
-    { key: 'sommeil', w: W.disc.sommeil, score: bs(nights / days.length) }
+    { key: 'quetes', w: W.disc.quetes, score: qs.length ? bs(done / qs.length) : null, note: nbExcused ? `${nbExcused} quête(s) justifiée(s) ignorée(s)` : '', info: { kind: 'count', value: done, goal: qs.length, unit: 'quêtes' } },
+    { key: 'todo', w: W.disc.todo, score: todoItems.length ? bs(todoDone / todoItems.length) : null, info: { kind: 'count', value: todoDone, goal: todoItems.length, unit: 'éléments' } },
+    { key: 'sommeil', w: W.disc.sommeil, score: bs(nights / days.length), info: { kind: 'count', value: nights, goal: days.length, unit: 'nuits' } }
   ], cfg.scoreCap);
-  const selfPct = Math.min(60, (raw.self[wk] || []).reduce((s, e) => s + (e.percent || 0), 0));
-  const ecart = selfPct * cfg.ecartPointsPerPct;
-  disc.comps.push({ key: 'ecarts', w: 0, score: null, contrib: -ecart, note: selfPct ? `${selfPct} % d'écarts` : '' });
-  disc.S = clamp(disc.S - ecart, 0, cfg.scoreCap);
   out.disc = disc;
+  out.disc.meta = { nights, nightsDays: days.length, done, total: qs.length, todoDone, todoTotal: todoItems.length };
   return out;
 }
 
@@ -181,11 +186,8 @@ export function recomputeCaracs(today = new Date()) {
   return lock;
 }
 
-async function run(today) {
-  const cfg = await getCaracSettings();
-  const raw = await loadRaw();
-  const todayKeyStr = (() => { const d = today; return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; })();
-  const lastClosed = addDays(mondayOf(todayKeyStr), -7);          // dernier lundi dont la semaine est terminée
+// Rejoue les semaines closes jusqu'à `lastClosed` (lundi inclus). Pur : aucune écriture.
+function replay(cfg, raw, lastClosed) {
   let monday = mondayOf(cfg.start);
   const hist = [];
   const prevRunRatios = [];
@@ -205,11 +207,39 @@ async function run(today) {
     hist.push({ week: monday, scores, values: { ...values }, details, alpha: cfg.alpha });
     monday = addDays(monday, 7);
   }
+  return { hist, values, prevRunRatios };
+}
+
+const keyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+
+async function run(today) {
+  const cfg = await getCaracSettings();
+  const raw = await loadRaw();
+  const lastClosed = addDays(mondayOf(keyOf(today)), -7);          // dernier lundi dont la semaine est terminée
+  const { hist } = replay(cfg, raw, lastClosed);
   // On remplace tout l'historique (déterministe) : mêmes données ⇒ mêmes valeurs.
   const old = await dbAll('caracHistory');
   for (const o of old) if (!hist.some(h => h.week === o.week)) await dbDelete('caracHistory', o.week);
   for (const h of hist) await dbPut('caracHistory', h);
   return hist;
+}
+
+// Projection de la semaine EN COURS (lecture seule, rien n'est stocké) : note actuelle, et note
+// qu'on aurait si la semaine s'arrêtait maintenant. Sert aux panneaux de Hebdo.
+export async function projectCurrentWeek(today = new Date()) {
+  const cfg = await getCaracSettings();
+  const raw = await loadRaw();
+  const monday = mondayOf(keyOf(today));
+  const { values, prevRunRatios } = replay(cfg, raw, addDays(monday, -7));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter(d => d >= cfg.start);
+  const res = scoreWeek({ monday, days, raw, cfg, prevRunRatios });
+  const out = {};
+  for (const c of CARACS) {
+    const r = res[c.id];
+    const S = r.empty ? values[c.id] : clamp(r.S, cfg.scoreZero, cfg.scoreCap);
+    out[c.id] = { current: values[c.id], projected: Math.round((cfg.alpha * values[c.id] + (1 - cfg.alpha) * S) * 100) / 100, S, meta: r.meta || {}, comps: r.comps };
+  }
+  return out;
 }
 
 export async function loadCaracHistory() {

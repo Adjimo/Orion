@@ -32,6 +32,9 @@ export function computeWorkXp(actualMinutes, goalHours) {
   return { xp, ratio, base };
 }
 
+// Objectif en heures (décimales) au même format que les durées : 1,5 → « 1h30 », 35 → « 35h ».
+export function formatHours(h) { return formatMinutes(Math.round((h || 0) * 60)) === '0' ? '0h' : formatMinutes(Math.round(h * 60)); }
+
 export function formatMinutes(minutes) {
   if (!minutes) return '0';
   const h = Math.floor(minutes / 60);

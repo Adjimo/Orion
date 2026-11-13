@@ -6,7 +6,7 @@
 export const TODO_FIXED_SUBJECTS = [
   { id: 'anglais',  label: 'Anglais' },
   { id: 'francais', label: 'Français' },
-  { id: 'si',       label: 'Sciences de l\u2019ingénieur' },
+  { id: 'si',       label: 'SI / Info' },
   { id: 'autre',    label: 'Autre' }
 ];
 export const TODO_SUBJECTS = [

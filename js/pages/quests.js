@@ -13,7 +13,7 @@ import { COLORS, iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 import { renderDayTodo } from '../ui/todo-widgets.js';
 import { dailyGoalHours } from '../features/work-goals.js';
-import { renderCaracPanels, renderWorkPlan } from './hebdo-panels.js';
+import { renderCaracPanels } from './hebdo-panels.js';
 
 // Page « Aujourd'hui » : tableau de bord du jour (sport, temps de travail par matière) + to-do du jour.
 export function renderToday(root) {
@@ -28,17 +28,15 @@ export function renderToday(root) {
 }
 
 
-// Page « Compétences » (route interne `hebdo`) : calculateur d'objectifs de la semaine (temps libre × % de travail, réparti
-// par matière) puis une boîte par caractéristique (sous-matières, poids, sous-notes). Rien de hebdomadaire à régler ici :
-// l'objectif de sorties et la justification d'une semaine se font dans Planning ; le sommeil se coche dans Aujourd'hui.
+// Page « Compétences » (route interne `hebdo`) : une carte sobre par caractéristique, avec ses barres.
+// L'objectif de sorties, la justification et les cycles de to-do se règlent dans Agenda ; le sommeil dans Aujourd'hui.
 export async function renderHebdo(root) {
   const page = el('div', { class: 'page' });
   page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Compétences')]));
-  const planWrap = el('div', {});
   const panelsWrap = el('div', { class: 'hebdo-notes' });
-  page.append(planWrap, panelsWrap);
+  page.appendChild(panelsWrap);
   root.appendChild(page);
-  await Promise.all([renderWorkPlan(planWrap, async () => { await loadAll(); render(); }), renderCaracPanels(panelsWrap)]);
+  await renderCaracPanels(panelsWrap);
 }
 
 // Objectif de sorties d'une semaine (− / +) et justification d'une semaine sans sortie (malus). Utilisé par la page Planning.

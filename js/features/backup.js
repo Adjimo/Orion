@@ -1,5 +1,6 @@
 // Export / import JSON, sauvegarde automatique, rappels
 import { nextWeekKey, prevWeekKey, todayKey, weekDateKeys, weekKey, weekStartDate } from '../core/dates.js';
+import { dailyGoalHours, makeGoalCtx, questGoalHours } from './work-goals.js';
 import { GHOST_BEFORE, dbAll, dbAllLive, dbClear, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { State } from '../core/state.js';
 import { awardXp } from '../core/xp.js';
@@ -119,12 +120,12 @@ export async function buildWeekReport(wk) {
     dbAll('quests'), dbAll('completions'), dbAll('schedule'), getMalusExcuses()
   ]);
   // Malus quotidiens du travail (jours évalués, à partir de PENALTIES_START).
+  const gctx = await makeGoalCtx();
   let dailyMalus = 0;
   const today = todayKey();
   for (const dk of weekDateKeys(wk)) {
     if (dk >= today || dk < PENALTIES_START) continue;
-    const dayK = ['sun','mon','tue','wed','thu','fri','sat'][new Date(dk + 'T12:00:00').getDay()];
-    const goalHours = sched.find(x => x.id === dayK)?.workHours || 0;
+    const goalHours = await dailyGoalHours(dk, gctx);
     dailyMalus += dailyWorkMalusXp(await dbGet('workLog', dk), goalHours);
   }
   const bonusXp = pen.bonuses.reduce((a, b) => a + b.xp, 0);
@@ -195,6 +196,7 @@ export async function showWeekReport(wk) {
 // données (activités, travail, complétions, malus/bonus déjà appliqués). Même logique que
 // recomputeAllXp(), mais en lecture seule.
 export async function computeExpectedXp() {
+  const gctx = await makeGoalCtx();
   let total = 0;
   for (const a of await dbAllLive('activities')) total += activityXp(a, a.type || 'footing').xp || 0;
   for (const l of await dbAllLive('workLog')) {
@@ -207,7 +209,7 @@ export async function computeExpectedXp() {
     if (!q) continue;
     const value = c.actualValue || 0;
     total += (q.type === 'weekly-hours'
-      ? computeHoursXp(value, q.goalHours)
+      ? computeHoursXp(value, await questGoalHours(q, c.weekKey, gctx))
       : computeCountXp(value, q.id === 'wq-runs' ? await runsGoalFor(c.weekKey, q) : q.goalCount)).xp || 0;
   }
   if (arePenaltiesActive()) {
@@ -217,8 +219,7 @@ export async function computeExpectedXp() {
     for (const l of await dbAllLive('workLog')) {
       // Comme applyPendingPenalties : le jour PENALTIES_START lui-même n'est jamais évalué (le curseur démarre le lendemain).
       if (!l.date || l.date <= PENALTIES_START || l.date > lastDaily) continue;
-      const dayK = ['sun','mon','tue','wed','thu','fri','sat'][new Date(l.date + 'T12:00:00').getDay()];
-      total -= dailyWorkMalusXp(l, sched.find(x => x.id === dayK)?.workHours || 0);
+      total -= dailyWorkMalusXp(l, await dailyGoalHours(l.date, gctx));
     }
     // Jours planifiés sans aucune saisie (malus sur 0 XP gagné = 0) : rien à retirer.
     // Malus / rigueur / bonus des semaines déjà évaluées.

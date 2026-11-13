@@ -1,5 +1,6 @@
 // Quêtes hebdomadaires
 import { startOfWeek, todayKey, weekKey, weekStartDate } from '../core/dates.js';
+import { questGoalHours } from './work-goals.js';
 import { GHOST_BEFORE, dbAll, dbAllLive, dbPut } from '../core/db.js';
 import { awardXp, removeXp } from '../core/xp.js';
 import { getSleepLog, runsGoalFor } from './weekly-goals.js';
@@ -57,7 +58,7 @@ export async function setQuestValue(quest, newValue, wk = weekKey()) {
 
   let newXp, ratio;
   if (quest.type === 'weekly-hours') {
-    const r = computeHoursXp(newValue, quest.goalHours);
+    const r = computeHoursXp(newValue, await questGoalHours(quest, wk));   // objectif de CETTE semaine
     newXp = r.xp; ratio = r.ratio;
   } else {
     const goalCount = quest.id === 'wq-runs' ? await runsGoalFor(wk, quest) : quest.goalCount;

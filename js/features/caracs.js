@@ -28,6 +28,7 @@ import { weekKey } from '../core/dates.js';
 import { addDays, mondayOf, parseKey } from '../core/calendar.js';
 import { dbAll, dbAllLive, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { getMalusExcuses } from './penalties.js';
+import { buildWeek, loadOverrides } from './planning.js';
 import { isRunActivity } from './schedule.js';
 import { getRunsGoals, getSleepLog } from './weekly-goals.js';
 
@@ -47,7 +48,10 @@ export const DEFAULT_SETTINGS = {
   start: '2026-09-01',          // 1er septembre (la semaine du 31/08 ne compte que depuis le 01/09)
   initial: 10,                  // valeur de départ
   alpha: 0.75,                  // poids de la valeur précédente (le reste va au score de la semaine)
-  hoursGoal: { math: 19, phys: 11, si: 1, verb: 3 },   // heures par semaine : Maths 19, Physique 11, SI 1 (Info 0), Verbe 3 (anglais 2 + français 1)
+  hoursGoal: { math: 19, phys: 11, si: 1, verb: 3 },   // ANCIEN objectif fixe (h/semaine), gardé pour les semaines avant dynamicFrom
+  workPct: 80,                  // % du temps libre (emploi du temps) qu'on veut travailler : objectif de la semaine ET de chaque jour
+  subjectWeights: { maths: 56, physique: 32, si: 3, langues: 6, francais: 3 },   // répartition (%) du travail entre matières = proportions des anciens objectifs
+  dynamicFrom: '2026-11-16',    // 1er lundi du calcul « temps libre × % » (avant : objectifs fixes, pour ne pas toucher à l'historique ni à l'XP)
   neutralizeExcused: true,      // quêtes justifiées (maladie…) : ignorées au lieu d'être comptées ratées
   prorateFirstWeek: true,       // semaine partielle (début le 01/09) : objectifs proratisés au nombre de jours comptés
   weights: {                    // pondérations (en %, normalisées si une part manque)
@@ -71,6 +75,7 @@ export async function getCaracSettings() {
   return {
     ...DEFAULT_SETTINGS, ...clean,
     hoursGoal: { ...DEFAULT_SETTINGS.hoursGoal, ...(clean.hoursGoal || {}) },
+    subjectWeights: { ...DEFAULT_SETTINGS.subjectWeights, ...(clean.subjectWeights || {}) },
     weights: Object.fromEntries(Object.entries(DEFAULT_SETTINGS.weights).map(([k, v]) => [k, { ...v, ...(clean.weights?.[k] || {}) }]))
   };
 }
@@ -81,6 +86,30 @@ export async function saveCaracSettings(patch) {
   const next = { ...cur, ...patch, ver: SETTINGS_VERSION };
   await dbPut('meta', { key: 'caracSettings', value: next });
   return recomputeCaracs();
+}
+
+// ── Objectifs de travail : temps libre × % travaillé, réparti selon les poids des matières ──────────
+const roundQ = (min) => Math.round(min / 15) * 15;                      // au quart d'heure
+export const SUBJECT_KEYS = ['maths', 'physique', 'si', 'langues', 'francais'];
+// Objectif d'UNE journée (minutes) : % du temps libre de la journée.
+export const dayGoalMinutes = (cfg, freeMinutes) => roundQ((freeMinutes || 0) * cfg.workPct / 100);
+// Objectifs d'UNE semaine (minutes), indépendants des autres semaines : { math, phys, si, verb, langues, francais, total }.
+// Avant dynamicFrom (ou sans temps libre connu) : anciens objectifs fixes (hoursGoal).
+export function weekGoals(cfg, monday, freeMinutes) {
+  let g;
+  if (monday >= cfg.dynamicFrom && freeMinutes != null) {
+    const total0 = freeMinutes * cfg.workPct / 100;
+    const sw = cfg.subjectWeights, sum = SUBJECT_KEYS.reduce((t, k) => t + (sw[k] || 0), 0) || 1;
+    const m = Object.fromEntries(SUBJECT_KEYS.map(k => [k, roundQ(total0 * (sw[k] || 0) / sum)]));
+    g = { math: m.maths, phys: m.physique, si: m.si, langues: m.langues, francais: m.francais };
+  } else {
+    const h = cfg.hoursGoal, ang = Math.round(h.verb * 2 / 3 * 4) / 4;
+    g = { math: h.math * 60, phys: h.phys * 60, si: h.si * 60, langues: ang * 60, francais: (h.verb - ang) * 60 };
+  }
+  g.verb = g.langues + g.francais;
+  g.total = g.math + g.phys + g.si + g.verb;
+  g.dynamic = monday >= cfg.dynamicFrom && freeMinutes != null;
+  return g;
 }
 
 // ── Outils de calcul ─────────────────────────────────────────────────────────
@@ -104,12 +133,16 @@ export function combine(parts, cap = DEFAULT_SETTINGS.scoreCap) {
 }
 
 // ── Chargement des données brutes (une seule fois par recalcul) ───────────────
-async function loadRaw() {
+async function loadRaw(cfg) {
   const [acts, logs, comps, quests, sleep, runsGoals, excuses, todo] = await Promise.all([
     dbAllLive('activities'), dbAllLive('workLog'), dbAll('completions'),
     dbAll('quests'), getSleepLog(), getRunsGoals(), getMalusExcuses(), dbAll('planTodo')
   ]);
-  return { acts: acts.filter(isRunActivity), logs, comps, quests, sleep, runsGoals, excuses, todo };
+  // Temps libre (planning) de chaque semaine depuis dynamicFrom jusqu'à la semaine en cours : sert aux objectifs de la semaine.
+  const freeByWeek = {};
+  const ovs = await loadOverrides(), last = mondayOf(keyOf(new Date()));
+  for (let m = mondayOf(cfg.dynamicFrom); m <= last; m = addDays(m, 7)) freeByWeek[m] = (await buildWeek(m, ovs)).freeMinutes;
+  return { acts: acts.filter(isRunActivity), logs, comps, quests, sleep, runsGoals, excuses, todo, freeByWeek };
 }
 
 const sumMinutes = (logs, days, subjects) => logs
@@ -133,21 +166,25 @@ export function scoreWeek(ctx) {
   const runsGoal = f < 1 ? Math.max(1, Math.round(runsGoalFull * f)) : runsGoalFull;
   const runsExcused = !!cfg.neutralizeExcused && !!raw.excuses?.[`${wk}|wq-runs`];   // sorties justifiées (maladie…)
   const ratio = Math.min(runs.length / runsGoal, cfg.overRatio);
-  const win = [...ctx.prevRunRatios.slice(-(cfg.regulariteWeeks - 1)), ratio];
-  const regAvg = win.reduce((s, x) => s + x, 0) / win.length;
+  // Fenêtre = les (N-1) dernières semaines CALENDAIRES + la semaine en cours ; les semaines justifiées (null) en sont retirées
+  // sans reculer vers des semaines plus anciennes : une maladie ne laisse donc pas de vieilles semaines faibles retomber dans la moyenne.
+  const past = ctx.prevRunRatios.slice(-(cfg.regulariteWeeks - 1)).filter(x => x != null);
+  const win = runsExcused ? past : [...past, ratio];             // semaine justifiée : régularité conservée telle qu'avant
+  const regAvg = win.length ? win.reduce((s, x) => s + x, 0) / win.length : 0;
   const exNote = runsExcused ? 'sorties justifiées' : '';
   out.dex = combine([
-    { key: 'volume', w: W.dex.volume, score: runsExcused ? null : bs(runs.length / runsGoal), note: exNote, info: { kind: 'count', value: runs.length, goal: runsGoal, unit: 'sorties' } },
-    { key: 'regularite', w: W.dex.regularite, score: runsExcused ? null : bs(regAvg), note: exNote, info: { kind: 'pct', value: regAvg, window: win.length } }
+    { key: 'volume', w: W.dex.volume, score: runsExcused ? null : bs(runs.length / runsGoal), note: exNote, info: { kind: 'count', value: runs.length, goal: runsGoal, unit: 'sorties', excused: runsExcused } },
+    { key: 'regularite', w: W.dex.regularite, score: runsExcused ? null : bs(regAvg), note: exNote, info: { kind: 'pct', value: regAvg, window: win.length, excused: runsExcused } }
   ], cfg.scoreCap);
   out.dex.meta = { runRatio: ratio, runsExcused, runs: runs.length, runsGoal };
 
-  // Matières : 100 % heures de travail vs objectif de la matière
+  // Matières : 100 % heures de travail vs objectif de la matière ; objectifs propres à CETTE semaine (temps libre × %, cf. weekGoals)
+  const G = weekGoals(cfg, monday, raw.freeByWeek?.[monday]);
   const subj = { math: ['maths'], phys: ['physique'], si: ['si'], verb: ['langues', 'francais'] };
   for (const id of ['math', 'phys', 'si', 'verb']) {
-    const goal = cfg.hoursGoal[id] * 60 * f;
+    const goal = G[id] * (G.dynamic ? 1 : f);                    // 1re semaine partielle : proratisation seulement pour les anciens objectifs fixes
     const minutes = sumMinutes(raw.logs, days, subj[id]);
-    const parts = subj[id].map(k => ({ key: k, minutes: sumMinutes(raw.logs, days, [k]) }));
+    const parts = subj[id].map(k => ({ key: k, minutes: sumMinutes(raw.logs, days, [k]), goal: G[k] * (G.dynamic ? 1 : f) }));
     out[id] = combine([{ key: 'heures', w: 100, score: goal > 0 ? bs(minutes / goal) : null, info: { kind: 'minutes', value: minutes, goal, parts } }], cfg.scoreCap);
     out[id].meta = { minutes, goalMin: goal, parts };
   }
@@ -159,7 +196,8 @@ export function scoreWeek(ctx) {
   const nbExcused = allQs.length - qs.length;
   const done = qs.filter(q => {
     const c = raw.comps.find(x => x.questId === q.id && x.weekKey === wk);
-    const goal = q.id === 'wq-runs' ? runsGoalFull : (q.type === 'weekly-hours' ? q.goalHours * 60 : q.goalCount);
+    const hoursKey = { 'wq-work': 'total', 'wq-langues': 'langues', 'wq-lettres': 'francais', 'wq-si': 'si' }[q.id];
+    const goal = q.id === 'wq-runs' ? runsGoalFull : (q.type === 'weekly-hours' ? (hoursKey ? G[hoursKey] : q.goalHours * 60) : q.goalCount);
     return c && goal > 0 && (c.actualValue || 0) >= goal;
   }).length;
   // Nuits : cases cochées (sleepLog, seulement depuis nov. 2026) ; avant, seul le compteur de la quête
@@ -202,7 +240,7 @@ function replay(cfg, raw, lastClosed) {
       nextValues[c.id] = Math.round((cfg.alpha * values[c.id] + (1 - cfg.alpha) * S) * 100) / 100;
       details[c.id] = res[c.id].comps.map(x => ({ key: x.key, score: x.score == null ? null : Math.round(x.score * 100) / 100, contrib: Math.round(x.contrib * 100) / 100, note: x.note }));
     }
-    if (!res.dex.meta.runsExcused) prevRunRatios.push(res.dex.meta.runRatio);   // une semaine justifiée sort de la fenêtre de régularité
+    prevRunRatios.push(res.dex.meta.runsExcused ? null : res.dex.meta.runRatio);   // semaine justifiée : place gardée dans la fenêtre, mais ignorée (null)
     values = nextValues;
     hist.push({ week: monday, scores, values: { ...values }, details, alpha: cfg.alpha });
     monday = addDays(monday, 7);
@@ -214,7 +252,7 @@ const keyOf = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, 
 
 async function run(today) {
   const cfg = await getCaracSettings();
-  const raw = await loadRaw();
+  const raw = await loadRaw(cfg);
   const lastClosed = addDays(mondayOf(keyOf(today)), -7);          // dernier lundi dont la semaine est terminée
   const { hist } = replay(cfg, raw, lastClosed);
   // On remplace tout l'historique (déterministe) : mêmes données ⇒ mêmes valeurs.
@@ -228,7 +266,7 @@ async function run(today) {
 // qu'on aurait si la semaine s'arrêtait maintenant. Sert aux panneaux de Hebdo.
 export async function projectCurrentWeek(today = new Date()) {
   const cfg = await getCaracSettings();
-  const raw = await loadRaw();
+  const raw = await loadRaw(cfg);
   const monday = mondayOf(keyOf(today));
   const { values, prevRunRatios } = replay(cfg, raw, addDays(monday, -7));
   const days = Array.from({ length: 7 }, (_, i) => addDays(monday, i)).filter(d => d >= cfg.start);

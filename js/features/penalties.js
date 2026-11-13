@@ -1,5 +1,6 @@
 // Malus, bonus, justifications et recalculs de semaine
 import { nextWeekKey, prevWeekKey, todayKey, weekDateKeys, weekKey, weekStartDate } from '../core/dates.js';
+import { dailyGoalHours, makeGoalCtx, questGoalHours } from './work-goals.js';
 import { dbAll, dbAllLive, dbGet, dbPut } from '../core/db.js';
 import { awardXp, removeXp } from '../core/xp.js';
 import { computeCountXp, computeHoursXp, questSkillXp, recomputeAutoQuests } from './quests.js';
@@ -35,8 +36,8 @@ export function bonusFactorFromRatio(ratio) {
 }
 
 // Calcule le XP de référence (ce qu'une quête rapporterait à 100%).
-export function questFullXp(quest) {
-  if (quest.type === 'weekly-hours') return computeHoursXp(quest.goalHours * 60, quest.goalHours).xp;
+export function questFullXp(quest, goalHours = quest.goalHours) {
+  if (quest.type === 'weekly-hours') return computeHoursXp(goalHours * 60, goalHours).xp;
   return computeCountXp(quest.goalCount, quest.goalCount).xp;
 }
 
@@ -91,13 +92,12 @@ export function usesFullMalusRules(wk) { return todayKey(weekStartDate(wk)) >= S
 
 // Somme des malus quotidiens du travail déjà appliqués sur une semaine (jours évalués).
 export async function weekDailyMalusXp(wk) {
-  const sched = await dbAll('schedule');
+  const gctx = await makeGoalCtx();
   const today = todayKey();
   let sum = 0;
   for (const dk of weekDateKeys(wk)) {
     if (dk >= today || dk <= PENALTIES_START) continue;
-    const dayK = ['sun','mon','tue','wed','thu','fri','sat'][new Date(dk + 'T12:00:00').getDay()];
-    sum += dailyWorkMalusXp(await dbGet('workLog', dk), sched.find(x => x.id === dayK)?.workHours || 0);
+    sum += dailyWorkMalusXp(await dbGet('workLog', dk), await dailyGoalHours(dk, gctx));
   }
   return sum;
 }
@@ -137,12 +137,13 @@ export async function computeWeekPenalties(wk) {
 
   // Bonus des secondaires : un par quête, sur l'XP de référence de la quête.
   const bonuses = [];
+  const gctx2 = await makeGoalCtx();
   for (const q of quests.filter(x => x.category === 'secondary')) {
     const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
     const ratio = c?.ratio || 0;
     const f = bonusFactorFromRatio(ratio);
     if (f > 0) {
-      const bonusXp = Math.round(questFullXp(q) * f);
+      const bonusXp = Math.round(questFullXp(q, await questGoalHours(q, wk, gctx2)) * f);
       bonuses.push({ questId: q.id, xp: bonusXp, skills: questSkillXp(q, bonusXp), percent: f, ratio });
     }
   }
@@ -245,13 +246,11 @@ export async function applyPendingPenalties() {
   const lastDaily = lastDailyMeta?.value || startK;
   let cursor = new Date(lastDaily + 'T00:00:00');
   cursor.setDate(cursor.getDate() + 1);
+  const goalCtx = await makeGoalCtx();
   while (cursor < new Date(todayK + 'T00:00:00')) {
     const dk = todayKey(cursor);
     if (dk >= startK) {
-      const sched = await dbAll('schedule');
-      const dayK = ['sun','mon','tue','wed','thu','fri','sat'][cursor.getDay()];
-      const plan = sched.find(s => s.id === dayK);
-      const goalHours = plan?.workHours || 0;
+      const goalHours = await dailyGoalHours(dk, goalCtx);   // objectif du jour = % du temps libre du jour (cf. work-goals.js)
       if (goalHours > 0) {
         const log = await dbGet('workLog', dk);
         const actualMin = log?.totalMinutes || 0;

@@ -2219,73 +2219,36 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hm-pct { font-size: 0.55em; font-weight: 700; margin-left: 2px; opacity: 0.85; }
 .hm-days-row .hm-sub { min-width: 0; text-align: right; }
 
-/* v4.40 : boîtes Notes de Hebdo (une couleur par caractéristique, barres lumineuses, apports visibles) */
-.hebdo-notes { display: flex; flex-direction: column; gap: 14px; margin-bottom: 24px; }
-.hn-card { --hn-c: var(--accent); border-radius: 16px; border: 1px solid color-mix(in srgb, var(--hn-c) 38%, var(--border)); background: var(--bg-2); overflow: hidden; box-shadow: 0 6px 20px rgba(0,0,0,.28), 0 0 0 1px rgba(255,255,255,.02) inset; }
-.hn-head { display: flex; align-items: center; gap: 12px; padding: 14px; background: linear-gradient(135deg, color-mix(in srgb, var(--hn-c) 30%, var(--bg-3)) 0%, var(--bg-3) 70%); border-bottom: 1px solid color-mix(in srgb, var(--hn-c) 25%, var(--border)); }
-.hn-ico { flex: none; width: 42px; height: 42px; border-radius: 13px; display: grid; place-items: center; background: color-mix(in srgb, var(--hn-c) 22%, var(--bg-0)); box-shadow: 0 0 14px color-mix(in srgb, var(--hn-c) 45%, transparent); }
-.hn-ico .ico, .hn-ico svg { width: 24px; height: 24px; }
-.hn-title { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hn-title b { font-size: 1rem; color: var(--hn-c); line-height: 1.15; }
-.hn-title span { font-size: 0.7rem; color: var(--text-mute); }
-.hn-note { flex: none; display: grid; grid-template-columns: auto auto auto; align-items: baseline; justify-content: end; column-gap: 5px; text-align: right; white-space: nowrap; }
-.hn-from { font-size: 0.85rem; color: var(--text-mute); font-family: var(--font-mono); }
-.hn-arrow { font-size: 0.75rem; color: var(--text-mute); }
-.hn-to { font-size: 1.7rem; font-weight: 800; color: var(--hn-c); font-family: var(--font-mono); letter-spacing: -0.03em; line-height: 1; text-shadow: 0 0 12px color-mix(in srgb, var(--hn-c) 50%, transparent); }
-.hn-delta { grid-column: 1 / -1; font-size: 0.68rem; font-weight: 700; }
-.hn-delta.up { color: #E8A13A; } .hn-delta.down { color: #c4584a; } .hn-delta.eq { color: var(--text-mute); font-weight: 500; }
-.hn-body { padding: 6px 14px 14px; }
+/* v4.42 : Compétences sobre (même style que les cartes .hq / .block de Aujourd'hui) */
+.hebdo-notes { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
+.hn-card { border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-2); overflow: hidden; }
+.hn-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-3); }
+.hn-ico { flex: none; display: grid; place-items: center; }
+.hn-ico .ico, .hn-ico svg { width: 22px; height: 22px; }
+.hn-title { flex: 1; min-width: 0; }
+.hn-title b { font-size: 0.88rem; font-weight: 600; color: var(--gold); }
+.hn-to { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700; color: var(--text); }
+.hn-body { padding: 2px 14px 14px; }
 .hn-part { padding-top: 12px; }
-.hn-line { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.hn-name { font-weight: 600; font-size: 0.86rem; display: inline-flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-.hn-chip { font-size: 0.64rem; font-weight: 600; padding: 1px 7px; border-radius: 9px; color: var(--hn-c); background: color-mix(in srgb, var(--hn-c) 14%, transparent); border: 1px solid color-mix(in srgb, var(--hn-c) 35%, transparent); }
-.hn-val { font-family: var(--font-mono); font-size: 0.78rem; color: var(--text); white-space: nowrap; }
-.hn-bar { height: 9px; margin-top: 7px; border-radius: 6px; background: var(--bg-0); overflow: hidden; box-shadow: inset 0 1px 2px rgba(0,0,0,.5); }
-.hn-fill { height: 100%; border-radius: 6px; background: linear-gradient(90deg, color-mix(in srgb, var(--hn-c) 55%, #000), var(--hn-c)); box-shadow: 0 0 8px color-mix(in srgb, var(--hn-c) 60%, transparent); transition: width .6s cubic-bezier(.2,.8,.2,1); }
-.hn-part.full .hn-fill { background: linear-gradient(90deg, var(--hn-c), color-mix(in srgb, var(--hn-c) 60%, #fff)); box-shadow: 0 0 12px var(--hn-c); }
-.hn-part.off .hn-fill { opacity: .25; }
-.hn-part.off .hn-name, .hn-part.off .hn-val { opacity: .55; }
-.hn-foot { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; margin-top: 6px; }
-.hn-hint { font-size: 0.7rem; color: var(--text-mute); line-height: 1.3; }
-.hn-res { flex: none; display: inline-flex; align-items: baseline; gap: 6px; white-space: nowrap; }
-.hn-score { font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem; color: var(--hn-c); }
-.hn-score small { font-size: 0.62rem; color: var(--text-mute); font-weight: 500; }
-.hn-gain { font-size: 0.68rem; color: var(--text-dim); }
-.hn-sub { margin-top: 5px; font-size: 0.72rem; color: var(--text-mute); }
+.hn-name { font-size: 0.82rem; color: var(--text-dim); }
+.hn-bar { height: 6px; margin-top: 7px; border-radius: 6px; background: var(--bg-0); overflow: hidden; }
+.hn-fill { height: 100%; border-radius: 6px; background: var(--grad); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.hn-part.off { opacity: .5; }
+.hn-sub { margin-top: 6px; font-size: 0.74rem; color: var(--text-mute); }
 .hn-sub b { color: var(--text); font-weight: 600; } .hn-sub i { margin: 0 6px; font-style: normal; opacity: .5; }
-.hn-total { margin-top: 14px; padding-top: 12px; border-top: 1px dashed var(--border-strong); }
-.hn-stack { display: flex; height: 10px; border-radius: 6px; background: var(--bg-0); overflow: hidden; gap: 2px; }
-.hn-stack i { background: var(--hn-c); border-radius: 3px; box-shadow: 0 0 6px color-mix(in srgb, var(--hn-c) 55%, transparent); }
-.hn-sum { display: flex; justify-content: space-between; margin-top: 6px; font-size: 0.74rem; color: var(--text-mute); }
-.hn-sum b { color: var(--hn-c); font-family: var(--font-mono); }
-.hn-extra { margin-top: 14px; padding-top: 4px; border-top: 1px dashed var(--border-strong); }
-.hn-legend { margin-top: 2px; }
+.hn-extra { margin-top: 12px; }
+
+/* v4.42 : tuiles de l'Agenda (temps libre · sorties · cycles) */
+.ag-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
+.ag-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 6px; min-height: 92px; border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--border); color: var(--text); }
+.ag-tile small { font-size: 0.68rem; color: var(--text-mute); }
+.ag-ico .ico, .ag-ico svg { width: 22px; height: 22px; }
+.ag-val { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; }
+.ag-ctl { display: flex; align-items: center; gap: 8px; }
+.ag-ctl .cnt-btn { width: 26px; height: 26px; }
+.ag-btn { font: inherit; cursor: pointer; }
+.ag-btn:active { transform: scale(.97); border-color: var(--accent); }
+.ag-excuse { display: block; margin: -2px auto 10px; background: none; border: 0; color: var(--text-mute); font-size: 0.72rem; text-decoration: underline; }
 
 .tab span { white-space: nowrap; letter-spacing: -0.02em; }
 .tab[data-route="hebdo"] span { font-size: 0.6rem; }
-
-/* v4.41 : carte « Objectifs de la semaine » (temps libre × % de travail, répartition par matière) */
-.wp-card { border-radius: 16px; border: 1px solid var(--border-strong); background: linear-gradient(160deg, color-mix(in srgb, var(--accent) 16%, var(--bg-2)), var(--bg-2) 60%); padding: 14px; margin-bottom: 14px; box-shadow: 0 6px 20px rgba(0,0,0,.28); }
-.wp-title { font-weight: 700; font-size: 0.95rem; color: var(--gold); display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
-.wp-title span { font-size: 0.7rem; font-weight: 500; color: var(--text-mute); }
-.wp-calc { display: flex; align-items: center; justify-content: center; flex-wrap: wrap; gap: 6px 10px; margin: 12px 0; font-family: var(--font-mono); }
-.wp-calc .wp-box { text-align: center; }
-.wp-calc .wp-box b { display: block; font-size: 1.15rem; color: var(--text); }
-.wp-calc .wp-box small { font-size: 0.62rem; color: var(--text-mute); font-family: var(--font-body, inherit); }
-.wp-calc .wp-op { color: var(--text-mute); font-size: 1rem; }
-.wp-calc .wp-res b { color: var(--accent); font-size: 1.5rem; text-shadow: 0 0 12px color-mix(in srgb, var(--accent) 45%, transparent); }
-.wp-pct { display: inline-flex; align-items: center; gap: 6px; }
-.wp-pct .cnt-btn { width: 28px; height: 28px; }
-.wp-rows { display: grid; gap: 7px; }
-.wp-row { display: grid; grid-template-columns: 92px 1fr auto; align-items: center; gap: 8px; font-size: 0.78rem; }
-.wp-row .wp-bar { height: 8px; border-radius: 5px; background: var(--bg-0); overflow: hidden; }
-.wp-row .wp-bar i { display: block; height: 100%; border-radius: 5px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 55%, #000), var(--c)); box-shadow: 0 0 7px color-mix(in srgb, var(--c) 55%, transparent); }
-.wp-row .wp-h { font-family: var(--font-mono); white-space: nowrap; text-align: right; }
-.wp-row .wp-h small { color: var(--text-mute); margin-left: 4px; }
-.wp-note { margin-top: 10px; font-size: 0.7rem; color: var(--text-mute); line-height: 1.35; }
-
-.pl-runs { margin: 8px 0 12px; padding: 10px 14px; border-radius: 14px; background: var(--bg-2); border: 1px solid var(--border); }
-.pl-runs .hq-goal-pick { margin-top: 0; display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.pl-runs .hq-goal-pick .hq-count-row { margin-top: 0; }
-.wp-calc .wp-box small { display: block; margin-top: 4px; }
-.wp-pct { white-space: nowrap; }

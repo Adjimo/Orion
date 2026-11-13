@@ -237,3 +237,8 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - Options : « Objectifs de travail » = % du temps libre + poids par matière (remplace les objectifs en heures).
 - SW `orion-v111`.
 
+
+### v4.42
+- **Compétences sobre** (`hebdo-panels.js`, styles `.hn-*`) : même style que les cartes d'Aujourd'hui (fond neutre, bandeau gris, barre cuivre unie). Chaque carte = icône, nom, note projetée, puis une barre par sous-matière avec son titre seul. Seul détail conservé : Anglais / Français (temps travaillé) dans Verbe. Retirés : carte « Objectifs de la semaine » (le % de travail et les poids restent dans Options), sous-titres, poids, apports, phrases d'explication, barre empilée, légende, delta, lueurs colorées.
+- **Planning (Agenda) refondu** : trois tuiles au-dessus des jours — temps libre de la semaine, objectif de sorties (icône course, − / +, semaine en cours et suivantes), Cycles (ouvre `openCycleEditor`). « Justifier une semaine sans sortie » en petit lien sous les tuiles (semaine en cours). Retirés : bandeau « Travail personnel disponible » et bloc `buildRunsControls` dans cette page.
+- SW `orion-v112`, `APP_VERSION` 4.42.

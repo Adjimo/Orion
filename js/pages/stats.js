@@ -116,8 +116,8 @@ export function renderStats(root) {
 
   root.appendChild(page);
 
-  // Render des graphes après que le DOM soit attaché.
-  setTimeout(() => renderStatsCharts(logs, acts), 30);
+  // Graphes tracés tout de suite (le contenu est déjà dans la page) : rien ne saute après l'affichage.
+  renderStatsCharts(logs, acts);
 }
 
 // Helpers de styling Chart.js cohérents avec la palette Orion.
@@ -171,6 +171,7 @@ export function renderStatsCharts(logs, acts) {
     try { inst?.destroy(); } catch {}
   }
   State.charts = {};
+  if (window.Chart) Chart.defaults.animation = false;   // pas de tracé animé : les graphes apparaissent déjà formés
 
   // Travail : heatmap calendaire + donut matières
   renderWorkHeatmap(logs);

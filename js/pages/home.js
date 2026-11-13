@@ -42,13 +42,15 @@ export function renderHome(root) {
   const nextExam = futureExams[0];
 
   const page = el('div', { class: 'page' });
+  const fit = el('div', { class: 'home-fit' });   // en-tête + 3 blocs : occupe exactement l'écran
+  page.appendChild(fit);
 
   // Header compact (nom modifiable, ancienneté, rouage Options)
   const editBtn = el('button', { class: 'btn ghost sm', 'aria-label': 'Modifier le nom', onclick: async () => {
     const name = prompt('Ton nom :', p.name);
     if (name && name.trim()) { p.name = name.trim(); await dbPut('profile', p); await loadAll(); render(); }
   }, html: iconHtml('pencil') });
-  page.appendChild(el('div', { class: 'header home-head flex between' }, [
+  fit.appendChild(el('div', { class: 'header home-head flex between' }, [
     el('div', {}, [
       el('div', { class: 'dim text-xs home-since' }, `${greeting()} · membre depuis ${new Date(p.createdAt).toLocaleDateString('fr-FR')}`),
       el('div', { class: 'text-xl home-name' }, p.name)
@@ -58,7 +60,7 @@ export function renderHome(root) {
 
   // Deux blocs côte à côte : niveau (dégradé) et prochaine échéance, puis le graphique en dessous.
   const top = el('div', { class: 'home-top' });
-  page.appendChild(top);
+  fit.appendChild(top);
 
   top.appendChild(el('div', { class: 'card hero hm-card', html: `
     <div>
@@ -85,9 +87,9 @@ export function renderHome(root) {
         <div class="hm-sub">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
       </div>
       <div class="hm-bottom">
-        <div class="hm-days-row"><span class="hm-days" style="color:${urg};">J-${nextExam.days}</span><span class="hm-sub">${formatCountdown(nextExam.days)}</span></div>
+        <div class="hm-days-row"><span class="hm-days" style="color:${pctColor};">${yearPct} %</span><span class="hm-sub">année écoulée</span></div>
         <div class="year-bar-wrap"><div class="year-bar"><div class="year-fill" style="width:${yearPct}%;"></div></div></div>
-        <div class="hm-sub mt-1"><span style="color:${pctColor};font-weight:700;">${yearPct} %</span> année écoulée</div>
+        <div class="hm-sub mt-2"><b style="color:${urg};">J-${nextExam.days}</b> avant échéance · ${formatCountdown(nextExam.days)}</div>
       </div>
     ` }));
   } else {
@@ -96,7 +98,7 @@ export function renderHome(root) {
 
   // Caractéristiques hebdomadaires (recalculées à la clôture de chaque semaine)
   const caracsBox = el('div', { class: 'home-radar' });
-  page.appendChild(caracsBox);
+  fit.appendChild(caracsBox);
   renderCaracsCard(caracsBox).catch(err => console.error('Caracs card failed', err));
 
   // Synthèse semaine

@@ -23,7 +23,7 @@ export function renderToday(root) {
   const todoWrap = el('div', { class: 'mb-5' });
   page.appendChild(todoWrap);
   root.appendChild(page);
-  renderDayDashboard(dashWrap, (dateKey) => renderDayTodo(todoWrap, dateKey));
+  return renderDayDashboard(dashWrap, (dateKey) => renderDayTodo(todoWrap, dateKey));
 }
 
 // Page « Hebdo » : bloc manuel (sport, coucher avant 23h30, rigueur), bloc automatique (travail), to-do de la semaine.
@@ -67,11 +67,13 @@ export function renderHebdo(root) {
   page.appendChild(todoWrap);
 
   root.appendChild(page);
-  renderRigueurSection(rigueurWrap);
-  renderWeekTodo(todoWrap, mondayOf(todayKey()));
-  renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']);
-  renderWeeklyQuestsFiltered(sleepWrap, ['wq-sleep']);
-  renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-langues', 'wq-lettres', 'wq-si']);
+  return Promise.all([
+    renderRigueurSection(rigueurWrap),
+    renderWeekTodo(todoWrap, mondayOf(todayKey())),
+    renderWeeklyQuestsFiltered(sportWrap, ['wq-runs']),
+    renderWeeklyQuestsFiltered(sleepWrap, ['wq-sleep']),
+    renderWeeklyQuestsFiltered(travailWrap, ['wq-work', 'wq-langues', 'wq-lettres', 'wq-si'])
+  ]);
 }
 
 // Variante de renderWeeklyQuests qui filtre par liste d'IDs (au lieu de catégorie main/secondary).

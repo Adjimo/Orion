@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v114';
+const VERSION = 'orion-v117';
 // Cache des bibliothèques externes (MapLibre, Chart.js, polices) : jamais supprimé lors d'une mise à jour
 // de l'app, pour que la carte et les graphiques marchent hors ligne dès la 1re ouverture en ligne.
 const CDN_CACHE = 'orion-cdn-v1';
@@ -37,12 +37,13 @@ const ASSETS = [
   './js/features/schedule.js',
   './js/features/seed.js',
   './js/features/todo-cycle.js',
+  './js/features/todo-recur.js',
   './js/features/todo-data.js',
   './js/features/todo.js',
   './js/features/weekly-goals.js',
   './js/features/work.js',
   './js/main.js',
-  './js/ui/cycle-editor.js',
+  './js/pages/todo-settings.js',
   './js/ui/todo-widgets.js',
   './js/pages/caracs-card.js',
   './js/pages/caracs-settings.js',
@@ -51,7 +52,7 @@ const ASSETS = [
   './js/pages/planning.js',
   './js/pages/profile.js',
   './js/pages/quests.js',
-  './js/pages/hebdo-panels.js',
+  './js/pages/skills-panels.js',
   './js/pages/sport.js',
   './js/pages/stats.js',
   './js/ui/helpers.js',
@@ -66,8 +67,8 @@ const ASSETS = [
   './icons/badge.png',
   './icons/ui/tab-planning.png',
   './icons/ui/tab-planning-mono.png',
-  './icons/ui/tab-hebdo.png',
-  './icons/ui/tab-hebdo-mono.png',
+  './icons/ui/tab-todo.png',
+  './icons/ui/tab-todo-mono.png',
 ];
 
 // ── Installation : on précharge tous les assets locaux dans un cache versionné.

@@ -66,7 +66,7 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - Temps libre : plages de travail et pauses repas définies par jour (`DAY_RULES` dans `features/planning.js`).
 
 ### v4.7 — Refonte des pages
-- Onglets : Accueil (ex-Profil fusionné), Planning (agenda seul), Aujourd'hui, Hebdo, Sport, Stats.
+- Onglets : Accueil (ex-Profil fusionné), Planning (emploi du temps seul), Aujourd'hui, To-do, Sport, Stats.
 - Aujourd'hui : tableau de bord du jour inchangé + to-do du jour (retards de la semaine inclus). Hebdo : quêtes hebdomadaires inchangées + to-do de la semaine par jour.
 - To-do par jour : un chapitre de maths et de physique par jour à partir du lundi, vocabulaire d'anglais tous les jours, SI le vendredi, anglais (grammaire/rotation) le samedi, français le dimanche (`DAY_PLAN` dans `features/todo-data.js`).
 - Les anciennes données de to-do sans jour sont réparties automatiquement.
@@ -80,7 +80,7 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 ### v4.10
 - To-do : remise à zéro unique (`todoState.v = 2`), démarrage à la date du jour (pas de reports d'avant) ; report quotidien des éléments non faits au jour courant (badge « reporté ») ; vocabulaire quotidien non reporté.
 - Style unifié : cartes Sport/Travail/jour au même langage que la to-do (bandeau, barre en dégradé, boutons).
-- Agenda : cours/colles/DS teintés (`--ev-cours/--ev-colle/--ev-ds`), temps libre et pauses sobres, légende, marges.
+- Planning : cours/colles/DS teintés (`--ev-cours/--ev-colle/--ev-ds`), temps libre et pauses sobres, légende, marges.
 
 ### v4.11
 - Nouvelle palette « Graphite et cuivre » appliquée à tout le thème (variables :root + couleurs en dur remplacées).
@@ -240,7 +240,7 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.42
 - **Compétences sobre** (`hebdo-panels.js`, styles `.hn-*`) : même style que les cartes d'Aujourd'hui (fond neutre, bandeau gris, barre cuivre unie). Chaque carte = icône, nom, note projetée, puis une barre par sous-matière avec son titre seul. Seul détail conservé : Anglais / Français (temps travaillé) dans Verbe. Retirés : carte « Objectifs de la semaine » (le % de travail et les poids restent dans Options), sous-titres, poids, apports, phrases d'explication, barre empilée, légende, delta, lueurs colorées.
-- **Planning (Agenda) refondu** : trois tuiles au-dessus des jours — temps libre de la semaine, objectif de sorties (icône course, − / +, semaine en cours et suivantes), Cycles (ouvre `openCycleEditor`). « Justifier une semaine sans sortie » en petit lien sous les tuiles (semaine en cours). Retirés : bandeau « Travail personnel disponible » et bloc `buildRunsControls` dans cette page.
+- **Planning refondu** : trois tuiles au-dessus des jours — temps libre de la semaine, objectif de sorties (icône course, − / +, semaine en cours et suivantes), Cycles (ouvre `openCycleEditor`). « Justifier une semaine sans sortie » en petit lien sous les tuiles (semaine en cours). Retirés : bandeau « Travail personnel disponible » et bloc `buildRunsControls` dans cette page.
 - SW `orion-v112`, `APP_VERSION` 4.42.
 
 ### v4.43
@@ -251,3 +251,20 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 
 ### v4.44
 - **Compétences** : retour au style des anciennes cartes de quêtes (`.hq`) dans `.hn-*` : bandeau avec pastille d'icône teintée et léger dégradé, titre or, note colorée + variation ; chaque sous-matière a son icône (course, calendrier, chrono, trophée, coche, lune), son titre, un pourcentage, une barre cuivre de 8 px et la valeur réalisé / objectif dessous. Bordure et halo cuivre quand toutes les barres d'une compétence sont pleines. Pas de dégradés vifs ni de lueurs. SW `orion-v114`.
+
+### v4.45
+- **Accueil** : les boîtes Compétences (`pages/skills-panels.js`, ex-`hebdo-panels.js`) sont sous la toile ; la section « Cette semaine » est supprimée. Cartes Niveau / Échéance alignées ligne à ligne (libellé, gros chiffre mono, barre, 2 sous-lignes). Boîtes Compétences sans lueur ni dégradé de teinte.
+- **Couleur d'Anglais** : `COLORS.globe` rose (`#D9728F`), distincte des Maths (sigma orange).
+- **Cases à cocher** : un seul dessin (`--ck`) pour la to-do et les `input[type=checkbox]` (notifications, réglages).
+- **Onglet To-do** (remplace l'onglet Compétences ; `pages/todo-settings.js`, route `todo`) : segments Cycles / Récurrents, cartes repliables, enregistrement immédiat. Cycles : interrupteur d'activation (`enabled`), budget en points, éléments pondérés réordonnables ; plus de « finir avant le » ni de texte récapitulatif. Récurrents (`features/todo-recur.js`, meta `todoRecur`) : jours de la semaine, répétition toutes les N semaines (ancre = lundi du réglage), matière, report si non fait, activer / supprimer ; défauts = Vocabulaire (L J V S D), Grammaire (S, semaines de colle d'anglais), SI (V), clés `anglais:vocab:<j>`, `anglais:gram`, `si:main` inchangées. Les changements ne comptent qu'à partir de la prochaine semaine générée.
+- **Planning** : emploi du temps seul (tuiles, cycles et sorties retirés). **Sport** : carte « Sorties de la semaine » (− / + et justification) en haut.
+- Supprimés : `ui/cycle-editor.js`, `renderHebdo`, `renderWeekTodo`, route `hebdo`. SW `orion-v116`.
+
+### v4.46
+- **Icône To-do** : `icons/ui/tab-todo.png` et `tab-todo-mono.png` (planche à pince avec liste, même trait et mêmes couleurs que les autres onglets) ; anciens `tab-hebdo*` supprimés ; cache des icônes `?v=6`.
+- **Pictos uniformes** : plus de caractères texte (✓ ✗ ✕ ▲ ▼ ‹ ›) ; icônes SVG `close`, `tick`, `chevr/chevl/chevu/chevd`, `up`, `down` dans `icons.js`, taille et couleur communes (CSS « pictos d'interface »).
+- **Jours réglables** : plus de `DAY_PLAN` ni `VOCAB_DAYS` en dur. Chaque cycle a `days` (défauts dans `DEFAULT_CYCLE_DAYS` : maths et physique tous les jours, anglais samedi, français dimanche) ; ses éléments tombent un par jour sur ces jours, le dernier jour recevant le reste. Réglage dans To-do › Récurrents, cartes « <matière> · séances », à côté du vocabulaire, de la grammaire, de la SI et des éléments ajoutés.
+- **Couleurs en un seul endroit** : `SUBJ_ICON` / `subjColor` / `subjClass` dans `icons.js`, classes `.subj-<matière>`, `.c-<icône>` et variables `--c-<icône>` injectées au démarrage. `xp.js`, `caracs.js`, `features/quests.js`, `stats.js`, `todo-widgets.js`, `todo-settings.js` n'ont plus de hex en doublon (les couleurs d'Anglais, de Maths, etc. sont désormais identiques partout).
+- **Répétitions retirées** : `TODO_SUBJECTS` ne duplique plus maths / physique (un seul libellé, celui du cycle) ; libellé redondant de la carte Sport.
+- **Code mort retiré** : `renderWeeklyQuests`, `_renderOneQuest`, `freeMinutesOf`, `saveSelfMalus`, `formatCountdown`, `view.tab` du planning, imports inutilisés, 144 sélecteurs CSS orphelins. Vocabulaire : « Planning » partout.
+- SW `orion-v117`, `APP_VERSION` 4.46.

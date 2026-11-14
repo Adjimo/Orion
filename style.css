@@ -137,11 +137,6 @@ img[src*="icons/ui/"] {
 }
 .card.tight { padding: var(--s-3); }
 .card.glow { box-shadow: var(--shadow-glow); }
-.card.hero {
-  background: linear-gradient(135deg, #33271C 0%, #1E1E1E 100%);
-  border-color: #7A4E2B;
-  box-shadow: var(--shadow-glow);
-}
 
 /* ===== Chart cards ===== */
 .chart-card {
@@ -198,232 +193,6 @@ img[src*="icons/ui/"] {
 .interval-label { font-weight: 500; }
 .interval-meta { color: var(--text-dim); font-family: var(--font-mono); font-size: 0.78rem; }
 
-/* ===== Charge d'entraînement (CTL/ATL/TSB) ===== */
-.load-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  margin-bottom: 14px;
-}
-.load-card {
-  background: var(--bg-3);
-  border-radius: var(--r-md);
-  padding: 12px 8px;
-  text-align: center;
-}
-.load-val { font-size: 1.5rem; font-weight: 700; font-family: var(--font-mono); }
-.load-lbl { font-size: 0.72rem; color: var(--text-dim); margin-top: 4px; }
-.load-hint { font-size: 0.62rem; color: var(--text-mute); margin-top: 2px; }
-.load-advice {
-  font-size: 0.85rem;
-  padding: 10px 14px;
-  border-left: 3px solid;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 0 var(--r-sm) var(--r-sm) 0;
-}
-.info-btn {
-  background: transparent;
-  border: 1px solid var(--border);
-  color: var(--text-mute);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.15s, color 0.15s, border-color 0.15s;
-}
-.info-btn:hover { background: var(--bg-3); color: var(--gold); border-color: var(--gold); }
-.load-explainer {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 0.82rem;
-  color: var(--text-dim);
-  line-height: 1.55;
-}
-.load-explainer p { margin: 0 0 6px; }
-.load-explainer p:first-child { color: var(--text); }
-.load-explainer ul { margin: 4px 0 8px; padding-left: 18px; }
-.load-explainer li { margin-bottom: 4px; }
-.load-explainer em { color: var(--gold); font-style: italic; }
-.load-explainer strong { color: var(--text); }
-
-/* ===== VO2max ===== */
-.vo2-hero {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-.vo2-val {
-  font-size: 2.4rem;
-  font-weight: 700;
-  font-family: var(--font-mono);
-  line-height: 1;
-}
-.vo2-source { max-width: 60%; text-align: right; }
-
-/* ===== Performance (VDOT + chronos + allures) ===== */
-.perf-section-title {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  font-weight: 500;
-  margin: 14px 0 6px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-.races-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-.race-row {
-  display: grid;
-  grid-template-columns: 80px 1fr 100px;
-  align-items: center;
-  padding: 6px 0;
-  font-size: 0.85rem;
-  border-bottom: 1px solid var(--border);
-}
-.race-row:last-child { border-bottom: 0; }
-.race-dist { color: var(--text-dim); font-weight: 500; }
-.race-time { color: var(--gold); font-weight: 600; }
-.race-pace { text-align: right; font-size: 0.78rem; color: var(--text-mute); }
-
-.paces-grid {
-  display: grid;
-  grid-template-columns: repeat(5, 1fr);
-  gap: 6px;
-}
-.pace-cell {
-  background: var(--bg-3);
-  border-radius: var(--r-sm);
-  padding: 8px 4px;
-  text-align: center;
-}
-.pace-key {
-  font-size: 0.7rem;
-  font-weight: 700;
-  color: var(--gold);
-  letter-spacing: 0.06em;
-}
-.pace-val {
-  font-size: 0.82rem;
-  font-weight: 600;
-  margin: 4px 0 2px;
-}
-.pace-desc {
-  font-size: 0.62rem;
-  color: var(--text-mute);
-  line-height: 1.2;
-}
-.goal-diff {
-  display: block;
-  font-size: 0.6rem;
-  margin-top: 3px;
-  font-style: italic;
-}
-.goal-diff.faster { color: var(--accent-warm); }
-.goal-diff.slower { color: var(--accent-cool); }
-
-.perf-explainer {
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px solid var(--border);
-  font-size: 0.82rem;
-  color: var(--text-dim);
-  line-height: 1.55;
-}
-.perf-explainer p { margin: 0 0 6px; }
-.perf-explainer p:first-child { color: var(--text); }
-.perf-explainer ul { margin: 4px 0 8px; padding-left: 18px; }
-.perf-explainer li { margin-bottom: 4px; }
-.perf-explainer em { color: var(--gold); }
-.perf-explainer strong { color: var(--text); }
-
-/* Formulaire objectif */
-.goal-form {
-  display: grid;
-  grid-template-columns: 1fr 1fr auto;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-.goal-form .input { padding: 8px 12px; font-size: 0.9rem; }
-.goal-form .btn-gpx { padding: 8px 12px; }
-.goal-output-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  margin: 6px 0 10px;
-  padding-bottom: 8px;
-  border-bottom: 1px solid var(--border);
-}
-.goal-progress {
-  font-size: 0.85rem;
-  margin-bottom: 10px;
-  color: var(--text);
-}
-.goal-progress strong { color: var(--gold); }
-.goal-feas {
-  font-size: 0.85rem;
-  padding: 10px 14px;
-  border-left: 3px solid;
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  margin-bottom: 14px;
-  line-height: 1.5;
-}
-.goal-section-title {
-  font-size: 0.78rem;
-  color: var(--text-dim);
-  font-weight: 500;
-  margin: 12px 0 8px;
-  padding-top: 10px;
-  border-top: 1px solid var(--border);
-}
-.goal-sessions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.goal-session {
-  display: flex;
-  gap: 12px;
-  padding: 10px 12px;
-  background: var(--bg-3);
-  border-radius: var(--r-md);
-  align-items: flex-start;
-}
-.goal-session-icon {
-  font-size: 1.4rem;
-  line-height: 1.1;
-  flex-shrink: 0;
-}
-.goal-session-body { flex: 1; min-width: 0; }
-.goal-session-title {
-  font-weight: 600;
-  font-size: 0.95rem;
-  margin-bottom: 2px;
-}
-.goal-session-detail {
-  font-size: 0.82rem;
-  color: var(--text-dim);
-  line-height: 1.45;
-}
-.goal-session-detail .mono {
-  color: var(--gold);
-  font-weight: 600;
-}
-.goal-tip {
-  margin-top: 12px;
-  padding: 10px 14px;
-  background: rgba(230,195,106, 0.05);
-  border-left: 2px solid rgba(230,195,106, 0.4);
-  border-radius: 0 var(--r-sm) var(--r-sm) 0;
-  line-height: 1.5;
-}
-.goal-tip strong { color: var(--gold); }
-
 /* ===== Records glissants ===== */
 .rolling-table {
   display: flex;
@@ -442,87 +211,6 @@ img[src*="icons/ui/"] {
 .rolling-row { border-top: 1px solid var(--border); font-size: 0.85rem; }
 .rolling-row:first-of-type { border-top: 0; }
 .rolling-dist { color: var(--text-dim); font-weight: 500; }
-
-/* ===== Plan hebdo ===== */
-.plan-summary {
-  display: flex;
-  justify-content: space-between;
-  font-size: 0.85rem;
-}
-.plan-sessions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin-top: 8px;
-}
-.plan-session {
-  display: flex;
-  gap: 12px;
-  padding: 10px 12px;
-  background: var(--bg-3);
-  border-radius: var(--r-md);
-  align-items: flex-start;
-}
-.plan-session-icon { font-size: 1.4rem; line-height: 1.1; }
-.plan-session-day { font-size: 0.7rem; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.06em; }
-.plan-session-label { font-weight: 600; font-size: 0.95rem; margin: 2px 0 4px; }
-.plan-session-detail { line-height: 1.45; }
-
-/* ===== Catalogue parcours ===== */
-.routes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-.route-card {
-  display: block;
-  width: 100%;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 12px 14px;
-  text-align: left;
-  cursor: pointer;
-  transition: border-color 0.15s, transform 0.08s;
-}
-.route-card:hover { border-color: var(--gold); }
-.route-card:active { transform: scale(0.99); }
-.route-card-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; }
-.route-card-name { font-weight: 600; font-size: 0.95rem; }
-.route-card-count { font-family: var(--font-mono); font-size: 0.85rem; color: var(--gold); }
-.route-card-meta { font-family: var(--font-mono); }
-
-.route-comp-table {
-  display: flex;
-  flex-direction: column;
-}
-.route-comp-header {
-  display: grid;
-  grid-template-columns: 1fr 70px 70px 80px;
-  gap: 8px;
-  font-size: 0.7rem;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-mute);
-  padding: 6px 0;
-  border-bottom: 1px solid var(--border);
-}
-.route-comp-header > div:not(:first-child) { text-align: right; }
-.route-comp-row {
-  display: grid;
-  grid-template-columns: 1fr 70px 70px 80px;
-  gap: 8px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.85rem;
-  align-items: baseline;
-}
-.route-comp-row.is-pr { background: rgba(230,195,106, 0.06); }
-.route-comp-row > div:not(:first-child) { text-align: right; }
-.route-comp-date { color: var(--text-dim); }
-.route-comp-gap { color: var(--text-mute); font-size: 0.78rem; }
-.route-comp-gap.gap-best { color: var(--gold); font-weight: 600; }
-.route-comp-gap.gap-slow { color: var(--accent-warm); }
 
 /* ===== Splits km par km ===== */
 /* ===== Détails dépliables sur la fiche course ===== */
@@ -917,54 +605,6 @@ img[src*="icons/ui/"] {
 .tab.active .tab-icon { transform: translateY(-1px) scale(1.08); }
 @media (prefers-reduced-motion: reduce) { .tab-icon { transition: none; } .tab.active .tab-icon { transform: none; } }
 
-/* ===== Carte résumé "Mon objectif" cliquable ===== */
-.goal-summary-card {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  width: 100%;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
-  text-align: left;
-}
-.goal-summary-card:hover {
-  border-color: var(--gold);
-  background: var(--bg-3);
-}
-.goal-summary-card.empty {
-  border-style: dashed;
-  opacity: 0.85;
-}
-.goal-summary-icon {
-  width: 40px;
-  height: 40px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 1.8rem;
-}
-.goal-summary-body { flex: 1; min-width: 0; }
-.goal-summary-title {
-  font-weight: 600;
-  font-size: 1rem;
-  color: var(--text);
-}
-.goal-summary-meta { margin-top: 2px; }
-.goal-summary-chevron {
-  font-size: 1.8rem;
-  color: var(--text-mute);
-  line-height: 1;
-}
-.goal-modal {
-  max-width: 540px;
-  max-height: calc(100vh - 32px);
-}
-
 /* ===== Splash ===== */
 .splash {
   position: fixed;
@@ -1274,51 +914,11 @@ img[src*="icons/ui/"] {
 .header { margin-bottom: var(--s-4); }
 .header.home-head { margin-bottom: var(--s-3); }
 .home-name { line-height: 1.2; }
-.rank-pill {
-  display: inline-block;
-  margin-top: 6px;
-  padding: 4px 12px;
-  background: var(--bg-2);
-  border: 1px solid var(--rank-c, var(--accent));
-  border-radius: 999px;
-  font-size: 0.75rem;
-  color: var(--rank-c, var(--accent));
-  font-weight: 600;
-  letter-spacing: 0.04em;
-}
 
 /* Skills grid */
 .skills {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 10px;
-}
-.skill-card {
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-md);
-  padding: 10px 12px;
-}
-.skill-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 4px;
-}
-.skill-icon { font-size: 1.1rem; }
-.skill-lvl { font-size: 0.75rem; font-weight: 600; }
-.skill-name { font-size: 0.8rem; color: var(--text-dim); margin-bottom: 6px; }
-
-.skill-row {
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
-}
-.skill-row:last-child { border-bottom: none; }
-
-/* Stats grid */
-.stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
   gap: 10px;
 }
 .stat {
@@ -1327,97 +927,6 @@ img[src*="icons/ui/"] {
   border-radius: var(--r-md);
   padding: 14px 8px;
   text-align: center;
-}
-.stat-val {
-  font-size: 1.4rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.stat-label {
-  font-size: 0.7rem;
-  color: var(--text-dim);
-  margin-top: 4px;
-}
-
-/* Countdown */
-.cd-card {
-  width: 100%;
-  text-align: left;
-  background: var(--bg-2);
-  border: 1px solid var(--border);
-  border-radius: var(--r-lg);
-  padding: 16px;
-  position: relative;
-  overflow: hidden;
-}
-.cd-card::before {
-  content: '';
-  position: absolute;
-  top: -50%;
-  right: -20%;
-  width: 200px;
-  height: 200px;
-  background: radial-gradient(circle, rgba(200,129,74, 0.08), transparent 70%);
-  pointer-events: none;
-}
-.cd-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  position: relative;
-}
-.cd-info { flex: 1; min-width: 0; }
-.cd-label {
-  font-size: 0.7rem;
-  color: var(--text-mute);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-bottom: 6px;
-}
-.cd-name { font-size: 1.05rem; font-weight: 600; margin-bottom: 2px; }
-.cd-date { font-size: 0.78rem; color: var(--text-dim); }
-.cd-stats { text-align: right; flex-shrink: 0; }
-.cd-pct {
-  font-size: 2.6rem;
-  font-weight: 800;
-  line-height: 1;
-  font-family: var(--font-mono);
-  letter-spacing: -0.03em;
-}
-.cd-pct .pct-sign {
-  font-size: 1.4rem;
-  margin-left: 2px;
-  font-weight: 600;
-  opacity: 0.8;
-}
-.cd-pct-label {
-  font-size: 0.65rem;
-  color: var(--text-mute);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  margin-top: 2px;
-  margin-bottom: 8px;
-}
-.cd-days {
-  font-family: var(--font-mono);
-  font-size: 0.95rem;
-  font-weight: 700;
-  line-height: 1;
-}
-.cd-days-sub { font-size: 0.65rem; color: var(--text-mute); margin-top: 2px; }
-.year-bar-wrap { margin-top: 14px; }
-.year-bar {
-  height: 5px;
-  background: var(--bg-3);
-  border-radius: 999px;
-  overflow: hidden;
-}
-.year-fill {
-  height: 100%;
-  background: linear-gradient(90deg, var(--accent-2), var(--accent), var(--accent-warm));
-  border-radius: inherit;
-  transition: width 1s ease;
 }
 
 /* DayDashboard */
@@ -2095,7 +1604,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .home-top { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
 .home-top > .full { grid-column: 1 / -1; }
 .hm-card { display: flex; flex-direction: column; justify-content: space-between; gap: 10px; padding: 14px; min-width: 0; text-align: left; }
-.cd-card.hm-card { padding: 14px; }
 .hm-label { font-size: 0.64rem; color: var(--text-mute); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 4px; white-space: nowrap; }
 .hm-big { font-size: 2.3rem; font-weight: 700; letter-spacing: -0.02em; line-height: 1.05; }
 .hm-of { font-size: 1rem; font-weight: 600; opacity: 0.7; letter-spacing: 0; }
@@ -2105,7 +1613,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hm-sub.mute { color: var(--text-mute); }
 .hm-days-row { display: flex; align-items: baseline; justify-content: space-between; gap: 6px; margin-bottom: 8px; }
 .hm-days { font-family: var(--font-mono); font-size: 1.9rem; font-weight: 800; letter-spacing: -0.03em; line-height: 1; }
-.hm-bottom .year-bar-wrap { margin-top: 0; }
 
 .carac-card { padding: 10px 12px 12px; }
 .carac-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 2px; }
@@ -2200,21 +1707,9 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 /* ── Panneaux « Notes » de Hebdo (v4.39) ── */
 .cp { border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--border); overflow: hidden; }
-.cp-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-3); }
-.cp-icon { font-size: 1.3rem; display: inline-flex; }
-.cp-title { flex: 1; min-width: 0; font-weight: 600; font-size: 0.88rem; color: var(--gold); }
-.cp-note { font-size: 0.85rem; white-space: nowrap; }
-.cp-body { padding: 8px 14px 12px; }
-.cp-line { display: flex; justify-content: space-between; gap: 8px; margin-top: 8px; font-size: 0.78rem; color: var(--text-mute); }
-.cp-val { color: var(--text); font-weight: 600; }
-.cp-bar { height: 6px; margin-top: 5px; background: var(--bg-0); border-radius: 3px; overflow: hidden; }
-.cp-fill { height: 100%; border-radius: 3px; }
-.cp-sub { margin-top: 4px; font-size: 0.72rem; color: var(--text-mute); }
-.cp-w { display: inline-block; margin-left: 4px; padding: 0 6px; border-radius: 8px; background: var(--bg-0); border: 1px solid var(--border); font-size: 0.68rem; color: var(--text-dim); }
-.cp-total { display: flex; justify-content: space-between; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 0.78rem; color: var(--text-mute); }
 
 /* v4.40 : carte Niveau compacte (plus de grand vide avant la barre d'XP) et % d'échéance jamais coupé */
-.hm-card.hm-level { justify-content: center; gap: 14px; }
+.hm-card.hm-level { justify-content: space-between; gap: 10px; }
 .hm-days { white-space: nowrap; flex: none; }
 .hm-pct { font-size: 0.55em; font-weight: 700; margin-left: 2px; opacity: 0.85; }
 .hm-days-row .hm-sub { min-width: 0; text-align: right; }
@@ -2222,14 +1717,14 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 /* v4.44 : Compétences au style des anciennes cartes de quêtes (.hq) : bandeau, titre or, pourcentage, barre cuivre, valeur dessous */
 .hebdo-notes { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
 .hn-card { --hn-c: var(--accent); border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-2); overflow: hidden; transition: border-color .2s, box-shadow .2s; }
-.hn-card.done { border-color: var(--accent); box-shadow: 0 0 14px rgba(200,129,74,.18); }
-.hn-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: linear-gradient(90deg, color-mix(in srgb, var(--hn-c) 14%, var(--bg-3)), var(--bg-3) 75%); border-bottom: 1px solid var(--border); }
-.hn-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--hn-c) 16%, var(--bg-0)); }
+.hn-card.done { border-color: var(--border-strong, var(--border)); }
+.hn-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: var(--bg-3); border-bottom: 1px solid var(--border); }
+.hn-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--bg-0); }
 .hn-ico .ico, .hn-ico svg { width: 21px; height: 21px; }
 .hn-title { flex: 1; min-width: 0; }
 .hn-title b { font-size: 0.95rem; font-weight: 600; color: var(--gold); }
 .hn-note { display: inline-flex; align-items: baseline; gap: 7px; }
-.hn-to { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 800; color: var(--hn-c); letter-spacing: -0.02em; line-height: 1; }
+.hn-to { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 800; color: var(--text); letter-spacing: -0.02em; line-height: 1; }
 .hn-delta { font-size: 0.7rem; font-weight: 700; }
 .hn-delta.up { color: #E8A13A; } .hn-delta.down { color: #c4584a; } .hn-delta.eq { color: var(--text-mute); font-weight: 500; }
 .hn-body { padding: 2px 14px 12px; }
@@ -2250,17 +1745,61 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hn-sub b { color: var(--text); font-weight: 600; } .hn-sub i { margin: 0 6px; font-style: normal; opacity: .5; }
 .hn-extra { margin-top: 12px; }
 
-/* v4.42 : tuiles de l'Agenda (temps libre · sorties · cycles) */
-.ag-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 10px; }
-.ag-tile { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 10px 6px; min-height: 92px; border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--border); color: var(--text); }
-.ag-tile small { font-size: 0.68rem; color: var(--text-mute); }
-.ag-ico .ico, .ag-ico svg { width: 22px; height: 22px; }
-.ag-val { font-family: var(--font-mono); font-size: 1rem; font-weight: 700; }
-.ag-ctl { display: flex; align-items: center; gap: 8px; }
-.ag-ctl .cnt-btn { width: 26px; height: 26px; }
-.ag-btn { font: inherit; cursor: pointer; }
-.ag-btn:active { transform: scale(.97); border-color: var(--accent); }
-.ag-excuse { display: block; margin: -2px auto 10px; background: none; border: 0; color: var(--text-mute); font-size: 0.72rem; text-decoration: underline; }
-
 .tab span { white-space: nowrap; letter-spacing: -0.02em; }
 .tab[data-route="hebdo"] span { font-size: 0.6rem; }
+
+/* v4.45 : cartes Niveau / Échéance identiques ligne à ligne */
+.home-top { align-items: stretch; }
+.hm-card .hm-label-row { margin-bottom: 0; align-items: center; }
+.hm-card .hm-label-row .ico, .hm-card .hm-label-row svg { width: 14px; height: 14px; vertical-align: -2px; }
+.hm-card .hm-big { font-family: var(--font-mono); }
+.hm-card .hm-meter { margin: 0; }
+.hm-card .hm-subs { display: flex; flex-direction: column; gap: 2px; min-height: 2.7em; }
+.home-skills { margin-top: 0; }
+
+/* v4.45 : case à cocher unique — la to-do, les notifications et les réglages partagent le même dessin */
+:root { --ck: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%231b1b1b' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M5 12.5l4.5 4.5L19 7.5'/%3E%3C/svg%3E"); }
+input[type="checkbox"] { -webkit-appearance: none; appearance: none; flex: none; width: 24px; height: 24px; margin: 0; border-radius: 8px; border: 2px solid var(--border-strong); background: var(--bg-0) center / 70% no-repeat; vertical-align: middle; }
+input[type="checkbox"]:checked { background-color: var(--accent); border-color: var(--accent); background-image: var(--ck); }
+.td-check { width: 24px; height: 24px; border-radius: 8px; font-size: 0; background: var(--bg-0) center / 70% no-repeat; }
+.td-item.done .td-check { background-image: var(--ck); }
+
+/* v4.45 : onglet To-do */
+.ts-segs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px; }
+.ts-seg { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 11px 8px; border-radius: var(--r-md); background: var(--bg-2); border: 1px solid var(--border); color: var(--text-dim); font-size: .88rem; font-weight: 600; }
+.ts-seg .ico, .ts-seg svg { width: 18px; height: 18px; }
+.ts-seg.active { border-color: var(--accent); color: var(--gold); background: var(--bg-3); }
+.ts-body { display: flex; flex-direction: column; gap: 10px; padding-bottom: 24px; }
+.ts-card { border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-2); overflow: hidden; }
+.ts-card.off .ts-head { opacity: .55; }
+.ts-head { display: flex; align-items: center; gap: 10px; padding: 11px 12px; background: var(--bg-3); cursor: pointer; }
+.ts-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: var(--bg-0); }
+.ts-ico .ico, .ts-ico svg { width: 21px; height: 21px; }
+.ts-title { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.ts-title b { font-size: .92rem; font-weight: 600; color: var(--gold); }
+.ts-title small { font-size: .7rem; color: var(--text-mute); }
+.ts-chev { color: var(--text-mute); font-size: 1.2rem; transition: transform .2s; }
+.ts-chev.open { transform: rotate(90deg); }
+.ts-inner { display: flex; flex-direction: column; gap: 12px; padding: 12px; }
+.ts-sub { font-size: .72rem; color: var(--text-mute); text-transform: uppercase; letter-spacing: .08em; margin-bottom: -4px; }
+.ts-days { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; }
+.ts-day { padding: 10px 0; border-radius: var(--r-sm); background: var(--bg-0); border: 1px solid var(--border); color: var(--text-dim); font-weight: 700; font-size: .82rem; }
+.ts-day.active { background: var(--accent); border-color: var(--accent); color: var(--bg-0); }
+.ts-danger { align-self: center; background: none; border: 0; color: var(--text-mute); font-size: .76rem; text-decoration: underline; padding: 4px 8px; }
+.sw { flex: none; position: relative; width: 44px; height: 26px; border-radius: 999px; background: var(--bg-0); border: 1px solid var(--border-strong); transition: background .2s, border-color .2s; }
+.sw-knob { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; border-radius: 50%; background: var(--text-mute); transition: transform .2s, background .2s; }
+.sw.on { background: var(--accent); border-color: var(--accent); }
+.sw.on .sw-knob { transform: translateX(18px); background: var(--bg-0); }
+.sp-runs { margin-bottom: 12px; }
+
+/* v4.46 : pictos d'interface (fermer, coche, chevrons, flèches) : taille commune, couleur héritée */
+.pl-nav .ico, .gpx-preview-close .ico, .td-del .ico, .ts-chev .ico, .cy-move .ico, .dp-nav .ico, .btn .ico.ui, .hq-excused .ico, .pill .ico, .hn-delta .ico, .cr-up .ico, .cr-down .ico, .wr-ok .ico, .wr-ko .ico { display: inline-grid; vertical-align: -3px; }
+.pl-nav .ico, .btn.ghost.sm .ico { width: 20px; height: 20px; }
+.gpx-preview-close .ico, .td-del .ico, .rem-del .ico { width: 16px; height: 16px; }
+.ts-chev .ico, .cy-move .ico { width: 16px; height: 16px; }
+.hq-excused .ico, .pill .ico, .wr-ok .ico, .wr-ko .ico, .text-xs .ico { width: 13px; height: 13px; }
+.hn-delta .ico, .cr-up .ico, .cr-down .ico { width: 9px; height: 9px; margin-right: 2px; }
+.cy-move .ico { width: 12px; height: 12px; }
+.td-check { display: grid; place-items: center; }
+.ico-close svg, .ico-tick svg, .ico-chevr svg, .ico-chevl svg, .ico-chevu svg, .ico-chevd svg { stroke-width: 2.4; }
+.wr-ok { color: var(--accent); } .wr-ko { color: #c4584a; }

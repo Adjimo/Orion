@@ -81,7 +81,7 @@ function applyOverrides(events, monday, overrides) {
     if (ov.op === 'add') {
       const f = ov.fields || {};
       const date = f.date || (f.day ? addDays(monday, f.day - 1) : null);
-      if (date) out.push({ id: `x:${ov.id}:${date}`, recurKey: ov.scope === 'all' ? `x:${ov.id}` : null, type: f.type || 'cours', custom: true, date, start: f.start || null, end: f.end || null, title: f.title || 'Créneau', teacher: f.teacher || null, room: f.room || null });
+      if (date) out.push({ id: `x:${ov.id}:${date}`, recurKey: ov.scope === 'all' ? `x:${ov.id}` : null, type: f.type || 'autre', custom: true, date, start: f.start || null, end: f.end || null, title: f.title || 'Créneau', teacher: f.teacher || null, room: f.room || null });
       continue;
     }
     out = out.filter(ev => {
@@ -90,7 +90,7 @@ function applyOverrides(events, monday, overrides) {
       if (ov.op === 'delete') return false;
       const f = ov.fields || {};
       if (f.day) ev.date = addDays(monday, f.day - 1);
-      for (const k of ['start', 'end', 'title', 'teacher', 'room']) if (f[k] !== undefined) ev[k] = f[k];
+      for (const k of ['start', 'end', 'title', 'teacher', 'room', 'type']) if (f[k] !== undefined) ev[k] = f[k];
       ev.modified = true;
       return true;
     });

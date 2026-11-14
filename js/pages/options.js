@@ -9,7 +9,7 @@ import { loadAll } from '../features/seed.js';
 import { DEFAULT_HOURS, loadPrefs, prefsNow, savePrefs } from '../features/prefs.js';
 import { startOnboarding } from './onboarding.js';
 import { recomputeCaracs } from '../features/caracs.js';
-import { APP_VERSION } from '../core/state.js';
+import { APP_VERSION, IS_ADMIN } from '../core/state.js';
 
 export function renderOptions(root) {
   const page = el('div', { class: 'page' });
@@ -60,7 +60,7 @@ export function renderOptions(root) {
   try { renderProfileSections(profileHolder); } catch (e) { /* rappels / sauvegarde indisponibles */ }   // dépliants Rappels et Sauvegarde
 
   // Tutoriel : carte toujours visible, juste sous les dépliants, avec son logo.
-  page.appendChild(el('button', { type: 'button', class: 'card mb-3 opt-pref opt-tuto', onclick: () => startOnboarding() }, [
+  if (IS_ADMIN) page.appendChild(el('button', { type: 'button', class: 'card mb-3 opt-pref opt-tuto', onclick: () => startOnboarding() }, [
     el('div', { class: 'opt-pref-t' }, [
       el('span', { class: 'opt-pico', html: iconHtml('sparkles') }),
       el('div', {}, [el('b', {}, 'Relancer le tutoriel'), el('small', { class: 'mute', style: 'display:block' }, 'Revoir les pages d\u2019accueil, sans perdre tes données')])

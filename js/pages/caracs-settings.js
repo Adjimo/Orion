@@ -20,13 +20,6 @@ function field(label, id, value, { min = 0, max = 100, step = 1, unit = '' } = {
   ]);
 }
 
-// Section dépliable (fermée par défaut) : titre cliquable + contenu.
-function group(title, children, open = false) {
-  const d = el('details', { class: 'cs-group' }, [el('summary', { class: 'cs-group-head' }, title), el('div', { class: 'cs-group-body' }, children)]);
-  if (open) d.setAttribute('open', '');
-  return d;
-}
-
 export async function renderCaracsSettings(root, forceOpen = false) {
   const cfg = await getCaracSettings();
   const wasOpen = forceOpen || root.querySelector('.cs-fold')?.hasAttribute('open');
@@ -35,13 +28,11 @@ export async function renderCaracsSettings(root, forceOpen = false) {
   const card = el('div', { class: 'cs-card' });
   fold.appendChild(card);
 
-  card.appendChild(group('Objectifs de travail', [
+  card.append(
     field('Part du temps libre travaillée', 'cs-pct', cfg.workPct, { min: 10, max: 100, step: 5, unit: '%' }),
-    el('div', { class: 'cs-hint' }, 'Objectif de chaque jour et de chaque semaine = ce % du temps libre de l\'emploi du temps (calcul automatique dès le ' + cfg.dynamicFrom.split('-').reverse().slice(0, 2).join('/') + ').'),
-    ...Object.keys(SUBJECT_LABELS).map(k => field(SUBJECT_LABELS[k], `cs-sw-${k}`, cfg.subjectWeights[k], { max: 100, unit: '%' })),
-    el('div', { class: 'cs-hint' }, 'Répartition du travail entre matières (normalisée si le total n\'est pas 100). Par défaut : proportions des anciens objectifs.')
-  ]));
-
+    el('div', { class: 'cs-hint' }, 'Répartition par matière (en %) :'),
+    ...Object.keys(SUBJECT_LABELS).map(k => field(SUBJECT_LABELS[k], `cs-sw-${k}`, cfg.subjectWeights[k], { max: 100, unit: '%' }))
+  );
 
   const save = async () => {
     const q = (id) => num(card.querySelector('#' + id).value);

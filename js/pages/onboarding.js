@@ -1,5 +1,5 @@
 // Tutoriel d'inscription (v5) : pages courtes, sans clavier.
-// 1 Sport ? · 2 Gamifier ? · 3 Horaires par jour (coucher + fin de travail) · 4 Volume de travail (%) · 5 Emploi du temps (sans colles).
+// 1 Sport ? · 2 Gamifier ? · 3 Horaires par jour (coucher + fin de travail) · 4 Volume de travail (%) · 5 Emploi du temps (colles de Thomas ou de Daphné).
 // Relançable à tout moment depuis Options (bouton admin) sans toucher aux données.
 import { el } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
@@ -11,27 +11,28 @@ import { hoursEditor } from './hours-editor.js';
 import { loadAll } from '../features/seed.js';
 import { mondayOf } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
+import { COLLE_PROGRAMS } from '../features/planning-data.js';
 
 const PAGES = [
   { key: 'sport', type: 'yesno', icon: 'run', title: 'Veux-tu suivre ton sport ?', text: 'Sorties, Dextérité et onglet Sport. Tu pourras le changer dans Options.' },
   { key: 'gamify', type: 'yesno', icon: 'sparkles', title: 'Veux-tu gamifier ton travail ?', text: 'Niveau, toile des caractéristiques et notes /20. Sinon : une simple liste de compétences avec barres de progression.' },
   { key: 'hours', type: 'hours', icon: 'moon', title: 'Tes horaires', text: 'Choisis un jour, puis règle l’heure de fin de travail et l’heure du coucher (qui sert à la quête sommeil et au rappel).' },
   { key: 'workPct', type: 'pct', icon: 'target', title: 'Ton volume de travail', text: 'Quelle part de ton temps libre veux-tu consacrer au travail ?' },
-  { key: 'colles', type: 'edt', icon: 'calendar', title: 'Ton emploi du temps', text: 'Cours, TD, TP et DS de la classe sont prêts. Les colles ne sont pas incluses : elles dépendent de chaque groupe.' }
+  { key: 'who', type: 'who', icon: 'calendar', title: 'Ton emploi du temps', text: 'Cours, TD, TP et DS de la classe sont prêts. Pour les colles, choisis le programme à reprendre (groupe et ordre de passage inclus).' }
 ];
 
 
 export async function startOnboarding() {
   if (document.querySelector('.ob-overlay')) return;
   const cfg = await getCaracSettings();
-  const draft = { sport: prefsNow().sport, gamify: prefsNow().gamify, hours: prefsNow().hours || DEFAULT_HOURS(), workPct: cfg.workPct, colles: false };
+  const draft = { sport: prefsNow().sport, gamify: prefsNow().gamify, hours: prefsNow().hours || DEFAULT_HOURS(), workPct: cfg.workPct, who: prefsNow().who };
   draft.hours = draft.hours.map(h => ({ ...h }));
   let i = 0;
   const overlay = el('div', { class: 'ob-overlay', role: 'dialog', 'aria-modal': 'true' });
   document.body.appendChild(overlay);
 
   const finish = async () => {
-    await savePrefs({ sport: draft.sport, gamify: draft.gamify, hours: draft.hours, colles: draft.colles, onboarded: true });
+    await savePrefs({ sport: draft.sport, gamify: draft.gamify, hours: draft.hours, colles: true, who: draft.who, onboarded: true });
     if (draft.workPct !== cfg.workPct) await saveCaracSettings({ workPct: draft.workPct }).catch(() => {});
     await recomputeCaracs().catch(() => {});
     await loadAll().catch(() => {});
@@ -58,10 +59,8 @@ export async function startOnboarding() {
       upd();
       return el('div', {}, [out, input, est, el('div', { class: 'ob-actions' }, [el('button', { class: 'btn primary', onclick: next }, 'Suivant')])]);
     }
-    return el('div', { class: 'ob-actions', style: 'flex-direction:column' }, [   // page 5
-      el('button', { class: 'btn primary', onclick: () => { draft.colles = false; next(); } }, 'Terminer'),
-      el('button', { class: 'btn ghost sm', onclick: () => { draft.colles = true; next(); } }, 'Garder mes colles (admin)')
-    ]);
+    return el('div', { class: 'ob-actions', style: 'flex-direction:column' }, Object.entries(COLLE_PROGRAMS).map(([id, p]) =>   // page 5 : Thomas ou Daphné
+      el('button', { class: 'btn primary', onclick: () => { draft.who = id; next(); } }, `${p.label} · groupe ${p.group}`)));
   };
 
   const paint = () => {

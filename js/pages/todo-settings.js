@@ -4,7 +4,7 @@ import { DAY_LABELS } from '../features/planning.js';
 import { loadCycle, purgeDisabledTodo, saveCycle, TODO_SUBJECTS } from '../features/todo.js';
 import { resetCycle } from '../features/todo-cycle.js';
 import { CATEGORY_LABEL, WORK_IDS } from '../features/competences.js';
-import { loadRecur, newRecurId, saveRecur } from '../features/todo-recur.js';
+import { loadRecur, newRecurId, saveRecur, weekParity } from '../features/todo-recur.js';
 import { todayKey } from '../core/dates.js';
 import { mondayOf, parseKey } from '../core/calendar.js';
 import { addBtn, el } from '../ui/helpers.js';
@@ -94,7 +94,7 @@ export async function renderTodoSettings(root) {
     const isOpen = open.has(r.id);
     const card = el('div', { class: 'ts-card' + (r.enabled ? '' : ' off') });
     const when = r.days.length ? r.days.map(d => DAY_SHORT[d - 1]).join(' ') : 'aucun jour';
-    const rhythm = r.every > 1 ? `toutes les ${r.every} sem.` : 'chaque semaine';
+    const rhythm = r.every === 2 && r.phase ? `semaine ${r.phase}` : r.every > 1 ? `toutes les ${r.every} sem.` : 'chaque semaine';
     card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(r.id) : open.add(r.id); draw(); } }, [
       el('span', { class: 'ts-ico', html: subjIcon(r.subj) }),
       el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, r.label)]), el('small', {}, `${when} · ${rhythm}`)]),
@@ -113,8 +113,12 @@ export async function renderTodoSettings(root) {
     }, l))));
     b.appendChild(el('div', { class: 'cy-line' }, [
       el('span', { class: 'cy-lab' }, 'Répéter'),
-      stepper(r.every, async (v) => { r.every = v; r.anchor = mondayOf(todayKey()); await saveR(); keepScroll(draw); }, { min: 1, max: 12, fmt: (v) => v === 1 ? 'chaque sem.' : `${v} sem.` })
+      stepper(r.every, async (v) => { r.every = v; r.anchor = mondayOf(todayKey()); r.phase = v === 2 ? (r.phase || weekParity(mondayOf(todayKey()))) : null; await saveR(); keepScroll(draw); }, { min: 1, max: 12, fmt: (v) => v === 1 ? 'chaque sem.' : `${v} sem.` })
     ]));
+    if (r.every === 2) {   // une semaine sur deux : choix de la semaine A ou B (la semaine en cours est indiquée)
+      b.appendChild(el('div', { class: 'ts-sub' }, `Quelle semaine ? (actuelle : ${weekParity(mondayOf(todayKey()))})`));
+      b.appendChild(el('div', { class: 'td-pick' }, ['A', 'B'].map(ph => el('button', { type: 'button', class: 'pl-seg' + (r.phase === ph ? ' active' : ''), onclick: async () => { r.phase = ph; await saveR(); keepScroll(draw); } }, `Semaine ${ph}`))));
+    }
     b.appendChild(el('div', { class: 'ts-sub' }, 'Matière'));
     b.appendChild(el('div', { class: 'td-pick' }, TODO_SUBJECTS.map(s => el('button', { type: 'button', class: 'pl-seg' + (r.subj === s.id ? ' active' : ''), onclick: async () => { r.subj = s.id; await saveR(); keepScroll(draw); } }, s.label))));
     b.appendChild(el('div', { class: 'cy-line' }, [

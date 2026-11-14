@@ -2,9 +2,10 @@
 // Chaque boîte = titre + note projetée, puis une barre par sous-matière (titre seul). Seule exception : Verbe garde
 // le temps d'Anglais et de Français. Tout vient de projectCurrentWeek() (caracs.js), le même calcul que l'historique.
 // extras = { <idCarac>: nœud DOM } : contrôles ajoutés en bas d'une boîte.
-import { CARACS, projectCurrentWeek } from '../features/caracs.js';
+import { CARACS, activeCaracs, projectCurrentWeek } from '../features/caracs.js';
 import { SUBJECTS, formatHours, formatMinutes } from '../features/work.js';
 import { CATEGORY_LABEL } from '../features/competences.js';
+import { gamifyOn } from '../features/prefs.js';
 import { el } from '../ui/helpers.js';
 import { COLORS, iconHtml } from '../ui/icons.js';
 
@@ -12,7 +13,7 @@ import { COLORS, iconHtml } from '../ui/icons.js';
 const PICON = { volume: 'run', regularite: 'calendar', heures: 'stopwatch', quetes: 'trophy', todo: 'check', sommeil: 'moon' };
 
 const ORDER = ['dex', 'disc', 'math', 'phys', 'si', 'verb'];
-const LABEL = { volume: 'Sorties', regularite: 'Régularité', heures: 'Heures de travail', quetes: 'Quêtes tenues', todo: 'To-do faite', sommeil: 'Sommeil avant 23h30' };
+const LABEL = { volume: 'Sorties', regularite: 'Régularité', heures: 'Heures de travail', quetes: 'Quêtes tenues', todo: 'To-do faite', sommeil: 'Sommeil à l’heure' };
 const f1 = (n) => n.toFixed(1).replace('.', ',');
 const clampPct = (x) => Math.max(0, Math.min(100, x));
 
@@ -51,8 +52,10 @@ function partEl(c) {
 
 export async function renderCaracPanels(root, extras = {}) {
   root.replaceChildren();
+  root.classList.toggle('no-note', !gamifyOn());   // sans gamification : pas de note, barres seules
   const proj = await projectCurrentWeek();
-  for (const id of ORDER) {
+  const shown = new Set(activeCaracs().map(x => x.id));
+  for (const id of ORDER.filter(x => shown.has(x))) {
     const c = CARACS.find(x => x.id === id), p = proj[id];
     const dd = Math.round(p.projected * 10) / 10 - Math.round(p.current * 10) / 10;   // même arrondi que l'affichage
     const delta = dd > 0.04 ? `<span class="hn-delta up">${iconHtml('up')}+${f1(dd)}</span>` : dd < -0.04 ? `<span class="hn-delta down">${iconHtml('down')}${f1(dd)}</span>` : '<span class="hn-delta eq">=</span>';

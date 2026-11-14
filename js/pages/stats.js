@@ -2,6 +2,7 @@
 import { todayKey, weekKey } from '../core/dates.js';
 
 import { State } from '../core/state.js';
+import { sportOn } from '../features/prefs.js';
 
 import { formatDuration } from '../features/gpx.js';
 
@@ -72,6 +73,7 @@ export function renderStats(root) {
     <div class="rec-row"><div class="rec-left"><span class="rec-icon">${iconHtml('calendar')}</span><span class="rec-label">Plus grosse semaine</span></div><div class="rec-value">${bestWeekMin > 0 ? (bestWeekMin/60).toFixed(1) + 'h' : '—'}</div></div>
   `}));
 
+  if (sportOn()) {   // sans sport : ni statistiques ni records sportifs
   // Sport — refonte complète : focus sur les métriques runner
   const totalKm = acts.reduce((s, a) => s + (a.distanceKm || 0), 0);
   const totalDplus = acts.reduce((s, a) => s + (a.elevGain || 0), 0);
@@ -120,6 +122,7 @@ export function renderStats(root) {
     `;
   }
   page.appendChild(el('div', { class: 'card mb-3', html: recsHtml }));
+  }
 
   root.appendChild(page);
 
@@ -186,7 +189,7 @@ export function renderStatsCharts(logs, acts) {
   renderSubjectsDonut(logs);
 
   // Sport : courbe VO2max
-  renderVO2maxChart(acts);
+  if (sportOn()) renderVO2maxChart(acts);
 }
 
 // Courbe d'évolution du VO2max (extraite de chaque sortie chronométrée).

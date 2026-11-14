@@ -10,6 +10,7 @@ import { iconHtml } from '../ui/icons.js';
 import { navigate, render } from '../ui/router.js';
 import { renderCaracsCard } from './caracs-card.js';
 import { renderCaracPanels } from './skills-panels.js';
+import { gamifyOn } from '../features/prefs.js';
 
 export function greeting() {
   const h = new Date().getHours();
@@ -50,7 +51,7 @@ export function renderHome(root) {
   ]));
 
   // Deux blocs côte à côte : niveau (dégradé) et prochaine échéance, puis le graphique en dessous.
-  const top = el('div', { class: 'home-top' });
+  const top = el('div', { class: 'home-top' + (gamifyOn() ? '' : ' no-gam') });
   fit.appendChild(top);
 
   const card = (cls, label, right, big, pct, sub1, sub2) => el('div', { class: `card hm-card ${cls}`, html: `
@@ -59,7 +60,8 @@ export function renderHome(root) {
     <div class="hm-meter">${progressBar(pct, 8)}</div>
     <div class="hm-subs"><div class="hm-sub">${sub1}</div><div class="hm-sub mute">${sub2}</div></div>` });
 
-  top.appendChild(card('hm-level', 'Niveau', `${p.totalXp} XP`,
+  const gam = gamifyOn();   // gamification désactivée : ni niveau ni toile, seulement l'échéance et les barres de compétences
+  if (gam) top.appendChild(card('hm-level', 'Niveau', `${p.totalXp} XP`,
     `<span style="color:var(--accent)">${li.level}</span><span class="hm-of"> / ${MAX_LEVEL}</span>`, li.progress,
     li.max ? 'Niveau maximum atteint' : `${li.xpInLevel} / ${li.xpToNext} XP`,
     li.max ? '&nbsp;' : `Niv. ${li.level + 1} dans ${li.xpToNext - li.xpInLevel} XP`));
@@ -72,13 +74,13 @@ export function renderHome(root) {
       `<span style="color:${urg};font-weight:700">J-${nextExam.days}</span> avant échéance`,
       nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)));
   } else {
-    top.firstChild.classList.add('full');
+    top.firstChild?.classList.add('full');
   }
 
   // Caractéristiques hebdomadaires (recalculées à la clôture de chaque semaine)
   const caracsBox = el('div', { class: 'home-radar' });
-  fit.appendChild(caracsBox);
-  renderCaracsCard(caracsBox).catch(err => console.error('Caracs card failed', err));
+  if (gam) { fit.appendChild(caracsBox); renderCaracsCard(caracsBox).catch(err => console.error('Caracs card failed', err)); }
+  else { fit.classList.add('no-gam'); top.firstChild?.classList.add('full'); }
 
   // Compétences : une carte par caractéristique, sous la toile
   const skills = el('div', { class: 'hebdo-notes home-skills' });

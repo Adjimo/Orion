@@ -1,8 +1,10 @@
 // Page Quêtes
+import { addDays } from '../core/calendar.js';
 import { dayKeyFromDate, formatDate, prevWeekKey, todayKey, weekKey, weekStartDate } from '../core/dates.js';
 import { GHOST_BEFORE, dbAll, dbGet } from '../core/db.js';
 
 import { State } from '../core/state.js';
+import { bedLabelFor, sportOn } from '../features/prefs.js';
 
 import { PENALTIES_START, arePenaltiesActive, cancelExcuse, excuseQuestWeek, getMalusExcuses, setSubjectMinutesSmart } from '../features/penalties.js';
 import { recomputeAutoQuests } from '../features/quests.js';
@@ -90,7 +92,7 @@ export async function renderDayDashboard(root, afterRender) {
   const wi = computeWorkXp(actualMinutes, goalHours);
   const progress = goalHours > 0 ? Math.min(1, actualMinutes / (goalHours * 60)) : 0;
   // On affiche le sport du jour pour required ET weekend (sortie longue flexible).
-  const showSport = isToday && (todayPlan.sport === 'required' || todayPlan.sport === 'weekend');
+  const showSport = sportOn() && isToday && (todayPlan.sport === 'required' || todayPlan.sport === 'weekend');
   const todayActs = State.activities.filter(a => a.date.slice(0, 10) === dateKey);
   const sportDone = todayActs.length > 0;
 
@@ -120,7 +122,7 @@ export async function renderDayDashboard(root, afterRender) {
       <div class="block sleep ${slept ? 'done' : ''}">
         <div class="block-icon">${iconHtml('moon')}</div>
         <div class="block-body">
-          <div class="block-title">Couché avant 23h30</div>
+          <div class="block-title">Couché avant ${bedLabelFor(addDays(dateKey, -1))}</div>
           <div class="dim text-xs">${isToday ? 'Hier soir' : 'La veille de ce jour'} · alimente la Discipline</div>
         </div>
         <button class="btn sm ${slept ? '' : 'ghost'}" id="sleep-toggle">${slept ? iconHtml('tick') + ' Oui' : 'Cocher'}</button>

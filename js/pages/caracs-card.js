@@ -1,19 +1,20 @@
 // Carte « Caractéristiques » (page Accueil) : toile d'araignée SVG, sans dépendance.
 // Un appui sur un sommet (point, icône) affiche un mini détail à côté de ce sommet.
 // La carte se peint tout de suite depuis un cache (préchargé par le routeur) : pas de saut de mise en page.
-import { CARACS, getCaracSettings, loadCaracHistory } from '../features/caracs.js';
+import { activeCaracs, getCaracSettings, loadCaracHistory } from '../features/caracs.js';
 import { el, escapeHtml } from '../ui/helpers.js';
 import { COLORS, iconHtml } from '../ui/icons.js';
 import { State } from '../core/state.js';
 
 // Échelle du graphe : 0 → 20 (anneau extérieur = 20) ; une valeur au-delà est écrêtée au bord.
 const SIZE = 320, C = SIZE / 2, RMAX = 20, R_OUT = 126, ICON_R = 144;
+const LIST = () => activeCaracs();   // 6 branches avec sport, 5 sans
 const polar = (i, v) => {
-  const a = (-90 + i * 60) * Math.PI / 180, r = R_OUT * Math.min(RMAX, Math.max(0, v)) / RMAX;
+  const a = (-90 + i * 360 / LIST().length) * Math.PI / 180, r = R_OUT * Math.min(RMAX, Math.max(0, v)) / RMAX;
   return [C + r * Math.cos(a), C + r * Math.sin(a)];
 };
-const pts = (vals) => CARACS.map((c, i) => polar(i, vals[c.id]).map(n => n.toFixed(1)).join(',')).join(' ');
-const ring = (v) => CARACS.map((_, i) => polar(i, v).map(n => n.toFixed(1)).join(',')).join(' ');
+const pts = (vals) => LIST().map((c, i) => polar(i, vals[c.id]).map(n => n.toFixed(1)).join(',')).join(' ');
+const ring = (v) => LIST().map((_, i) => polar(i, v).map(n => n.toFixed(1)).join(',')).join(' ');
 const COMP_LABEL = { volume: 'Volume', regularite: 'Régularité', heures: 'Heures', quetes: 'Quêtes', todo: 'To-do', sommeil: 'Sommeil' };
 const f1 = (n) => n.toFixed(1).replace('.', ',');
 // Le chiffre prend toujours la couleur exacte de l'icône (source unique : COLORS dans icons.js).
@@ -44,12 +45,12 @@ function paint(card, { hist, cfg }, ctl) {
   }
 
   const rings = [5, 10, 15, 20].map(v => `<polygon points="${ring(v)}" class="cr-ring"/>`).join('');
-  const axes = CARACS.map((_, i) => { const [x, y] = polar(i, RMAX); return `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="cr-axis"/>`; }).join('');
+  const axes = LIST().map((_, i) => { const [x, y] = polar(i, RMAX); return `<line x1="${C}" y1="${C}" x2="${x.toFixed(1)}" y2="${y.toFixed(1)}" class="cr-axis"/>`; }).join('');
   const ghost = old ? `<polygon points="${pts(old.values)}" class="cr-ghost"/>` : '';
-  const dots = CARACS.map((c, i) => { const [x, y] = polar(i, last.values[c.id]); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${colorOf(c)}" class="cr-dot"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="18" fill="transparent" data-i="${i}" class="cr-hit"/>`; }).join('');
-  const icons = CARACS.map((c, i) => {
-    const a = (-90 + i * 60) * Math.PI / 180;
-    const side = (i === 4 || i === 5) ? 'l' : 'r';          // la valeur s'écrit du côté extérieur de l'icône
+  const dots = LIST().map((c, i) => { const [x, y] = polar(i, last.values[c.id]); return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="5" fill="${colorOf(c)}" class="cr-dot"/><circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="18" fill="transparent" data-i="${i}" class="cr-hit"/>`; }).join('');
+  const icons = LIST().map((c, i) => {
+    const a = (-90 + i * 360 / LIST().length) * Math.PI / 180;
+    const side = Math.cos(a) < -0.05 ? 'l' : 'r';          // la valeur s'écrit du côté extérieur de l'icône
     return `<span class="cr-ico" data-i="${i}" style="left:${((C + ICON_R * Math.cos(a)) / SIZE * 100).toFixed(2)}%;top:${((C + ICON_R * Math.sin(a)) / SIZE * 100).toFixed(2)}%">${iconHtml(c.icon)}<span class="cr-val ${side}" style="color:${colorOf(c)}">${Math.round(last.values[c.id])}</span></span>`;
   }).join('');
   // Déploiement joué une fois par navigation (pas à chaque rafraîchissement de la page).
@@ -67,7 +68,7 @@ function paint(card, { hist, cfg }, ctl) {
   const show = (i) => {
     if (openI === i) return hide();
     openI = i;
-    const c = CARACS[i], v = last.values[c.id], d = prev ? v - prev.values[c.id] : null;
+    const c = LIST()[i], v = last.values[c.id], d = prev ? v - prev.values[c.id] : null;
     const parts = last.details[c.id].filter(x => x.score != null).map(x => `${COMP_LABEL[x.key] || x.key} ${f1(x.score)}`).join(' · ');
     tip.innerHTML = `<div class="cr-tip-title" style="color:${colorOf(c)}">${iconHtml(c.icon)} <strong>${c.label}</strong> ${Math.round(v)} ${d == null ? '' : arrow(d)}</div>`
       + `<div class="cr-tip-line">Semaine : ${f1(last.scores[c.id])} / ${cfg.scoreCap}${d == null ? '' : ` · ${d >= 0 ? '+' : ''}${f1(d)}`}</div>`

@@ -12,14 +12,17 @@ export function renderProfileSections(page) {
   const p = State.profile;
 
   // Rappels
-  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('bell') + ' Rappels' }));
-  const remCard = el('div', { class: 'card mb-4' });
-  page.appendChild(remCard);
+  const fold = (icon, title) => {
+    const d = el('details', { class: 'card mb-3 cs-fold opt-fold' }, [el('summary', { class: 'cs-fold-head', html: iconHtml(icon) + `<span>${title}</span>` })]);
+    const body = el('div', { class: 'opt-fold-body' });
+    d.appendChild(body); page.appendChild(d);
+    return body;
+  };
+  const remCard = fold('bell', 'Rappels');
   renderRemindersCard(remCard);
 
   // Sauvegarde
-  page.appendChild(el('h3', { class: 'mb-2', html: iconHtml('disk') + ' Sauvegarde' }));
-  const saveCard = el('div', { class: 'card mb-4' });
+  const saveCard = fold('disk', 'Sauvegarde');
   saveCard.innerHTML = `
     <div class="save-actions">
       <button class="btn-gpx" id="btn-export">
@@ -35,7 +38,6 @@ export function renderProfileSections(page) {
     <div class="dim text-xs mt-3" id="auto-backup-info">Chargement…</div>
     <div class="dim text-xs mt-3" id="storage-info"></div>
   `;
-  page.appendChild(saveCard);
   setTimeout(async () => {
     saveCard.querySelector('#btn-export').addEventListener('click', exportData);
     saveCard.querySelector('#import-file').addEventListener('change', onImportFile);
@@ -71,6 +73,6 @@ export function renderProfileSections(page) {
   page.appendChild(el('div', {
     class: 'dim text-xs mt-5',
     style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);'
-  }, `Orion v${APP_VERSION}`));
+  }, `DailyUp v${APP_VERSION}`));
 
 }

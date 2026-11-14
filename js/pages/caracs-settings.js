@@ -1,14 +1,10 @@
-// Réglages des caractéristiques (page Options) : poids de l'historique, objectifs d'heures,
-// échelle des scores, pondérations (Dextérité, Discipline) et cas particuliers.
+// Dépliant « Objectifs » (page Options) : part du temps libre travaillée et part par matière.
+// Poids de l'historique, échelle des scores, pondérations et cas particuliers sont fixes (voir getCaracSettings).
 // Toute validation passe par saveCaracSettings() : recalcul complet de l'historique.
-import { CARACS, DEFAULT_SETTINGS, getCaracSettings, saveCaracSettings } from '../features/caracs.js';
+import { DEFAULT_SETTINGS, getCaracSettings, saveCaracSettings } from '../features/caracs.js';
 import { el, showToast } from '../ui/helpers.js';
+import { iconHtml } from '../ui/icons.js';
 
-// Libellés des parts pondérées (seules la Dextérité et la Discipline ont plusieurs parts).
-const PART_LABELS = {
-  dex:  { volume: 'Volume (sorties de la semaine)', regularite: 'Régularité (4 dernières semaines)' },
-  disc: { quetes: 'Quêtes', todo: 'To-do (éléments faits)', sommeil: 'Sommeil (nuits avant 23h30)' }
-};
 // Répartition du travail entre matières (poids en %, normalisés) ; l'objectif en heures vient du temps libre × % de travail.
 const SUBJECT_LABELS = { maths: 'Maths', physique: 'Physique', si: 'SI / Info', langues: 'Anglais', francais: 'Français' };
 
@@ -34,18 +30,10 @@ function group(title, children, open = false) {
 export async function renderCaracsSettings(root, forceOpen = false) {
   const cfg = await getCaracSettings();
   const wasOpen = forceOpen || root.querySelector('.cs-fold')?.hasAttribute('open');
-  const fold = el('details', { class: 'card mb-4 cs-fold' }, [el('summary', { class: 'cs-fold-head' }, 'Caractéristiques et objectifs')]);
+  const fold = el('details', { class: 'card mb-3 cs-fold opt-fold' }, [el('summary', { class: 'cs-fold-head', html: iconHtml('target') + '<span>Objectifs</span>' })]);
   if (wasOpen) fold.setAttribute('open', '');
   const card = el('div', { class: 'cs-card' });
   fold.appendChild(card);
-
-  card.appendChild(el('div', { class: 'dim text-xs mb-3' },
-    'Ces valeurs pilotent le calcul des 6 caractéristiques. À la validation, tout l\'historique est recalculé depuis le 1er septembre ; l\'XP, les malus et tes données ne sont jamais modifiés.'));
-
-  card.appendChild(group('Historique', [
-    field('Poids de l\'historique', 'cs-alpha', Math.round(cfg.alpha * 100), { max: 100, unit: '%' }),
-    el('div', { class: 'cs-hint' }, 'Part de la valeur précédente dans la nouvelle valeur ; le reste vient du score de la semaine.')
-  ]));
 
   card.appendChild(group('Objectifs de travail', [
     field('Part du temps libre travaillée', 'cs-pct', cfg.workPct, { min: 10, max: 100, step: 5, unit: '%' }),
@@ -54,40 +42,10 @@ export async function renderCaracsSettings(root, forceOpen = false) {
     el('div', { class: 'cs-hint' }, 'Répartition du travail entre matières (normalisée si le total n\'est pas 100). Par défaut : proportions des anciens objectifs.')
   ]));
 
-  card.appendChild(group('Échelle des scores', [
-    field('Rien de fait', 'cs-zero', cfg.scoreZero, { min: 0, max: 10, step: 0.5 }),
-    field('Objectif atteint', 'cs-goalscore', cfg.goalScore, { min: 5, max: 20, step: 0.5 }),
-    field('Objectif dépassé de 25 %', 'cs-over', cfg.overScore, { min: 5, max: 20, step: 0.5 }),
-    el('div', { class: 'cs-hint' }, 'Échelle façon D&D : moyen 8 à 12, bon à partir de 15, très bon 17 à 20, mauvais sous 7. Le score maximum est 20.')
-  ]));
-
-  const wBody = [];
-  for (const id of Object.keys(PART_LABELS)) {
-    wBody.push(el('div', { class: 'cs-sub' }, CARACS.find(c => c.id === id).label));
-    for (const p of Object.keys(PART_LABELS[id])) wBody.push(field(PART_LABELS[id][p], `cs-w-${id}-${p}`, cfg.weights[id][p], { max: 100, unit: '%' }));
-  }
-  wBody.push(el('div', { class: 'cs-hint' }, 'Maths, Physique, SI / Info et Verbe : 100 % heures de travail. Si le total n\'est pas 100, les parts sont normalisées.'));
-  card.appendChild(group('Pondérations (%)', wBody));
-
-  card.appendChild(group('Cas particuliers', [
-    el('label', { class: 'cs-row' }, [
-      el('span', { class: 'cs-label' }, 'Proratiser la 1re semaine partielle'),
-      el('span', { class: 'cs-input' }, [el('input', { id: 'cs-prorate', type: 'checkbox', checked: cfg.prorateFirstWeek ? 'checked' : null })])
-    ]),
-    el('div', { class: 'cs-hint' }, 'Semaine du 31/08 (comptée du 01/09) : objectifs d\'heures, de sorties et de nuits ramenés aux jours comptés.'),
-    el('label', { class: 'cs-row' }, [
-      el('span', { class: 'cs-label' }, 'Neutraliser les semaines justifiées'),
-      el('span', { class: 'cs-input' }, [el('input', { id: 'cs-excused', type: 'checkbox', checked: cfg.neutralizeExcused ? 'checked' : null })])
-    ]),
-    el('div', { class: 'cs-hint' }, 'Quêtes justifiées (maladie…) : ignorées dans la Discipline ; sorties justifiées : Dextérité inchangée cette semaine-là.')
-  ]));
 
   const save = async () => {
     const q = (id) => num(card.querySelector('#' + id).value);
-    const patch = { subjectWeights: {}, weights: {} };
-    const alpha = q('cs-alpha');
-    if (isNaN(alpha) || alpha < 0 || alpha > 100) return bad('Poids de l\'historique entre 0 et 100.');
-    patch.alpha = alpha / 100;
+    const patch = { subjectWeights: {} };
     const pct = q('cs-pct');
     if (isNaN(pct) || pct < 10 || pct > 100) return bad('Part du temps libre entre 10 et 100 %.');
     patch.workPct = pct;
@@ -98,36 +56,16 @@ export async function renderCaracsSettings(root, forceOpen = false) {
       patch.subjectWeights[k] = v; swTotal += v;
     }
     if (swTotal <= 0) return bad('Au moins une matière doit avoir un poids supérieur à 0.');
-    const z = q('cs-zero'), gs = q('cs-goalscore'), ov = q('cs-over');
-    if (isNaN(z) || isNaN(gs) || isNaN(ov) || z < 0 || z >= gs || gs >= ov || ov > DEFAULT_SETTINGS.scoreCap) return bad('Échelle : rien de fait < objectif atteint < objectif dépassé ≤ 20.');
-    patch.scoreZero = z; patch.goalScore = gs; patch.overScore = ov;
-    for (const id of Object.keys(PART_LABELS)) {
-      patch.weights[id] = {};
-      let total = 0;
-      for (const p of Object.keys(PART_LABELS[id])) {
-        const v = q(`cs-w-${id}-${p}`);
-        if (isNaN(v) || v < 0) return bad('Pondération invalide.');
-        patch.weights[id][p] = v; total += v;
-      }
-      if (total <= 0) return bad('Au moins une pondération doit être supérieure à 0.');
-    }
-    patch.prorateFirstWeek = card.querySelector('#cs-prorate').checked;
-    patch.neutralizeExcused = card.querySelector('#cs-excused').checked;
     await saveCaracSettings(patch);
     await (await import('../features/seed.js')).loadAll();
     showToast({ type: 'xp', icon: 'check', title: 'Caractéristiques recalculées', text: 'Réglages enregistrés.' }, 3000);
   };
   const reset = async () => {
     if (!confirm('Rétablir tous les réglages par défaut et recalculer les caractéristiques ?')) return;
-    await saveCaracSettings({
-      alpha: DEFAULT_SETTINGS.alpha, hoursGoal: { ...DEFAULT_SETTINGS.hoursGoal },
-      workPct: DEFAULT_SETTINGS.workPct, subjectWeights: { ...DEFAULT_SETTINGS.subjectWeights },
-      prorateFirstWeek: DEFAULT_SETTINGS.prorateFirstWeek, neutralizeExcused: DEFAULT_SETTINGS.neutralizeExcused,
-      scoreZero: DEFAULT_SETTINGS.scoreZero, goalScore: DEFAULT_SETTINGS.goalScore, overScore: DEFAULT_SETTINGS.overScore,
-      weights: JSON.parse(JSON.stringify(DEFAULT_SETTINGS.weights))
-    });
-    fold.remove();
+    await saveCaracSettings({ workPct: DEFAULT_SETTINGS.workPct, subjectWeights: { ...DEFAULT_SETTINGS.subjectWeights } });
+    const nx = fold.nextSibling; fold.remove();
     await renderCaracsSettings(root, true);
+    if (nx) root.insertBefore(root.lastChild, nx);
     showToast({ type: 'xp', icon: 'check', title: 'Réglages par défaut', text: 'Caractéristiques recalculées.' }, 3000);
   };
   const bad = (text) => showToast({ type: 'err', title: 'Valeur invalide', text }, 3500);

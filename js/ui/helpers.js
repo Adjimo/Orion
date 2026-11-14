@@ -41,3 +41,8 @@ export function progressBar(value, height = 10) {
   const w = Math.min(100, Math.max(0, value * 100));
   return `<div class="progress" style="height:${height}px;"><div class="fill" style="width:${w}%;"></div></div>`;
 }
+
+// Bouton d'ajout unique de l'app : pointillés cuivre + pastille « + » (celui de la to-do). À utiliser partout où l'on ajoute un élément.
+export function addBtn(label, onclick, extra = '') {
+  return el('button', { type: 'button', class: ('add-btn ' + extra).trim(), onclick }, [el('span', { class: 'add-plus' }, '+'), ' ' + label]);
+}

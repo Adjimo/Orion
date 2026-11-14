@@ -2,13 +2,13 @@
 import { mondayOf, parseKey } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { DAY_LABELS } from '../features/planning.js';
-import { TODO_SUBJECTS, addTodo, availableCatalog, ensureTodo, hasTodo, loadWeekTodo, removeTodo, toggleTodo } from '../features/todo.js';
-import { el } from './helpers.js';
+import { OTHER_SUBJECT, TODO_SUBJECTS, addTodo, availableCatalog, ensureTodo, hasTodo, loadWeekTodo, removeTodo, toggleTodo } from '../features/todo.js';
+import { addBtn, el } from './helpers.js';
 import { iconHtml, subjClass } from './icons.js';
 
 // Couleur de chaque matière = celle de son icône (maths = sigma, physique = atome…).
 
-const subjLabel = (id) => TODO_SUBJECTS.find(s => s.id === id)?.label || '';
+const subjLabel = (id) => [...TODO_SUBJECTS, OTHER_SUBJECT].find(s => s.id === id)?.label || '';
 const fmtShort = (k) => parseKey(k).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' });
 const isoDay = (dateKey) => parseKey(dateKey).getDay() || 7;
 
@@ -54,7 +54,7 @@ export async function renderDayTodo(root, dateKey) {
   else if (!mine.length) box.appendChild(el('div', { class: 'pl-note' }, 'Rien de prévu : journée libre.'));
   mine.sort((a, b) => (a.ord || 0) - (b.ord || 0)).forEach(it => box.appendChild(itemRow(it, { editable, showSubj: true }, change)));
   root.appendChild(box);
-  if (editable && hasTodo(monday)) root.appendChild(el('button', { class: 'add-btn pl-add', onclick: () => openTodoPicker(monday, day, false, rerender), html: '<span class="add-plus">+</span> Ajouter à ce jour' }));
+  if (editable && hasTodo(monday)) root.appendChild(addBtn('Ajouter à ce jour', () => openTodoPicker(monday, day, false, rerender), 'pl-add'));
 }
 
 // ── To-do de la semaine (page Hebdo) ─────────────────────────────────────────
@@ -82,10 +82,10 @@ function openTodoPicker(monday, day, withDayChoice, onClose) {
     }
     body.appendChild(el('div', { class: 'td-pick-head' }, 'Autre'));
     body.appendChild(inFree);
-    body.appendChild(el('button', { class: 'add-btn', onclick: async () => {
+    body.appendChild(addBtn('Ajouter', async () => {
       const v = inFree.value.trim(); if (!v) return;
       await addTodo(monday, 'autre', null, v, curDay); inFree.value = ''; fill();
-    }, html: '<span class="add-plus">+</span> Ajouter' }));
+    }));
   };
   overlay.appendChild(el('div', { class: 'gpx-preview-modal' }, [
     el('div', { class: 'gpx-preview-head' }, [

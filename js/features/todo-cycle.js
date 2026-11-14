@@ -5,57 +5,54 @@
 //                (points restants du tour en cours ÷ semaines de to-do restantes).
 // Par défaut : Maths et Physique, repris de todo-data.js (rien n'est perdu).
 import { dbGet, dbPut } from '../core/db.js';
-import { DEFAULT_CYCLE_DAYS, TODO_BUDGET, TODO_CATALOG, TODO_FIXED_SUBJECTS, TODO_SUBJECTS } from './todo-data.js';
+import { WORK_IDS, WORK_SUBJECTS } from './competences.js';
+import { CYCLE_OFF_BY_DEFAULT, DEFAULT_CYCLE_DAYS, TODO_BUDGET, TODO_CATALOG } from './todo-data.js';
 
 const KEY = 'todoCycle';
 let cache = null;
 
+const labelOf = (id) => WORK_SUBJECTS.find(s => s.id === id)?.label || id;
+
 export function defaultCycle() {
-  const lab = { maths: 'Maths', physique: 'Physique', anglais: 'Anglais', francais: 'Français' };
   return {
-    v: 2,
-    subjects: Object.keys(TODO_CATALOG).map(id => ({
-      id, label: lab[id] || id, budgetMode: 'points', budget: TODO_BUDGET[id] || 10, endDate: null,
-      items: TODO_CATALOG[id].map(c => ({ name: c.name, w: c.w }))
+    v: 3,
+    subjects: WORK_IDS.map(id => ({
+      id, label: labelOf(id), budgetMode: 'points', budget: TODO_BUDGET[id] || 3, endDate: null,
+      enabled: !CYCLE_OFF_BY_DEFAULT.includes(id),
+      items: (TODO_CATALOG[id] || []).map(c => ({ name: c.name, w: c.w, enabled: true }))
     }))
   };
 }
 
+// Les cycles sont ceux des matières de catégorie « travail » (competences.js) : Maths, Physique, SI / Info, Anglais, Français.
+// Chaque cycle et chaque élément a un interrupteur (`enabled`) ; un élément désactivé reste dans la liste mais n'est plus généré.
 function clean(v) {
   const base = v && Array.isArray(v.subjects) ? v : defaultCycle();
-  // Migration v2 : anglais et français deviennent des matières à cycle (ajoutées une seule fois ; supprimables ensuite).
-  if ((base.v || 1) < 2) {
-    const def = defaultCycle().subjects;
-    for (const id of ['anglais', 'francais']) if (!base.subjects.some(s => s.id === id)) base.subjects.push(def.find(s => s.id === id));
-  }
+  const def = defaultCycle().subjects;
+  const byId = new Map(base.subjects.map(s => [String(s.id), s]));
+  // Migration v3 : toutes les matières de travail ont leur cycle (SI / Info ajouté désactivé et vide) ; les autres matières disparaissent.
+  const subjects = WORK_IDS.map(id => byId.get(id) || def.find(d => d.id === id));
   return {
-    v: 2,
-    subjects: base.subjects.map(s => ({
-      id: String(s.id), label: String(s.label || 'Matière'),
+    v: 3,
+    subjects: subjects.map(s => ({
+      id: String(s.id), label: labelOf(String(s.id)),
       budgetMode: 'points', enabled: s.enabled !== false,
       days: [...new Set((s.days && s.days.length ? s.days : DEFAULT_CYCLE_DAYS[s.id] || [1, 2, 3, 4, 5, 6, 7]).map(Number).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b),
       budget: Math.max(1, Number(s.budget) || 10), endDate: null,
-      items: (s.items || []).filter(i => i && String(i.name || '').trim()).map(i => ({ name: String(i.name).trim(), w: Math.max(1, Math.round(Number(i.w) || 1)) }))
+      items: (s.items || []).filter(i => i && String(i.name || '').trim()).map(i => ({ name: String(i.name).trim(), w: Math.max(1, Math.round(Number(i.w) || 1)), enabled: i.enabled !== false }))
     }))
   };
 }
 
-// Garde la liste des matières (libellés des cases et du récapitulatif) en phase avec le cycle.
-function syncSubjects() {
-  TODO_SUBJECTS.splice(0, TODO_SUBJECTS.length, ...cache.subjects.map(s => ({ id: s.id, label: s.label })), ...TODO_FIXED_SUBJECTS.filter(f => !cache.subjects.some(s => s.id === f.id)));
-}
-
 export async function loadCycle() {
-  if (!cache) { cache = clean((await dbGet('meta', KEY))?.value); syncSubjects(); }
+  if (!cache) cache = clean((await dbGet('meta', KEY))?.value);
   return cache;
 }
-export const cycleNow = () => cache || (cache = clean(null), syncSubjects(), cache);
+export const cycleNow = () => cache || (cache = clean(null));
 
 export async function saveCycle(cfg) {
   cache = clean(cfg);
-  syncSubjects();
   await dbPut('meta', { key: KEY, value: cache });
   return cache;
 }
 export async function resetCycle() { return saveCycle(defaultCycle()); }
-export const newSubjectId = () => 'c' + Date.now().toString(36);

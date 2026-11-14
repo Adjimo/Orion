@@ -4,6 +4,7 @@
 import { dbGet, dbPut } from '../core/db.js';
 import { mondayOf, parseKey } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
+import { WORK_IDS } from './competences.js';
 import { ANGLAIS_FIXED, DEFAULT_VOCAB_DAYS, SI_LABEL } from './todo-data.js';
 
 const KEY = 'todoRecur';
@@ -26,7 +27,7 @@ function clean(v) {
   return {
     v: 1,
     items: base.items.map(r => ({
-      id: String(r.id), label: String(r.label || 'Élément'), subj: String(r.subj || 'autre'),
+      id: String(r.id), label: String(r.label || 'Élément'), subj: WORK_IDS.includes(String(r.subj)) ? String(r.subj) : WORK_IDS[0],   // matière = une matière de travail
       days: [...new Set((r.days || []).map(Number).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b),
       every: Math.max(1, Math.min(12, Math.round(Number(r.every) || 1))), anchor: r.anchor || mondayOf(todayKey()),
       enabled: r.enabled !== false, noCarry: r.noCarry !== false, cond: r.cond || null, legacyKey: r.legacyKey || null

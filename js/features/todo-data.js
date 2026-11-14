@@ -1,15 +1,11 @@
 // Catalogue par défaut de la to-do hebdomadaire (cycles, éditables dans l'onglet To-do).
 // Physique : cycle dans l'ordre de la liste (EM8 = 12 pts, gros chapitre, seul dans sa semaine).
 
-// Matières fixes (SI, autre, et anglais / français tant qu'ils n'ont pas de cycle) ; les matières à cycle (maths, physique, anglais, français et celles de l'utilisateur)
-// viennent de todo-cycle.js, qui tient TODO_SUBJECTS à jour.
-export const TODO_FIXED_SUBJECTS = [
-  { id: 'anglais',  label: 'Anglais' },
-  { id: 'francais', label: 'Français' },
-  { id: 'si',       label: 'SI / Info' },
-  { id: 'autre',    label: 'Autre' }
-];
-export const TODO_SUBJECTS = [...TODO_FIXED_SUBJECTS];   // remplacé par les matières du cycle + les fixes absentes (todo-cycle.js)
+// Matières de la to-do = matières de catégorie « travail » des compétences (Maths, Physique, SI / Info, Anglais, Français), voir competences.js.
+// Les éléments libres (ajoutés à la main) portent la matière interne « autre », affichée « Autre ».
+import { WORK_SUBJECTS } from './competences.js';
+export const TODO_SUBJECTS = WORK_SUBJECTS.map(s => ({ id: s.id, label: s.label }));
+export const OTHER_SUBJECT = { id: 'autre', label: 'Autre' };
 
 // Valeurs par défaut du cycle (chapitres avec poids ; budget en points par semaine).
 export const TODO_CATALOG = {
@@ -38,13 +34,17 @@ export const TODO_CATALOG = {
   ],
   francais: [
     { name: 'Entraînement DS', w: 4 }, { name: 'Entraînement oral', w: 3 }
-  ]
+  ],
+  // SI / Info : cycle présent mais désactivé et vide (à remplir quand il le faudra).
+  si: []
 };
-export const TODO_BUDGET = { maths: 10, physique: 10, anglais: 8, francais: 4 };
+export const TODO_BUDGET = { maths: 10, physique: 10, anglais: 8, francais: 4, si: 3 };
+// Cycles désactivés par défaut (aucun élément).
+export const CYCLE_OFF_BY_DEFAULT = ['si'];
 
 export const ANGLAIS_FIXED = { vocab: 'Vocabulaire', gram: 'Grammaire' };
 export const SI_LABEL = 'Sciences de l\u2019ingénieur';
 
 // Jours par défaut des séances de chaque cycle (1 = lundi … 7 = dimanche) : réglables dans l'onglet To-do.
-export const DEFAULT_CYCLE_DAYS = { maths: [1, 2, 3, 4, 5, 6, 7], physique: [1, 2, 3, 4, 5, 6, 7], anglais: [6], francais: [7] };
+export const DEFAULT_CYCLE_DAYS = { maths: [1, 2, 3, 4, 5, 6, 7], physique: [1, 2, 3, 4, 5, 6, 7], anglais: [6], francais: [7], si: [5] };
 export const DEFAULT_VOCAB_DAYS = [1, 4, 5, 6, 7];   // vocabulaire d'anglais : tous les jours sauf mardi et mercredi

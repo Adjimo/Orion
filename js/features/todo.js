@@ -4,7 +4,7 @@ import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { YEAR_END, SCHOOL_START, addDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { COLLES_G8, weekIndexOf } from './planning-data.js';
-import { TODO_SUBJECTS } from './todo-data.js';
+import { OTHER_SUBJECT, TODO_SUBJECTS } from './todo-data.js';
 import { cycleNow, loadCycle } from './todo-cycle.js';
 import { loadRecur, recKey, recurDue, recurNow } from './todo-recur.js';
 
@@ -45,6 +45,9 @@ export function assignDays(items, fromDay = 1) {
   }
 }
 
+// Clé d'un élément de cycle désactivé (lui-même ou son cycle) : jamais généré ni reporté.
+const isOffKey = (key) => { const [sid, ...n] = String(key || '').split(':'); const sub = cycleNow().subjects.find(x => x.id === sid); const name = n.join(':'); const c = sub?.items.find(x => x.name === name); return !!c && (sub.enabled === false || c.enabled === false); };
+
 // Génère les éléments d'une semaine (les éléments reportés y sont déjà).
 function generate(w, st, items, fromDay = 1) {
   const has = (key) => items.some(i => i.key === key);
@@ -52,7 +55,7 @@ function generate(w, st, items, fromDay = 1) {
 
   for (const sub of cycleNow().subjects) {
     const subj = sub.id, cat = sub.items;
-    if (!cat.length || sub.enabled === false) continue;   // cycle désactivé : rien n'est généré
+    if (!cat.some(c => c.enabled !== false) || sub.enabled === false) continue;   // cycle désactivé : rien n'est généré
     const weight = (key) => cat.find(c => `${subj}:${c.name}` === key)?.w || 0;
     let pts = items.filter(i => i.subj === subj && i.key && !i.rec).reduce((s, i) => s + weight(i.key), 0);
     let cur = (st.cursors[subj] || 0) % cat.length;
@@ -65,7 +68,7 @@ function generate(w, st, items, fromDay = 1) {
     while ((pts < budget || !items.some(i => i.subj === subj && !i.rec)) && guard-- > 0) {
       const c = cat[cur];
       cur = (cur + 1) % cat.length;
-      if (has(`${subj}:${c.name}`)) continue;
+      if (c.enabled === false || has(`${subj}:${c.name}`)) continue;   // élément désactivé : reste dans le cycle, mais n'est plus généré
       add(subj, `${subj}:${c.name}`, c.name);
       pts += c.w;
       if (period && cur === 0) break;   // fin du tour : on ne recommence pas avant la date de fin
@@ -153,7 +156,7 @@ async function run(today) {
       // Report : les éléments non cochés de la semaine précédente (les semaines closes ne sont que marquées).
       const prevWeek = all.filter(i => i.weekKey < w).reduce((m, i) => (i.weekKey > m ? i.weekKey : m), '');
       for (const p of all.filter(i => i.weekKey === prevWeek && !i.done && !i.carriedTo && !i.noCarry)) {
-        if (p.key && items.some(i => i.key === p.key)) continue;
+        if (p.key && (items.some(i => i.key === p.key) || (!p.rec && !p.custom && isOffKey(p.key)))) continue;
         const n = { ...p, id: p.key ? `${w}|${p.key}` : uid(w), weekKey: w, done: false, doneAt: null, carried: true, rolled: false, origin: p.origin || p.weekKey, carriedTo: null };
         items.push(n);
         p.carriedTo = w;
@@ -191,6 +194,19 @@ export async function toggleTodo(item) {
 }
 export const removeTodo = (id) => dbDelete('planTodo', id);
 
+// Un élément de cycle désactivé disparaît d'Aujourd'hui et des jours suivants de la semaine en cours (les éléments déjà faits et
+// les jours passés restent). Il reste dans le cycle (onglet To-do) et revient à la réactivation, dans le tour suivant.
+export async function purgeDisabledTodo(today = todayKey()) {
+  await loadCycle();
+  const off = new Set(cycleNow().subjects.flatMap(sub => sub.items.filter(c => c.enabled === false || sub.enabled === false).map(c => `${sub.id}:${c.name}`)));
+  if (!off.size) return;
+  const monday = mondayOf(today), day = isoDay(today);
+  for (const it of await dbAll('planTodo')) {
+    if (!it.key || it.custom || it.rec || it.done || !off.has(it.key)) continue;
+    if (it.weekKey > monday || (it.weekKey === monday && it.day >= day)) await dbDelete('planTodo', it.id);
+  }
+}
+
 // Éléments du catalogue absents de la semaine, par matière (le vocabulaire se choisit par jour).
 export function availableCatalog(items, day = 1) {
   const present = new Set(items.map(i => i.key).filter(Boolean));
@@ -211,5 +227,5 @@ export async function addTodo(monday, subj, key, label, day = 1) {
     : { ...makeItem(monday, 'autre', 'x', label), id: uid(monday), key: null, custom: true, day };
   await dbPut('planTodo', it);
 }
-export { TODO_SUBJECTS, cycleNow, loadCycle };
+export { OTHER_SUBJECT, TODO_SUBJECTS, cycleNow, loadCycle };
 export { saveCycle } from './todo-cycle.js';

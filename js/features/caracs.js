@@ -32,15 +32,16 @@ import { buildWeek, loadOverrides } from './planning.js';
 import { isRunActivity } from './schedule.js';
 import { getRunsGoals, getSleepLog } from './weekly-goals.js';
 import { COLORS } from '../ui/icons.js';
+import { categoryOf } from './competences.js';
 
 // ── Définition des 6 caractéristiques (icônes et couleurs du pack : chaud, sans bleu/violet/vert)
 export const CARACS = [
-  { id: 'dex',  label: 'Dextérité',  short: 'DEX', icon: 'run',    color: COLORS.run },
-  { id: 'math', label: 'Maths',      short: 'MAT', icon: 'sigma',  color: COLORS.sigma },
-  { id: 'phys', label: 'Physique',   short: 'PHY', icon: 'atom',   color: COLORS.atom },
-  { id: 'si',   label: 'SI / Info',  short: 'SI',  icon: 'chip',   color: COLORS.chip },
-  { id: 'verb', label: 'Verbe',      short: 'VER', icon: 'pen',    color: COLORS.pen },
-  { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: COLORS.lotus }
+  { id: 'dex',  label: 'Dextérité',  short: 'DEX', icon: 'run',    color: COLORS.run, cat: categoryOf('dex') },
+  { id: 'math', label: 'Maths',      short: 'MAT', icon: 'sigma',  color: COLORS.sigma, cat: categoryOf('math') },
+  { id: 'phys', label: 'Physique',   short: 'PHY', icon: 'atom',   color: COLORS.atom, cat: categoryOf('phys') },
+  { id: 'si',   label: 'SI / Info',  short: 'SI',  icon: 'chip',   color: COLORS.chip, cat: categoryOf('si') },
+  { id: 'verb', label: 'Verbe',      short: 'VER', icon: 'pen',    color: COLORS.pen, cat: categoryOf('verb') },
+  { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: COLORS.lotus, cat: categoryOf('disc') }
 ];
 
 // ── Réglages (meta `caracSettings`), tous modifiables ; toute modification → recalcul complet.
@@ -121,8 +122,6 @@ export function baseScore(ratio, cfg = DEFAULT_SETTINGS) {
   const s = r <= 1 ? z + (g - z) * r : g + (o - g) * (r - 1) / (ro - 1);
   return clamp(s, z, cfg.scoreCap);
 }
-export const modifier = (value) => Math.floor((Math.round(value) - 10) / 2);
-export const fmtMod = (m) => (m >= 0 ? `+${m}` : `${m}`);
 
 // Combine des parts { key, w, score|null } : une part absente (null) est ignorée et les poids sont renormalisés.
 export function combine(parts, cap = DEFAULT_SETTINGS.scoreCap) {

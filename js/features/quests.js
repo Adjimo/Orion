@@ -11,7 +11,7 @@ export const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
   { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: 'run', color: COLORS.run, autoFromActivities: true, category: 'main' },
   { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: 'stopwatch', color: COLORS.stopwatch, autoFromWorkLog: true, category: 'main' },
-  { id: 'wq-sleep',   title: 'Couché avant 23h30', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: 'moon', color: COLORS.moon, autoFromSleep: true, category: 'main' },
+  { id: 'wq-sleep',   title: 'Couché à l’heure', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: 'moon', color: COLORS.moon, autoFromSleep: true, category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
   { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: 'globe', color: COLORS.globe, autoFromLangues: true, category: 'secondary' },
   { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: 'pen', color: COLORS.pen, autoFromLettres: true, category: 'secondary' },

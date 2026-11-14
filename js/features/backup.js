@@ -14,6 +14,7 @@ import { recomputeAllRecords, recomputeAllXp } from '../pages/sport.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 import { markExport } from './storage.js';
+import { bedLabelFor, bedMinFor } from './prefs.js';
 
 // Construit le snapshot complet de l'app (utilisé par export et backup auto).
 // `backups` lui-même est volontairement EXCLU pour éviter la récursion.
@@ -43,7 +44,7 @@ export async function exportData() {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `orion-backup-${todayKey()}.json`;
+  a.download = `dailyup-backup-${todayKey()}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -84,7 +85,7 @@ export async function downloadAutoBackup(date) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
-  a.download = `orion-backup-${date}.json`;
+  a.download = `dailyup-backup-${date}.json`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
@@ -330,8 +331,8 @@ export async function showWeekReportIfDue() {
 // Sans serveur push, l'app ne peut notifier QUE lorsqu'elle est ouverte (ou en arrière-plan récent).
 // Notifications personnalisées (meta `customReminders`) : [{ id, label, time, daily, date, lastFired }].
 export const REMINDER_DEFS = {
-  work:  { icon: 'books', label: 'Saisir le travail du jour', title: 'Orion · Travail', body: "N'oublie pas de saisir ton travail d'aujourd'hui.", def: '21:30' },
-  sleep: { icon: 'moon', label: 'Se coucher avant 23h30', title: 'Orion · Sommeil', body: 'Il est temps de se préparer : couché avant 23h30.', def: '22:45' },
+  work:  { icon: 'books', label: 'Saisir le travail du jour', title: 'DailyUp · Travail', body: "N'oublie pas de saisir ton travail d'aujourd'hui.", def: '21:30' },
+  sleep: { icon: 'moon', label: 'Se coucher à l’heure', title: 'DailyUp · Sommeil', body: 'Il est temps de se préparer : couché avant 23h30.', def: '22:45' },
 };
 
 export const REMINDER_WINDOW_MIN = 90;   // rattrapage : on déclenche jusqu'à 90 min après l'heure prévue
@@ -348,7 +349,7 @@ export async function saveReminders(r) { await dbPut('meta', { key: 'reminders',
 export function timeToMin(t) { const [h, m] = String(t).split(':').map(Number); return (h || 0) * 60 + (m || 0); }
 
 async function notify({ icon, title, body, tag }) {
-  showToast({ type: 'xp', icon, title: title.replace('Orion · ', ''), text: body }, 6000);
+  showToast({ type: 'xp', icon, title: title.replace('DailyUp · ', ''), text: body }, 6000);
   try {
     if ('Notification' in window && Notification.permission === 'granted') {
       const opts = { body, icon: 'icons/orion-192.png', badge: 'icons/badge.png', tag };
@@ -361,7 +362,8 @@ async function notify({ icon, title, body, tag }) {
 
 export async function showReminderNotification(kind) {
   const d = REMINDER_DEFS[kind];
-  await notify({ icon: d.icon, title: d.title, body: d.body, tag: 'orion-' + kind });
+  const body = kind === 'sleep' ? `Il est temps de se préparer : couché avant ${bedLabelFor(todayKey())}.` : d.body;
+  await notify({ icon: d.icon, title: d.title, body, tag: 'orion-' + kind });
 }
 
 export async function getCustomReminders() {
@@ -380,7 +382,8 @@ export async function checkReminders() {
   for (const kind of Object.keys(REMINDER_DEFS)) {
     const c = r[kind];
     if (!c.on || r.lastFired[kind] === today) continue;
-    const t = timeToMin(c.time);
+    // Sommeil à l'heure par défaut : 45 min avant le coucher choisi pour CE soir (tutoriel) ; une heure personnalisée garde la priorité.
+    const t = kind === 'sleep' && c.time === REMINDER_DEFS.sleep.def ? Math.min(1439 - REMINDER_WINDOW_MIN, bedMinFor(today) - 45) : timeToMin(c.time);
     if (nowMin < t || nowMin > t + REMINDER_WINDOW_MIN) continue;
     r.lastFired[kind] = today; changed = true;
     if (kind === 'work') {
@@ -398,10 +401,10 @@ export async function checkReminders() {
     const t = timeToMin(c.time);
     const inWindow = nowMin >= t && nowMin <= t + REMINDER_WINDOW_MIN;
     if (c.daily) {
-      if (c.lastFired !== today && inWindow) { c.lastFired = today; listChanged = true; await notify({ icon: 'bell', title: 'Orion · ' + c.label, body: c.label, tag: 'orion-c-' + c.id }); }
+      if (c.lastFired !== today && inWindow) { c.lastFired = today; listChanged = true; await notify({ icon: 'bell', title: 'DailyUp · ' + c.label, body: c.label, tag: 'orion-c-' + c.id }); }
       keep.push(c);
     } else if (c.date === today && inWindow) {
-      listChanged = true; await notify({ icon: 'bell', title: 'Orion · ' + c.label, body: c.label, tag: 'orion-c-' + c.id });
+      listChanged = true; await notify({ icon: 'bell', title: 'DailyUp · ' + c.label, body: c.label, tag: 'orion-c-' + c.id });
     } else if (c.date < today || (c.date === today && nowMin > t + REMINDER_WINDOW_MIN)) {
       listChanged = true;   // date passée : on la retire sans notifier
     } else keep.push(c);

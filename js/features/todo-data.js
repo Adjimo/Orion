@@ -28,19 +28,20 @@ export const TODO_CATALOG = {
     { name: 'Physique statistique', w: 4 }, { name: 'Électrochimie', w: 4 },
     { name: 'Thermochimie 1', w: 3 }, { name: 'Thermochimie 2', w: 4 }
   ],
-  // Anglais et français (v4.42) : cycles pondérés comme maths et physique (les DS pèsent plus que les actualités).
-  anglais: [
-    { name: 'Entraînement DS Centrale', w: 4 }, { name: 'Entraînement DS Mines-Ponts', w: 4 }, { name: 'Revoir les actualités de la semaine', w: 1 }
-  ],
-  francais: [
-    { name: 'Entraînement DS', w: 4 }, { name: 'Entraînement oral', w: 3 }
-  ],
+  // Anglais et français (v4.48) : plus de cycle, leurs éléments sont des récurrents (todo-recur.js), semaines A/B.
+  anglais: [],
+  francais: [],
   // SI / Info : cycle présent mais désactivé et vide (à remplir quand il le faudra).
   si: []
 };
 export const TODO_BUDGET = { maths: 10, physique: 10, anglais: 8, francais: 4, si: 3 };
 // Cycles désactivés par défaut (aucun élément).
-export const CYCLE_OFF_BY_DEFAULT = ['si'];
+export const CYCLE_OFF_BY_DEFAULT = ['si', 'anglais', 'francais'];
+// Anciens éléments de cycle d'anglais / français, retirés des cycles à la migration v4 (devenus récurrents).
+export const MOVED_CYCLE_ITEMS = {
+  anglais: ['Entraînement DS Centrale', 'Entraînement DS Mines-Ponts', 'Revoir les actualités de la semaine'],
+  francais: ['Entraînement DS', 'Entraînement oral']
+};
 
 export const ANGLAIS_FIXED = { vocab: 'Vocabulaire', gram: 'Grammaire' };
 export const SI_LABEL = 'Sciences de l\u2019ingénieur';

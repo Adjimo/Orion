@@ -64,8 +64,8 @@ export async function migrateData() {
     }
   }
   const sleepQ = await dbGet('quests', 'wq-sleep');
-  if (sleepQ && sleepQ.title !== 'Couché avant 23h30') {
-    await dbPut('quests', { ...sleepQ, title: 'Couché avant 23h30', unit: 'soirs' });
+  if (sleepQ && sleepQ.title !== 'Couché à l’heure') {
+    await dbPut('quests', { ...sleepQ, title: 'Couché à l’heure', unit: 'soirs' });
   }
   // Profil : structure des skills + nettoyage streak.
   const profile = await dbGet('profile', 'me');

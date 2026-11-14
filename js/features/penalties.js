@@ -1,4 +1,5 @@
 // Malus, bonus, justifications et recalculs de semaine
+import { sportOn } from './prefs.js';
 import { nextWeekKey, prevWeekKey, todayKey, weekDateKeys, weekKey, weekStartDate } from '../core/dates.js';
 import { dailyGoalHours, makeGoalCtx, questGoalHours } from './work-goals.js';
 import { dbAll, dbAllLive, dbGet, dbPut } from '../core/db.js';
@@ -115,7 +116,7 @@ export async function computeWeekPenalties(wk) {
   const excusedKeys = [];
   let malusFactor = 0;
   const malusDetails = [];
-  for (const q of quests.filter(x => x.category === 'main' || (fullRules && x.category === 'secondary'))) {
+  for (const q of quests.filter(x => (x.category === 'main' || (fullRules && x.category === 'secondary')) && (sportOn() || x.id !== 'wq-runs'))) {
     const c = completions.find(x => x.questId === q.id && x.weekKey === wk);
     const ratio = c?.ratio || 0;
     const exKey = `${wk}|${q.id}`;

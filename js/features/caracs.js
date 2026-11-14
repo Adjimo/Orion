@@ -33,6 +33,7 @@ import { isRunActivity } from './schedule.js';
 import { getRunsGoals, getSleepLog } from './weekly-goals.js';
 import { COLORS } from '../ui/icons.js';
 import { categoryOf } from './competences.js';
+import { sportOn } from './prefs.js';
 
 // ── Définition des 6 caractéristiques (icônes et couleurs du pack : chaud, sans bleu/violet/vert)
 export const CARACS = [
@@ -44,12 +45,15 @@ export const CARACS = [
   { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: COLORS.lotus, cat: categoryOf('disc') }
 ];
 
+// Caractéristiques affichées : sans sport, la Dextérité disparaît (5 branches au lieu de 6). Les valeurs restent calculées.
+export const activeCaracs = () => CARACS.filter(c => c.id !== 'dex' || sportOn());
+
 // ── Réglages (meta `caracSettings`), tous modifiables ; toute modification → recalcul complet.
 const SETTINGS_VERSION = 2;       // v2 : échelle 4/15/18, sans to-do ni allure (les réglages plus anciens sont ignorés, sauf α)
 export const DEFAULT_SETTINGS = {
   start: '2026-09-01',          // 1er septembre (la semaine du 31/08 ne compte que depuis le 01/09)
   initial: 10,                  // valeur de départ
-  alpha: 0.75,                  // poids de la valeur précédente (le reste va au score de la semaine)
+  alpha: 0.7,                   // poids de la valeur précédente (le reste va au score de la semaine)
   hoursGoal: { math: 19, phys: 11, si: 1, verb: 3 },   // ANCIEN objectif fixe (h/semaine), gardé pour les semaines avant dynamicFrom
   workPct: 80,                  // % du temps libre (emploi du temps) qu'on veut travailler : objectif de la semaine ET de chaque jour
   subjectWeights: { maths: 56, physique: 32, si: 3, langues: 6, francais: 3 },   // répartition (%) du travail entre matières = proportions des anciens objectifs
@@ -78,7 +82,9 @@ export async function getCaracSettings() {
     ...DEFAULT_SETTINGS, ...clean,
     hoursGoal: { ...DEFAULT_SETTINGS.hoursGoal, ...(clean.hoursGoal || {}) },
     subjectWeights: { ...DEFAULT_SETTINGS.subjectWeights, ...(clean.subjectWeights || {}) },
-    weights: Object.fromEntries(Object.entries(DEFAULT_SETTINGS.weights).map(([k, v]) => [k, { ...v, ...(clean.weights?.[k] || {}) }]))
+    weights: Object.fromEntries(Object.entries(DEFAULT_SETTINGS.weights).map(([k, v]) => [k, { ...v }])),
+    // v5 : poids de l'historique (70 %), échelle des scores et pondérations sont fixes (plus modifiables).
+    alpha: DEFAULT_SETTINGS.alpha, scoreZero: DEFAULT_SETTINGS.scoreZero, goalScore: DEFAULT_SETTINGS.goalScore, overScore: DEFAULT_SETTINGS.overScore
   };
 }
 
@@ -191,7 +197,7 @@ export function scoreWeek(ctx) {
 
   // Discipline : quêtes réussies + nuits avant 23h30 (7/7 = objectif)
   const isExcused = (q) => cfg.neutralizeExcused && !!raw.excuses?.[`${wk}|${q.id}`];
-  const allQs = raw.quests.filter(q => q.category === 'main' || q.category === 'secondary');
+  const allQs = raw.quests.filter(q => (q.category === 'main' || q.category === 'secondary') && (sportOn() || q.id !== 'wq-runs'));   // sans sport : pas de quête de sorties
   const qs = allQs.filter(q => !isExcused(q));                 // quêtes justifiées neutralisées (hors dénominateur)
   const nbExcused = allQs.length - qs.length;
   const done = qs.filter(q => {

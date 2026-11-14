@@ -1,6 +1,7 @@
 // Moteur du planning : assemble cours, colles, DS, périodes et modifications d'une semaine.
 import { dbAll, dbDelete, dbPut } from '../core/db.js';
 import { EDT_END, SCHOOL_START, addDays, dayInfo, diffDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
+import { prefsNow } from './prefs.js';
 import { BASE_COURSES, COLLES_G8, COLLE_SLOTS, DS_BY_INDEX, DS_DAY, DS_START, ITC_COURS_END, ITC_TP_LAST_INDEX, TDSI_ANCHOR, weekIndexOf } from './planning-data.js';
 
 export const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
@@ -43,7 +44,7 @@ function baseEvents(monday, mode) {
   }
   const idx = weekIndexOf(monday);
   if (mode === 'normal' && idx !== null) {
-    for (const code of COLLES_G8[idx] || []) {
+    if (prefsNow().colles !== false) for (const code of COLLES_G8[idx] || []) {
       const s = COLLE_SLOTS[code];
       const date = s.day ? addDays(monday, s.day - 1) : null;
       events.push({
@@ -129,7 +130,10 @@ function subtractBusy(windows, busy, minLen) {
 function freeBlocks(events, dayIndex) {
   const busy = events.filter(e => e.start && e.end).map(e => [toMin(e.start), toMin(e.end)]).sort((x, y) => x[0] - y[0]);
   const rules = DAY_RULES[dayIndex];
-  return { free: subtractBusy(rules.work, busy, 30), pauses: subtractBusy(rules.pauses, busy, 15) };
+  const end = prefsNow().hours?.[dayIndex]?.end;   // fin de travail choisie (tutoriel) : remplace l'heure d'origine
+  let work = rules.work;
+  if (end) { work = work.filter(w => w[0] < end).map(w => [w[0], Math.min(w[1], end)]); const last = work[work.length - 1]; if (last && last[1] < end && rules.work.at(-1)[1] < end) last[1] = end; }
+  return { free: subtractBusy(work, busy, 30), pauses: subtractBusy(rules.pauses, busy, 15) };
 }
 
 // Semaine complète : 7 jours, événements triés, temps libre (« travail personnel »).

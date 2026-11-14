@@ -26,8 +26,8 @@ function syncTabs(route) {
     const img = t.querySelector('.tab-icon');
     const iconName = t.dataset.icon;
     if (img && iconName) {
-      if (!iconsPreloaded) { new Image().src = `icons/ui/${iconName}.png?v=6`; new Image().src = `icons/ui/${iconName}-mono.png?v=6`; }
-      img.src = isActive ? `icons/ui/${iconName}.png?v=6` : `icons/ui/${iconName}-mono.png?v=6`;
+      if (!iconsPreloaded) { new Image().src = `icons/ui/${iconName}.png?v=7`; new Image().src = `icons/ui/${iconName}-mono.png?v=7`; }
+      img.src = isActive ? `icons/ui/${iconName}.png?v=7` : `icons/ui/${iconName}-mono.png?v=7`;
     }
   });
   iconsPreloaded = true;

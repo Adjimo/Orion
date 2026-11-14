@@ -40,7 +40,7 @@ function clean(v) {
       budgetMode: 'points', enabled: s.enabled !== false,
       days: [...new Set((s.days && s.days.length ? s.days : DEFAULT_CYCLE_DAYS[s.id] || [1, 2, 3, 4, 5, 6, 7]).map(Number).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b),
       budget: Math.max(1, Number(s.budget) || 10), endDate: null,
-      items: (s.items || []).filter(i => i && String(i.name || '').trim() && !(migrate4 && (MOVED_CYCLE_ITEMS[String(s.id)] || []).includes(String(i.name).trim()))).map(i => ({ name: String(i.name).trim(), w: Math.max(1, Math.round(Number(i.w) || 1)), enabled: i.enabled !== false }))
+      items: (s.items || []).filter(i => i && String(i.name || '').trim() && !/actualit/i.test(String(i.name)) && !(migrate4 && (MOVED_CYCLE_ITEMS[String(s.id)] || []).includes(String(i.name).trim())))   // « actualités » : uniquement dans les récurrents.map(i => ({ name: String(i.name).trim(), w: Math.max(1, Math.round(Number(i.w) || 1)), enabled: i.enabled !== false }))
     }))
   };
 }

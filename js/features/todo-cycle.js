@@ -11,9 +11,9 @@ const KEY = 'todoCycle';
 let cache = null;
 
 export function defaultCycle() {
-  const lab = { maths: 'Maths', physique: 'Physique' };
+  const lab = { maths: 'Maths', physique: 'Physique', anglais: 'Anglais', francais: 'Français' };
   return {
-    v: 1,
+    v: 2,
     subjects: Object.keys(TODO_CATALOG).map(id => ({
       id, label: lab[id] || id, budgetMode: 'points', budget: TODO_BUDGET[id] || 10, endDate: null,
       items: TODO_CATALOG[id].map(c => ({ name: c.name, w: c.w }))
@@ -23,8 +23,13 @@ export function defaultCycle() {
 
 function clean(v) {
   const base = v && Array.isArray(v.subjects) ? v : defaultCycle();
+  // Migration v2 : anglais et français deviennent des matières à cycle (ajoutées une seule fois ; supprimables ensuite).
+  if ((base.v || 1) < 2) {
+    const def = defaultCycle().subjects;
+    for (const id of ['anglais', 'francais']) if (!base.subjects.some(s => s.id === id)) base.subjects.push(def.find(s => s.id === id));
+  }
   return {
-    v: 1,
+    v: 2,
     subjects: base.subjects.map(s => ({
       id: String(s.id), label: String(s.label || 'Matière'),
       budgetMode: s.budgetMode === 'period' ? 'period' : 'points',
@@ -36,7 +41,7 @@ function clean(v) {
 
 // Garde la liste des matières (libellés des cases et du récapitulatif) en phase avec le cycle.
 function syncSubjects() {
-  TODO_SUBJECTS.splice(0, TODO_SUBJECTS.length, ...cache.subjects.map(s => ({ id: s.id, label: s.label })), ...TODO_FIXED_SUBJECTS);
+  TODO_SUBJECTS.splice(0, TODO_SUBJECTS.length, ...cache.subjects.map(s => ({ id: s.id, label: s.label })), ...TODO_FIXED_SUBJECTS.filter(f => !cache.subjects.some(s => s.id === f.id)));
 }
 
 export async function loadCycle() {

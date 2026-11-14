@@ -4,7 +4,7 @@ import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { YEAR_END, SCHOOL_START, addDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { COLLES_G8, weekIndexOf } from './planning-data.js';
-import { ANGLAIS_FIXED, ANGLAIS_ROTATION, DAY_PLAN, FRANCAIS_ROTATION, SI_LABEL, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
+import { ANGLAIS_FIXED, DAY_PLAN, SI_LABEL, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
 import { cycleNow, loadCycle } from './todo-cycle.js';
 
 const STATE_KEY = 'todoState';
@@ -57,7 +57,8 @@ function generate(w, st, items, fromDay = 1) {
     const named = cat.findIndex(c => c.name === st.cursorNames?.[subj]);   // le curseur suit le nom du chapitre : insérer ou déplacer ne décale plus le cycle
     if (named >= 0) cur = named;
     const period = sub.budgetMode === 'period' && sub.endDate && w <= sub.endDate;
-    const budget = cycleBudget(sub, w, cur);
+    let budget = cycleBudget(sub, w, cur);
+    if (subj === 'anglais' && hasAnglaisColle(w)) budget = Math.ceil(budget / 2);   // semaine de colle d'anglais : la grammaire prend la place
     let guard = cat.length;
     while ((pts < budget || !items.some(i => i.subj === subj)) && guard-- > 0) {
       const c = cat[cur];
@@ -71,18 +72,8 @@ function generate(w, st, items, fromDay = 1) {
     (st.cursorNames ||= {})[subj] = cat[cur].name;
   }
 
-  // Rotation par élément le plus ancien non fait (jamais fait = prioritaire).
-  const rotate = (subj, names, count) => {
-    const have = items.filter(i => i.subj === subj && names.some(n => `${subj}:${n}` === i.key)).length;
-    const pool = names.map((n, idx) => ({ n, idx, d: st.lastDone[`${subj}:${n}`] || '' }))
-      .filter(x => !has(`${subj}:${x.n}`)).sort((a, b) => a.d.localeCompare(b.d) || a.idx - b.idx);
-    for (const x of pool.slice(0, Math.max(0, count - have))) add(subj, `${subj}:${x.n}`, x.n);
-  };
-
   for (const d of VOCAB_DAYS.filter(x => x >= fromDay)) { add('anglais', `anglais:vocab:${d}`, ANGLAIS_FIXED.vocab); const v = items.find(i => i.key === `anglais:vocab:${d}`); v.day = d; v.noCarry = true; }
-  if (hasAnglaisColle(w)) { add('anglais', 'anglais:gram', ANGLAIS_FIXED.gram); rotate('anglais', ANGLAIS_ROTATION, 1); }
-  else rotate('anglais', ANGLAIS_ROTATION, 2);
-  rotate('francais', FRANCAIS_ROTATION, 1);
+  if (hasAnglaisColle(w)) add('anglais', 'anglais:gram', ANGLAIS_FIXED.gram);
   add('si', 'si:main', SI_LABEL);
   assignDays(items, fromDay);
 }
@@ -194,10 +185,13 @@ export const removeTodo = (id) => dbDelete('planTodo', id);
 export function availableCatalog(items, day = 1) {
   const present = new Set(items.map(i => i.key).filter(Boolean));
   const groups = [];
-  const push = (subj, entries) => { const e = entries.filter(x => !present.has(x.key)); if (e.length) groups.push({ subj, entries: e }); };
+  const push = (subj, entries) => {
+    const e = entries.filter(x => !present.has(x.key));
+    const g = groups.find(x => x.subj === subj);
+    if (g) g.entries.push(...e); else if (e.length) groups.push({ subj, entries: e });
+  };
   for (const sub of cycleNow().subjects) push(sub.id, sub.items.map(c => ({ key: `${sub.id}:${c.name}`, label: c.name })));
-  push('anglais', [{ key: `anglais:vocab:${day}`, label: ANGLAIS_FIXED.vocab }, { key: 'anglais:gram', label: ANGLAIS_FIXED.gram }, ...ANGLAIS_ROTATION.map(n => ({ key: `anglais:${n}`, label: n }))]);
-  push('francais', FRANCAIS_ROTATION.map(n => ({ key: `francais:${n}`, label: n })));
+  push('anglais', [{ key: `anglais:vocab:${day}`, label: ANGLAIS_FIXED.vocab }, { key: 'anglais:gram', label: ANGLAIS_FIXED.gram }]);
   push('si', [{ key: 'si:main', label: SI_LABEL }]);
   return groups;
 }

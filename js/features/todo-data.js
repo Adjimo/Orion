@@ -1,7 +1,7 @@
 // Catalogue de la to-do hebdomadaire (page Planning, vue « À faire »).
 // Physique : cycle dans l'ordre de la liste (EM8 = 12 pts, gros chapitre, seul dans sa semaine).
 
-// Matières fixes (anglais, français, SI, autre) ; les matières à cycle (maths, physique, et celles de l'utilisateur)
+// Matières fixes (SI, autre, et anglais / français tant qu'ils n'ont pas de cycle) ; les matières à cycle (maths, physique, anglais, français et celles de l'utilisateur)
 // viennent de todo-cycle.js, qui tient TODO_SUBJECTS à jour.
 export const TODO_FIXED_SUBJECTS = [
   { id: 'anglais',  label: 'Anglais' },
@@ -35,13 +35,18 @@ export const TODO_CATALOG = {
     { name: 'Mécanique quantique 1', w: 4 }, { name: 'Mécanique quantique 2', w: 4 },
     { name: 'Physique statistique', w: 4 }, { name: 'Électrochimie', w: 4 },
     { name: 'Thermochimie 1', w: 3 }, { name: 'Thermochimie 2', w: 4 }
+  ],
+  // Anglais et français (v4.42) : cycles pondérés comme maths et physique (les DS pèsent plus que les actualités).
+  anglais: [
+    { name: 'Entraînement DS Centrale', w: 4 }, { name: 'Entraînement DS Mines-Ponts', w: 4 }, { name: 'Revoir les actualités de la semaine', w: 1 }
+  ],
+  francais: [
+    { name: 'Entraînement DS', w: 4 }, { name: 'Entraînement oral', w: 3 }
   ]
 };
-export const TODO_BUDGET = { maths: 10, physique: 10 };
+export const TODO_BUDGET = { maths: 10, physique: 10, anglais: 8, francais: 4 };
 
 export const ANGLAIS_FIXED = { vocab: 'Vocabulaire', gram: 'Grammaire' };
-export const ANGLAIS_ROTATION = ['Entraînement DS Centrale', 'Entraînement DS Mines-Ponts', 'Revoir les actualités de la semaine'];
-export const FRANCAIS_ROTATION = ['Entraînement DS', 'Entraînement oral'];
 export const SI_LABEL = 'Sciences de l\u2019ingénieur';
 
 // Répartition par jour (1 = lundi … 7 = dimanche).

@@ -3,7 +3,7 @@
 import { DAY_LABELS } from '../features/planning.js';
 import { loadCycle, purgeDisabledTodo, saveCycle, TODO_SUBJECTS } from '../features/todo.js';
 import { resetCycle } from '../features/todo-cycle.js';
-import { CATEGORY_LABEL, WORK_IDS } from '../features/competences.js';
+import { WORK_IDS } from '../features/competences.js';
 import { loadRecur, newRecurId, saveRecur, weekParity } from '../features/todo-recur.js';
 import { todayKey } from '../core/dates.js';
 import { mondayOf, parseKey } from '../core/calendar.js';
@@ -42,7 +42,7 @@ export async function renderTodoSettings(root) {
     const total = sub.items.reduce((s, i) => s + i.w, 0);
     card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(sub.id) : open.add(sub.id); draw(); } }, [
       el('span', { class: 'ts-ico', html: subjIcon(sub.id) }),
-      el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, sub.label), el('i', { class: 'cat-chip' }, CATEGORY_LABEL.travail)]), el('small', {}, `${sub.items.filter(i => i.enabled !== false).length === sub.items.length ? sub.items.length : sub.items.filter(i => i.enabled !== false).length + '/' + sub.items.length} éléments · ${sub.budget} pts / sem.`)]),
+      el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, sub.label)]), el('small', {}, `${sub.items.filter(i => i.enabled !== false).length === sub.items.length ? sub.items.length : sub.items.filter(i => i.enabled !== false).length + '/' + sub.items.length} éléments · ${sub.budget} pts / sem.`)]),
       el('span', { onclick: (e) => e.stopPropagation() }, [toggle(sub.enabled !== false, async (v) => { sub.enabled = v; await saveC(); keepScroll(draw); }, 'Activer le cycle')]),
       el('span', { class: 'ts-chev' + (isOpen ? ' open' : ''), html: iconHtml('chevr') })
     ]));
@@ -137,7 +137,7 @@ export async function renderTodoSettings(root) {
       const card = el('div', { class: 'ts-card' + (mine.length && mine.every(([r]) => !r.enabled) ? ' off' : '') });
       card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(key) : open.add(key); draw(); } }, [
         el('span', { class: 'ts-ico', html: subjIcon(sj.id) }),
-        el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, sj.label), el('i', { class: 'cat-chip' }, CATEGORY_LABEL.travail)]), el('small', {}, mine.length ? `${mine.length} élément${mine.length > 1 ? 's' : ''} · ${mine.filter(([r]) => r.enabled).length} actif${mine.filter(([r]) => r.enabled).length > 1 ? 's' : ''}` : 'Aucun élément')]),
+        el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, sj.label)]), el('small', {}, mine.length ? `${mine.length} élément${mine.length > 1 ? 's' : ''} · ${mine.filter(([r]) => r.enabled).length} actif${mine.filter(([r]) => r.enabled).length > 1 ? 's' : ''}` : 'Aucun élément')]),
         el('span', { class: 'ts-chev' + (isOpen ? ' open' : ''), html: iconHtml('chevr') })
       ]));
       if (isOpen) {

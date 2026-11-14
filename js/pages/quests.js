@@ -146,8 +146,8 @@ export async function renderDayDashboard(root, afterRender) {
             ${formatMinutes(actualMinutes)} / ${formatHours(goalHours)}
             ${wi.xp > 0 ? ` · <span style="color:var(--accent);">${wi.xp} XP</span>` : ''}
           </div>
-          <div class="subjects-grid mt-2" id="subjects-grid"></div>
         </div>
+        <div class="subjects-grid" id="subjects-grid"></div>
       </div>
     `;
   }

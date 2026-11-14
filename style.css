@@ -1950,3 +1950,31 @@ input[type="checkbox"]:checked { background-color: var(--accent); border-color: 
 
 .opt-pref:has(.opt-theme) { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
 .opt-theme { flex: 0 1 210px; }
+
+/* ── v5 · Carte en mode clair ── */
+:root[data-theme="light"] .map, :root[data-theme="light"] .maplibregl-map { background: #EDE6D8; }
+:root[data-theme="light"] .maplibregl-ctrl-attrib { background: rgba(243,238,228,0.88) !important; }
+:root[data-theme="light"] .maplibregl-ctrl-attrib-button { background-color: rgba(243,238,228,0.8) !important; filter: none; }
+:root[data-theme="light"] .maplibregl-ctrl-group { background: rgba(251,248,242,0.95) !important; }
+:root[data-theme="light"] .maplibregl-ctrl button .maplibregl-ctrl-icon { filter: none; }
+:root[data-theme="light"] .orion-marker { border-color: #FBF8F2; box-shadow: 0 1px 4px rgba(60,40,20,0.35); }
+:root[data-theme="light"] .orion-marker-start { background: #B3682F; border-color: #FBF8F2; }
+:root[data-theme="light"] .orion-marker-end { background: #5A3A22; border-color: #FBF8F2; }
+
+/* ── v5 · Quête sommeil : même animation « pop » que les cases de la to-do, liseré qui change en douceur ── */
+.block.sleep { transition: border-color .28s ease, background-color .28s ease; }
+.block.sleep .sleep-check { transition: background-color .2s ease, border-color .2s ease; }
+.block.sleep.pop .sleep-check { animation: td-pop 0.38s cubic-bezier(0.2, 0.9, 0.3, 1.2); }
+@media (prefers-reduced-motion: reduce) {
+  .block.sleep, .block.sleep .sleep-check { transition: none; }
+  .block.sleep.pop .sleep-check { animation: none; }
+}
+
+/* ── v5 · Onglet Sport : carte des sorties au même format que les blocs d'« Aujourd'hui » ── */
+.block.sp-runs { flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+.sp-runs .hq-runs-ctl { display: contents; }
+.sp-runs .hq-goal-pick { margin: 0; }
+.sp-runs .hq-count-row { margin: 0; padding: 0; gap: 8px; }
+.sp-runs .cnt-btn { width: 28px; height: 28px; border-radius: 8px; font-size: 1.05rem; }
+.sp-runs .cnt-val { min-width: 20px; text-align: center; font-size: 1rem; }
+.sp-runs .hq-excuse-row { flex: 1 1 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; }

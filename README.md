@@ -57,7 +57,15 @@ Déposer le contenu du dossier à la racine du dépôt (ou dans `/docs`) et acti
 
 Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exporter produit `dailyup-backup-AAAA-MM-JJ.json` ; Importer une sauvegarde le restaure.
 
+## v5.0 (suite)
+
+- **Onglet Sport** : la carte « Sorties de la semaine » reprend le format des blocs d'« Aujourd'hui » (icône, titre, sous-titre, compteur − / + plus petit à droite, sans le mot « Objectif »).
+
+- **Carte du Sport en mode clair** : la carte suit le thème : `buildMapStyle()` et `mapPalette()` dans `pages/sport.js` (palettes sombre et claire, tracé foncé en clair), contrôles, attribution et marqueurs adaptés dans `style.css`. La palette est lue à la création de la carte.
+
 ## v5.0 — Version 5
+
+- **Quête sommeil** : la case se met à jour sur place (sans recharger la page) avec la même animation « pop » que la to-do, et le liseré de la carte change en douceur en même temps (`.block.sleep.pop`).
 
 - **Logo** : nouveau logo (D avec anneau cuivré et étoiles) intégré : `logo.png` (splash, fond transparent), `orion-192/512.png`, `orion-maskable-512.png` (logo réduit dans la zone sûre), `orion-favicon.png`, `badge.png` (silhouette blanche pour les notifications). Paramètre `?v=8` sur les icônes, manifeste et service worker (`dailyup-v5-0`).
 - **Planning** : titre « Planning » en haut (comme les autres pages) ; couleurs **unies** (plus de dégradé) ; nouvelle catégorie **Autre** pour les créneaux ajoutés ; **catégorie** choisissable dans l'éditeur de créneau ; bouton cible en haut à droite pour **choisir la couleur** de chaque catégorie (cours, colle, DS, temps libre, autre), mémorisée dans `prefs.planColors` (`PLAN_CATS`, `applyPlanColors` dans `features/prefs.js`).

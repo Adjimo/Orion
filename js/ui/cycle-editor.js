@@ -102,7 +102,7 @@ export async function openCycleEditor(onClose) {
     body.appendChild(el('div', { class: 'cy-add' }, [addName, wBox, el('button', { class: 'add-btn cy-add-btn', onclick: doAdd, html: '<span class="add-plus">+</span>' })]));
     body.appendChild(el('div', { class: 'pl-hint' }, 'Le poids (pts) mesure la taille d\u2019un élément : un gros chapitre pèse plus. Les changements s\u2019appliquent aux prochaines semaines générées.'));
     body.appendChild(el('button', { class: 'cy-reset', onclick: async () => {
-      if (!confirm('Remettre le cycle par défaut (Maths et Physique) ? Tes matières et éléments actuels seront remplacés.')) return;
+      if (!confirm('Remettre le cycle par défaut (Maths, Physique, Anglais, Français) ? Tes matières et éléments actuels seront remplacés.')) return;
       const d = await resetCycle(); cfg.subjects = JSON.parse(JSON.stringify(d.subjects)); sel = 0; draw();
     } }, 'Remettre le cycle par défaut'));
     body.scrollTop = keep;

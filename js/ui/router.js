@@ -3,7 +3,8 @@ import { State } from '../core/state.js';
 import { renderHome } from '../pages/home.js';
 import { renderOptions } from '../pages/options.js';
 import { renderPlanning } from '../pages/planning.js';
-import { renderHebdo, renderToday } from '../pages/quests.js';
+import { renderToday } from '../pages/quests.js';
+import { renderTodoSettings } from '../pages/todo-settings.js';
 import { renderSport } from '../pages/sport.js';
 import { renderStats } from '../pages/stats.js';
 import { prefetchCaracs } from '../pages/caracs-card.js';
@@ -25,8 +26,8 @@ function syncTabs(route) {
     const img = t.querySelector('.tab-icon');
     const iconName = t.dataset.icon;
     if (img && iconName) {
-      if (!iconsPreloaded) { new Image().src = `icons/ui/${iconName}.png?v=5`; new Image().src = `icons/ui/${iconName}-mono.png?v=5`; }
-      img.src = isActive ? `icons/ui/${iconName}.png?v=5` : `icons/ui/${iconName}-mono.png?v=5`;
+      if (!iconsPreloaded) { new Image().src = `icons/ui/${iconName}.png?v=6`; new Image().src = `icons/ui/${iconName}-mono.png?v=6`; }
+      img.src = isActive ? `icons/ui/${iconName}.png?v=6` : `icons/ui/${iconName}-mono.png?v=6`;
     }
   });
   iconsPreloaded = true;
@@ -77,10 +78,10 @@ export function navigate(route) {
   });
 }
 
-const PAGES = { home: renderHome, planning: renderPlanning, today: renderToday, hebdo: renderHebdo, sport: renderSport, stats: renderStats, options: renderOptions };
+const PAGES = { home: renderHome, planning: renderPlanning, today: renderToday, todo: renderTodoSettings, sport: renderSport, stats: renderStats, options: renderOptions };
 // Pages dont le contenu se remplit après coup (lectures de données) : on les construit hors écran,
 // puis on les pose d'un seul bloc, pour qu'aucune carte n'apparaisse ni ne se déforme en cours de route.
-const STAGED = new Set(['hebdo', 'today']);
+const STAGED = new Set(['todo', 'today']);
 let renderToken = 0;
 
 async function buildStage(route) {

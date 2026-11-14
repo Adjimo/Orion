@@ -40,18 +40,43 @@ const ICONS = {
   target: `<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5" ${f}/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.6" ${s}/>`,
   star: `<path ${f} d="M12 2.8l2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z"/><path d="M12 2.8l2.8 5.8 6.4.9-4.6 4.5 1.1 6.3-5.7-3-5.7 3 1.1-6.3-4.6-4.5 6.4-.9z"/>`,
   check: `<circle cx="12" cy="12" r="9" ${f}/><circle cx="12" cy="12" r="9"/><path d="M7.8 12.4l3 3 5.6-6.2"/>`,
+  close: `<path d="M6 6l12 12M18 6 6 18"/>`,
+  tick: `<path d="M5 12.5l4.5 4.5L19 7.5"/>`,
+  chevr: `<path d="M9 5l7 7-7 7"/>`,
+  chevl: `<path d="M15 5l-7 7 7 7"/>`,
+  chevu: `<path d="M5 15l7-7 7 7"/>`,
+  chevd: `<path d="M5 9l7 7 7-7"/>`,
+  up: `<path ${f} d="M12 5l7 11H5z"/><path d="M12 5l7 11H5z"/>`,
+  down: `<path ${f} d="M12 19 5 8h14z"/><path d="M12 19 5 8h14z"/>`,
   wind: `<path d="M3 8h10a2.5 2.5 0 1 0-2.5-2.5M3 12h15a2.5 2.5 0 1 1-2.5 2.5M3 16h8a2.2 2.2 0 1 1-2.2 2.2"/>`,
 };
 
 // Palette chaude et variée : jaunes, ambres, orangés, terres, rosés, sables. Aucun bleu, violet ni vert.
 export const COLORS = {
-  run: '#E0794A', bolt: '#F4D06F', books: '#C99A5B', book: '#D9B77E', chip: '#D4735F', globe: '#E8A13A',
+  run: '#E0794A', bolt: '#F4D06F', books: '#C99A5B', book: '#D9B77E', chip: '#D4735F', globe: '#D9728F',
   pen: '#D68F86', stopwatch: '#E3C07A', warning: '#F0A030', chart: '#D08A5A', moon: '#E8D3A0', calendar: '#C9A27A',
   sigma: '#E39A3B', atom: '#D2694B', mountain: '#B98A5C', peak: '#C4A27A', sunrise: '#F09A5B', scale: '#BBA677', cycle: '#E8B25E', gear: '#C9A27A',
   bandage: '#E5A08A', pencil: '#C9B27C', trophy: '#F0B93B', sparkles: '#F6D98A', party: '#E67A6B', building: '#CDB68A',
   pickaxe: '#C8794A', boot: '#A87A4E', lotus: '#E0A39A', stethoscope: '#D07A6A', thermo: '#E0735E', bell: '#F0C46A',
   disk: '#D5C09A', target: '#DE6F4A', star: '#F2C14E', check: '#E8B86A', wind: '#C9B79A',
+  // Pictos d'interface : héritent la couleur du texte
+  close: 'currentColor', tick: 'currentColor', chevr: 'currentColor', chevl: 'currentColor', chevu: 'currentColor', chevd: 'currentColor',
+  up: '#E8A13A', down: '#c4584a',
 };
+
+// Matières : une icône par matière, donc une couleur unique, exposée en classes CSS réutilisables
+// (.subj-<matière> { --sc, color }, .c-<icône> { color }) et en variables (--c-<icône>) injectées ci-dessous.
+export const SUBJ_ICON = { maths: 'sigma', physique: 'atom', si: 'chip', anglais: 'globe', langues: 'globe', francais: 'pen', lettres: 'pen', autre: 'book' };
+export const subjColor = (id) => COLORS[SUBJ_ICON[id]] || 'var(--gold)';
+export const subjClass = (id) => `subj subj-${SUBJ_ICON[id] ? id : 'custom'}`;
+if (typeof document !== 'undefined') {
+  const st = document.createElement('style');
+  st.textContent = ':root{' + Object.entries(COLORS).map(([k, v]) => `--c-${k}:${v}`).join(';') + '}'
+    + Object.entries(COLORS).map(([k, v]) => `.c-${k}{color:${v}}`).join('')
+    + Object.keys(SUBJ_ICON).map(k => `.subj-${k}{--sc:${subjColor(k)};color:${subjColor(k)}}`).join('')
+    + '.subj-custom{--sc:var(--gold);color:var(--gold)}';
+  document.head.appendChild(st);
+}
 
 export function iconHtml(name) {
   const body = ICONS[name];

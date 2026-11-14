@@ -1861,3 +1861,25 @@ input[type="checkbox"]:checked { background-color: var(--accent); border-color: 
 .ob-range { width: 100%; accent-color: var(--accent); height: 32px; }
 .opt-tuto { width: 100%; display: flex; align-items: center; justify-content: space-between; text-align: left; color: inherit; font: inherit; cursor: pointer; }
 .opt-tuto-go svg { width: 18px; height: 18px; color: var(--accent); }
+
+/* v4.58 : cohérence visuelle (Stats, Sport, Options alignés sur Aujourd'hui / To-do / Accueil) :
+   mêmes boîtes (fond bg-2, bordure fine, rayon moyen), en-têtes de section façon to-do, chiffres en doré uni, pas de dégradé. */
+.card, .chart-card { border-radius: var(--r-md); box-shadow: none; }
+.card.glow { box-shadow: none; }
+.chart-title { color: var(--gold); font-weight: 600; font-size: .95rem; }
+.grad-text { background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: currentColor; color: var(--gold); font-family: var(--font-mono); }   /* chiffres en doré uni (une couleur inline reste prioritaire) */
+.metric { background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r-md); }
+.section-h, .section-h.work, .section-h.sport { background: var(--bg-3); border: 1px solid var(--border); border-left: 1px solid var(--border); border-radius: var(--r-md); padding: 10px 14px; font-size: .95rem; font-weight: 600; color: var(--gold); }
+.heatmap-cell.lvl-4 { background: var(--accent); box-shadow: none; }
+.rolling-header { background: var(--bg-3); border-radius: var(--r-sm); }
+.btn-gpx { border-radius: var(--r-md); }
+.save-actions .btn-gpx { background: var(--bg-3); border: 1px solid var(--border-strong); color: var(--text); }
+.save-actions .btn-gpx svg { color: var(--accent); }
+.auto-backup-item { background: var(--bg-3); }
+
+/* v4.59 : bouton GPX plus lisible, bouton de justification centré, titre de record uni */
+.page-title .btn-gpx { background: rgba(200,129,74,.14); border-color: var(--accent); color: var(--gold); }
+.page-title .btn-gpx svg { color: var(--gold); }
+.hq-excuse-row { justify-content: center; flex-wrap: wrap; text-align: center; }
+.hq-excuse-row > span:empty { display: none; }
+.pr-title { background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: currentColor; color: var(--gold); }

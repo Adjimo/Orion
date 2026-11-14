@@ -335,3 +335,13 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - **Tutoriel page 5** : plus de « colles admin » ; choix **Thomas** (Bailloux, groupe 8, 1er du trio : rotation d'origine inchangée) ou **Daphné** (Myoux, groupe 11, 1re du trio : M0 lundi 7h20, M1 jeudi 7h20). Données dans `planning-data.js` (`COLLES_G11`, `COLLE_PROGRAMS`), choix stocké dans `prefs.who`, lu par `colleProgramNow()` (planning et to-do). Le TP ITC suit la parité du groupe (groupe 11 impair : semaines impaires 1 à 15). Source : `planning_2026-2027_5.pdf` ; la colle de français de Daphné est placée en semaine 10 (même convention que le groupe 8).
 - **Deux versions** (drapeau `IS_ADMIN` dans `core/state.js`) : **admin** (`true`, « Relancer le tutoriel » dans Options) et **utilisateur** (`false`, sans cette fonction). Le tutoriel se lance toujours au premier démarrage.
 - SW `orion-v128`, `APP_VERSION` 4.57.
+
+### v4.58
+- **To-do › Récurrents** : mêmes boîtes et mêmes couleurs que les Cycles (en-tête de matière avec icône, pastille « Travail », nombre d'éléments, chevron) ; éléments dépliables dans chaque matière.
+- **Cohérence visuelle** (bloc CSS « v4.58 » en fin de `style.css`) : Stats, Sport et Options reprennent les boîtes d'Aujourd'hui / To-do / Accueil (fond `bg-2`, bordure fine, rayon moyen), titres de section façon to-do, chiffres en doré uni (plus de texte dégradé), case la plus foncée de la heatmap en cuivre uni, boutons Exporter / Importer et sauvegardes auto alignés sur les boutons de l'app.
+- SW `orion-v129`, `APP_VERSION` 4.58.
+
+### v4.59
+- **Accueil** : « membre depuis … » retiré (il reste la salutation).
+- **Sport** : bouton « Justifier une semaine sans sortie » centré ; bouton GPX plus lisible (bordure et texte cuivre/doré) ; chiffres de chaque sortie en doré uni (plus de dégradé, une couleur inline comme le rouge de la tendance reste prioritaire) ; titre de record uni.
+- SW `orion-v130`, `APP_VERSION` 4.59.

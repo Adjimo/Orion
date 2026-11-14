@@ -1823,3 +1823,43 @@ input[type="checkbox"]:checked { background-color: var(--accent); border-color: 
 .cy-on { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; }
 .cy-on small { font-size: .7rem; color: var(--text-mute); }
 .cy-row.off .cy-name { opacity: .45; text-decoration: line-through; text-decoration-color: var(--text-mute); }
+
+/* v4.49 : onglet masqué quand le sport est désactivé */
+.tab[hidden]{display:none}
+
+/* v4.50 : gamification désactivée = pas de note ni de pourcentage chiffré, barres seules */
+.no-note .hn-note, .no-note .hn-pct, .no-note .cat-chip { display: none; }
+.home-fit.no-gam { min-height: 0; height: auto; }
+.home-top.no-gam { grid-template-columns: 1fr; }
+
+/* v4.50 : Options en dépliants avec logo (sobre) */
+.opt-fold > .cs-fold-head { justify-content: flex-start; gap: 10px; }
+.opt-fold > .cs-fold-head::after { margin-left: auto; }
+.opt-fold > .cs-fold-head svg { width: 20px; height: 20px; color: var(--accent); flex: none; }
+.opt-fold-body { padding: 0 16px 16px; }
+.opt-fold > .cs-card { padding: 0 16px 14px; }
+.opt-pref-t { display: flex; align-items: center; gap: 10px; }
+.opt-pico { display: inline-flex; color: var(--accent); }
+.opt-pico svg { width: 20px; height: 20px; }
+
+/* v4.50 : tutoriel d'inscription */
+.ob-overlay { position: fixed; inset: 0; z-index: 9999; background: var(--bg-0, #151515); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 18px; padding: 24px; }
+.ob-card { width: 100%; max-width: 360px; text-align: center; }
+.ob-card h2 { margin: 14px 0 8px; }
+.ob-ico { display: inline-flex; color: var(--accent); }
+.ob-ico svg { width: 44px; height: 44px; }
+.ob-actions { display: flex; gap: 10px; margin-top: 22px; }
+.ob-actions .btn { flex: 1; min-height: 48px; }
+.ob-dots { display: flex; gap: 8px; }
+.ob-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--border-strong); }
+.ob-dot.on { background: var(--accent); }
+
+/* Tutoriel v4.52 : pages horaires / volume / emploi du temps */
+.ob-days { display: flex; justify-content: center; gap: 6px; margin: 16px 0 10px; }
+.ob-pill { width: 38px; height: 38px; border-radius: 50%; background: var(--bg-2); border: 1px solid var(--border); color: var(--text-mute); font-weight: 600; }
+.ob-pill.on { background: var(--bg-3); border-color: var(--accent); color: var(--gold); }
+.ob-dayname { font-weight: 600; margin-bottom: 8px; color: var(--accent); }
+.ob-slider { margin: 12px 0; text-align: left; }
+.ob-val { color: var(--gold); }
+.ob-big { display: block; font-size: 2.4rem; margin: 14px 0 6px; color: var(--gold); }
+.ob-range { width: 100%; accent-color: var(--accent); height: 32px; }

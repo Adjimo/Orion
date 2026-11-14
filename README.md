@@ -1,4 +1,4 @@
-# Orion
+# DailyUp (anciennement Orion)
 
 PWA personnelle qui gamifie la prépa MP\* et la course à pied / trail : XP, niveaux, quêtes hebdomadaires, malus et bonus, import GPX. JavaScript pur (modules ES natifs), sans framework ni étape de build. Les données restent sur l'appareil (IndexedDB).
 
@@ -55,7 +55,7 @@ Déposer le contenu du dossier à la racine du dépôt (ou dans `/docs`) et acti
 
 ## Sauvegarder ses données
 
-Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exporter produit `orion-backup-AAAA-MM-JJ.json` ; Importer une sauvegarde le restaure.
+Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exporter produit `dailyup-backup-AAAA-MM-JJ.json` ; Importer une sauvegarde le restaure.
 
 ## v4.7 — To-do hebdomadaire (Planning › À faire)
 - Store `planTodo` + meta `todoState` (curseurs de rotation, derniers éléments faits, dernière semaine générée).
@@ -280,3 +280,40 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - **Un seul bouton d'ajout** : `addBtn()` dans `ui/helpers.js` (pointillés cuivre + pastille « + ») pour to-do, planning, cycles, récurrents, notifications ; variante `solid` supprimée.
 - **Style unifié** : cartes dépliantes de To-do, Compétences (Accueil) et « À faire » (Aujourd'hui) partagent bordure, fond, bandeau et pastille d'icône (bloc « v4.47 » en fin de `style.css`). Accolade CSS orpheline corrigée (anciens styles de sommeil retirés).
 - SW `orion-v118`, `APP_VERSION` 4.47.
+
+### v4.48
+- **Anglais / Français : éléments déplacés des cycles vers les Récurrents.** Cycles Anglais et Français désormais vides et désactivés (comme SI / Info) ; migration `todoCycle` v4 : les anciens éléments par défaut sont retirés des cycles (`MOVED_CYCLE_ITEMS`, `todo-data.js`).
+- **Récurrents par défaut** (`todo-recur.js`, v2, ajoutés une seule fois aux sauvegardes existantes) : Anglais — DS Mines-Ponts (semaine A, dimanche), DS Centrale (semaine B, dimanche), Revoir les actualités (chaque samedi) ; Français — Entraînement DS (semaine A, dimanche), Entraînement oral (semaine B, dimanche).
+- **Option semaine A/B** : quand « Répéter » = 2 semaines, un choix « Semaine A / B » apparaît (la semaine actuelle est indiquée). Les semaines A sont les semaines paires depuis `AB_REF` (lundi 2026-01-05). Champ `phase` ; `recurDue()` l'utilise en priorité.
+- SW `orion-v119`, `APP_VERSION` 4.48.
+
+### v4.49
+- **Nouveau nom : DailyUp** (titre, écran de démarrage, manifeste, notifications, version du Profil, nom des sauvegardes `dailyup-backup-…`). Les identifiants internes (base IndexedDB, caches, noms d'icônes, `OrionSW`) gardent « orion » pour ne rien casser ; le logo sera fourni par l'utilisateur (remplacer les fichiers de `icons/`).
+- **Réglage Sport** (`features/prefs.js`, meta `userPrefs` : `sport`, `gamify`, `onboarded`) : case dans Options. Sport désactivé = onglet Sport masqué (balayage compris), radar à 5 branches (`activeCaracs()`), plus de quête de sorties ni de malus associé, plus de bloc sport dans Aujourd'hui, ni de statistiques et records sportifs, pondérations de Dextérité masquées. Les données restent stockées.
+- SW `orion-v120`, `APP_VERSION` 4.49.
+
+### v4.50
+- **Gamification active** (`prefs.gamify`) : désactivée = Accueil sans carte Niveau ni toile (seule l'échéance, pleine largeur) ; boîtes Compétences en barres de progression sans note ni pourcentage chiffré (classe `.no-note`). Les notes restent calculées et stockées.
+- **Options refondues** : interrupteurs sans dépliant « Gamification » et « Sport » ; dépliants avec logo « Objectifs » (part du temps libre travaillée + part par matière), « Rappels », « Sauvegarde » (export / import, sauvegardes auto). Retirés de l'interface : poids de l'historique, échelle des scores, pondérations, cas particuliers.
+- **Valeurs fixes** (`getCaracSettings`, `caracs.js`) : poids de l'historique 70 % (`alpha` 0,7), échelle des scores et pondérations = valeurs par défaut, quelles que soient les anciennes sauvegardes.
+- SW `orion-v121`, `APP_VERSION` 4.50.
+
+### v4.51
+- **Tutoriel d'inscription** (`pages/onboarding.js`), pages 1 « Sport ? » et 2 « Gamifier ? » (Oui / Non, Retour). Affiché une seule fois au premier lancement (`prefs.onboarded`) ; bouton « Relancer le tutoriel » en bas des Options (données conservées). Pages 3 à 5 (horaires par jour, volume de travail, emploi du temps par défaut) à faire.
+- SW `orion-v122`, `APP_VERSION` 4.51.
+
+### v4.52
+- **Tutoriel : pages 3 à 5** (`pages/onboarding.js`). Page 3 « Tes horaires » : pastilles L→D, curseurs (pas de 15 min) pour la fin de travail et le coucher de chaque jour, bouton « Même chose tous les jours » ; la fin de travail ne dépasse jamais le coucher. Page 4 « Volume de travail » : curseur 30–100 % (`workPct`) avec estimation des heures par semaine. Page 5 « Emploi du temps » : cours/TD/TP/DS de la classe, sans les colles ; bouton « Garder mes colles (admin) ».
+- **Préférences** (`prefs.js`) : `hours` (7 jours `{bed, end}` en minutes ; `null` = horaires d'origine) et `colles` (`false` = colles du groupe 8 masquées). `planning.js` : la fin de travail choisie remplace la fin de la dernière plage du jour (`freeBlocks`) ; colles ignorées si `colles === false`.
+- Le coucher est enregistré mais ne pilote pas encore la quête « Couché avant 23h30 » ni le rappel de sommeil.
+- SW `orion-v123`, `APP_VERSION` 4.52.
+
+### v4.53
+- **Coucher branché** : `bedMinFor(dateKey)` / `bedLabelFor(dateKey)` (`prefs.js`) donnent le coucher du SOIR d'une date (23h30 sans réglage). La case sommeil de la page Aujourd'hui affiche « Couché avant HHhMM » (soir de la veille). Quête renommée « Couché à l'heure », panneau « Sommeil à l'heure » ; rappel « Se coucher à l'heure » : par défaut 45 min avant le coucher du soir (sauf heure personnalisée différente de 22h45), message avec l'heure choisie.
+- Les nuits déjà cochées ne changent pas (la case reste « couché à l'heure »).
+- SW `orion-v124`, `APP_VERSION` 4.53.
+
+### v4.54
+- **Options : dépliant « Horaires »** (logo lune) : fin de travail et coucher de chaque jour, avec le même éditeur que le tutoriel (`pages/hours-editor.js`, partagé). Bouton « Enregistrer les horaires » : enregistre `prefs.hours`, recalcule les caractéristiques et recharge les données.
+- Fins de travail par défaut = celles d'origine du planning (22h en semaine, 17h30 samedi, 18h dimanche), coucher 23h30 : rien ne change tant que rien n'est modifié.
+- SW `orion-v125`, `APP_VERSION` 4.54.

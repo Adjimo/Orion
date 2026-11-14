@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v118';
+const VERSION = 'orion-v125';
 // Cache des bibliothèques externes (MapLibre, Chart.js, polices) : jamais supprimé lors d'une mise à jour
 // de l'app, pour que la carte et les graphiques marchent hors ligne dès la 1re ouverture en ligne.
 const CDN_CACHE = 'orion-cdn-v1';
@@ -39,6 +39,7 @@ const ASSETS = [
   './js/features/todo-cycle.js',
   './js/features/competences.js',
   './js/features/todo-recur.js',
+  './js/features/prefs.js',
   './js/features/todo-data.js',
   './js/features/todo.js',
   './js/features/weekly-goals.js',
@@ -50,6 +51,7 @@ const ASSETS = [
   './js/pages/caracs-settings.js',
   './js/pages/home.js',
   './js/pages/options.js',
+  './js/pages/onboarding.js', './js/pages/hours-editor.js',
   './js/pages/planning.js',
   './js/pages/profile.js',
   './js/pages/quests.js',

@@ -1,6 +1,6 @@
 {
-  "name": "Orion",
-  "short_name": "Orion",
+  "name": "DailyUp",
+  "short_name": "DailyUp",
   "description": "Le phénix — gamifie ta vie de prépa et de course",
   "start_url": "./",
   "scope": "./",

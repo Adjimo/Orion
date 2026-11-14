@@ -4,7 +4,7 @@
 // et se met à jour automatiquement dès qu'une nouvelle version est déployée.
 // ============================================================================
 
-const VERSION = 'orion-v130';
+const VERSION = 'orion-v134';
 // Cache des bibliothèques externes (MapLibre, Chart.js, polices) : jamais supprimé lors d'une mise à jour
 // de l'app, pour que la carte et les graphiques marchent hors ligne dès la 1re ouverture en ligne.
 const CDN_CACHE = 'orion-cdn-v1';
@@ -78,7 +78,7 @@ const ASSETS = [
 // skipWaiting() pour ne pas rester bloqué en "waiting" derrière l'ancien SW.
 self.addEventListener('install', (e) => {
   e.waitUntil(
-    caches.open(VERSION).then(cache => cache.addAll(ASSETS).catch(() => {}))
+    caches.open(VERSION).then(cache => Promise.all(ASSETS.map(u => fetch(new Request(u, { cache: 'reload' })).then(r => r.ok && cache.put(u, r)).catch(() => {}))))   // 'reload' : jamais depuis le cache HTTP du navigateur
   );
   // Préchargement best-effort des bibliothèques externes (réponses « opaques » acceptées).
   e.waitUntil(caches.open(CDN_CACHE).then(cache => Promise.all(CDN_URLS.map(u =>
@@ -181,7 +181,7 @@ async function externalCached(req) {
 
 async function networkFirst(req, fallbackPath) {
   try {
-    const resp = await fetch(req);
+    const resp = await fetch(new Request(req, { cache: 'no-cache' }));   // revalide toujours auprès du serveur : plus de vieux scripts servis par le cache HTTP
     if (resp.ok) {
       const cache = await caches.open(VERSION);
       cache.put(req, resp.clone()).catch(() => {});

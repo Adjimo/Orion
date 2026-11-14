@@ -345,3 +345,16 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - **Accueil** : « membre depuis … » retiré (il reste la salutation).
 - **Sport** : bouton « Justifier une semaine sans sortie » centré ; bouton GPX plus lisible (bordure et texte cuivre/doré) ; chiffres de chaque sortie en doré uni (plus de dégradé, une couleur inline comme le rouge de la tendance reste prioritaire) ; titre de record uni.
 - SW `orion-v130`, `APP_VERSION` 4.59.
+
+### v4.60
+- **Mises à jour qui n'arrivaient pas sur téléphone** (To-do et « membre depuis » inchangés alors que le CSS avait changé) : le service worker récupère maintenant tous les fichiers en contournant le cache HTTP du navigateur (`cache: 'reload'` à l'installation, `no-cache` pour JS/CSS/HTML). Vérifier la version affichée en bas des Options.
+- SW `orion-v131`, `APP_VERSION` 4.60.
+
+### v4.61
+- **To-do** : la pastille « Travail » est retirée des boîtes de matières (Cycles et Récurrents) ; elle reste sur l'Accueil, où Travail et Sport se côtoient.
+- **Écran de démarrage** : le titre « DailyUp » utilise la police de l'app (plus de Cinzel serif), espacement réduit.
+- SW `orion-v132`, `APP_VERSION` 4.61.
+
+### v4.62
+- **Aujourd'hui** : la grille des matières de la case Travail occupe toute la largeur de la case (marges gauche et droite égales) ; la dernière matière seule sur sa ligne garde une demi-largeur, à gauche (v4.63).
+- SW `orion-v134`, `APP_VERSION` 4.63.

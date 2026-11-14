@@ -646,10 +646,10 @@ img[src*="icons/ui/"] {
 .dot.gold    { background: #E3B089; box-shadow: 0 0 16px rgba(230,195,106, 0.95); width: 9px; height: 9px; }
 .dot.orange  { background: #B5703B; box-shadow: 0 0 12px rgba(181,112,59, 0.8); }
 .splash-title {
-  font-family: 'Cinzel', serif;
-  font-weight: 600;
-  font-size: 2.6rem;
-  letter-spacing: 0.32em;
+  font-family: var(--font);
+  font-weight: 700;
+  font-size: 2.4rem;
+  letter-spacing: 0.08em;
   background: linear-gradient(135deg, #8E5128 0%, #E3B089 50%, #C8814A 100%);
   -webkit-background-clip: text;
   background-clip: text;
@@ -1883,3 +1883,13 @@ input[type="checkbox"]:checked { background-color: var(--accent); border-color: 
 .hq-excuse-row { justify-content: center; flex-wrap: wrap; text-align: center; }
 .hq-excuse-row > span:empty { display: none; }
 .pr-title { background: none; -webkit-background-clip: initial; background-clip: initial; -webkit-text-fill-color: currentColor; color: var(--gold); }
+
+/* v4.62 : matières de la case Travail sur toute la largeur (marges gauche et droite égales) */
+.block.work { flex-wrap: wrap; }
+.block.work > .subjects-grid { flex: 1 1 100%; min-width: 0; }
+.sub-label { white-space: nowrap; display: flex; align-items: center; gap: 6px; }
+.sub-label .ico, .sub-label svg { flex: none; width: 15px; height: 15px; }
+
+/* v4.62 : la grille des matières occupe toute la largeur de la case Travail (marges gauche et droite égales) */
+.block.work { flex-wrap: wrap; }
+.block.work .subjects-grid { flex: 1 1 100%; min-width: 0; }

@@ -42,8 +42,9 @@ export function renderSport(root) {
   page.appendChild(title);
 
   // Objectif de sorties de la semaine (− / +) et justification : réglés ici, côté sport.
-  const runsBox = el('div', { class: 'hq sp-runs' });
-  runsBox.innerHTML = `<div class="hq-head"><span class="hq-icon">${iconHtml('run')}</span><div class="hq-titles"><div class="hq-title">Sorties de la semaine</div></div></div>`;
+  // Même carte que « Aujourd'hui » (.block : icône, titre, sous-titre) avec le compteur − / + à droite.
+  const runsBox = el('div', { class: 'block sp-runs' });
+  runsBox.innerHTML = `<div class="block-icon">${iconHtml('run')}</div><div class="block-body"><div class="block-title">Sorties de la semaine</div><div class="dim text-xs">Objectif hebdomadaire</div></div>`;
   page.appendChild(runsBox);
   const runsQ = State.quests.find(q => q.id === 'wq-runs');
   if (runsQ) buildRunsControls(runsQ).then(c => runsBox.appendChild(c)); else runsBox.remove();
@@ -189,67 +190,79 @@ export function renderSport(root) {
   setTimeout(() => renderMap(sel), 50);
 }
 
-// Style JSON MapLibre 100% custom Orion. Couleurs alignées sur la palette
-// de l'app (sombre, accents brun/khaki). Source de tiles vectorielles : OpenFreeMap
-// (gratuit, sans clé, basé sur OpenMapTiles).
-export const ORION_MAP_STYLE = {
-  version: 8,
-  name: 'Orion',
-  glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
-  sources: {
-    openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' }
+// Style JSON MapLibre 100% custom Orion, en deux palettes (sombre / clair) alignées sur le thème de l'app.
+// Source de tiles vectorielles : OpenFreeMap (gratuit, sans clé, basé sur OpenMapTiles).
+const MAP_PALETTES = {
+  dark: {
+    bg: '#181818', water: '#0f0f0e', wood: '#2a2719', grass: '#25231a', building: '#2b2a26', buildingLine: '#333231',
+    roadMinor: '#3d3a33', roadSecondary: '#5a5446', roadPrimary: '#8a7a4c', bounds: '#C8814A', label: '#C8814A', halo: '#121212',
+    trackHalo: '#E3B089', trackGlow: '#B5703B', trackMain: '#EBC29C'
   },
-  layers: [
-    // Fond sombre neutre
-    { id: 'bg', type: 'background', paint: { 'background-color': '#181818' } },
-    // Eau : gris-brun plus profond que la terre
-    { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
-      paint: { 'fill-color': '#0f0f0e', 'fill-opacity': 1 } },
-    // Forêts et parcs : brun-olive très discret
-    { id: 'wood', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
-      filter: ['==', 'class', 'wood'],
-      paint: { 'fill-color': '#2a2719', 'fill-opacity': 0.8 } },
-    { id: 'grass', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
-      filter: ['in', 'class', 'grass', 'park'],
-      paint: { 'fill-color': '#25231a', 'fill-opacity': 0.7 } },
-    // Bâti
-    { id: 'buildings', type: 'fill', source: 'openmaptiles', 'source-layer': 'building',
-      minzoom: 13,
-      paint: { 'fill-color': '#2b2a26', 'fill-outline-color': '#333231' } },
-    // Routes : de gris-brun à khaki selon l'importance
-    { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
-      filter: ['in', 'class', 'minor', 'service', 'track'],
-      minzoom: 12,
-      paint: { 'line-color': '#3d3a33', 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 18, 2.5] } },
-    { id: 'road-secondary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
-      filter: ['in', 'class', 'secondary', 'tertiary'],
-      paint: { 'line-color': '#5a5446', 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 18, 3.5] } },
-    { id: 'road-primary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
-      filter: ['in', 'class', 'primary', 'trunk', 'motorway'],
-      paint: { 'line-color': '#8a7a4c', 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 18, 4.5], 'line-opacity': 0.9 } },
-    // Frontières
-    { id: 'admin-bounds', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
-      filter: ['<=', 'admin_level', 4],
-      paint: { 'line-color': '#C8814A', 'line-width': 0.7, 'line-opacity': 0.35, 'line-dasharray': [2, 2] } },
-    // Noms de lieux : khaki
-    { id: 'place-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
-      filter: ['in', 'class', 'city', 'town', 'village'],
-      layout: {
-        'text-field': ['get', 'name:latin'],
-        'text-font': ['Noto Sans Regular'],
-        'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 12, 14],
-        'text-anchor': 'center'
-      },
-      paint: { 'text-color': '#C8814A', 'text-halo-color': '#121212', 'text-halo-width': 1.4, 'text-opacity': 0.9 } }
-  ]
+  light: {
+    bg: '#EDE6D8', water: '#D5CCBA', wood: '#DAD4B6', grass: '#E3DEC8', building: '#E0D6C3', buildingLine: '#CFC4AE',
+    roadMinor: '#D2C8B4', roadSecondary: '#B9AD93', roadPrimary: '#B08A4A', bounds: '#A55F2B', label: '#8E5128', halo: '#F3EEE4',
+    trackHalo: '#B3682F', trackGlow: '#B3682F', trackMain: '#8E5128'
+  }
 };
+export const mapPalette = () => MAP_PALETTES[document.documentElement.dataset.theme === 'light' ? 'light' : 'dark'];
+
+export function buildMapStyle(c = mapPalette()) {
+  return {
+    version: 8,
+    name: 'Orion',
+    glyphs: 'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
+    sources: {
+      openmaptiles: { type: 'vector', url: 'https://tiles.openfreemap.org/planet' }
+    },
+    layers: [
+      { id: 'bg', type: 'background', paint: { 'background-color': c.bg } },
+      // Eau : plus profonde que la terre
+      { id: 'water', type: 'fill', source: 'openmaptiles', 'source-layer': 'water',
+        paint: { 'fill-color': c.water, 'fill-opacity': 1 } },
+      // Forêts et parcs : teinte discrète
+      { id: 'wood', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
+        filter: ['==', 'class', 'wood'],
+        paint: { 'fill-color': c.wood, 'fill-opacity': 0.8 } },
+      { id: 'grass', type: 'fill', source: 'openmaptiles', 'source-layer': 'landcover',
+        filter: ['in', 'class', 'grass', 'park'],
+        paint: { 'fill-color': c.grass, 'fill-opacity': 0.7 } },
+      { id: 'buildings', type: 'fill', source: 'openmaptiles', 'source-layer': 'building',
+        minzoom: 13,
+        paint: { 'fill-color': c.building, 'fill-outline-color': c.buildingLine } },
+      // Routes : de discret à khaki selon l'importance
+      { id: 'road-minor', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
+        filter: ['in', 'class', 'minor', 'service', 'track'],
+        minzoom: 12,
+        paint: { 'line-color': c.roadMinor, 'line-width': ['interpolate', ['linear'], ['zoom'], 12, 0.6, 18, 2.5] } },
+      { id: 'road-secondary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
+        filter: ['in', 'class', 'secondary', 'tertiary'],
+        paint: { 'line-color': c.roadSecondary, 'line-width': ['interpolate', ['linear'], ['zoom'], 8, 0.6, 18, 3.5] } },
+      { id: 'road-primary', type: 'line', source: 'openmaptiles', 'source-layer': 'transportation',
+        filter: ['in', 'class', 'primary', 'trunk', 'motorway'],
+        paint: { 'line-color': c.roadPrimary, 'line-width': ['interpolate', ['linear'], ['zoom'], 6, 0.7, 18, 4.5], 'line-opacity': 0.9 } },
+      { id: 'admin-bounds', type: 'line', source: 'openmaptiles', 'source-layer': 'boundary',
+        filter: ['<=', 'admin_level', 4],
+        paint: { 'line-color': c.bounds, 'line-width': 0.7, 'line-opacity': 0.35, 'line-dasharray': [2, 2] } },
+      { id: 'place-labels', type: 'symbol', source: 'openmaptiles', 'source-layer': 'place',
+        filter: ['in', 'class', 'city', 'town', 'village'],
+        layout: {
+          'text-field': ['get', 'name:latin'],
+          'text-font': ['Noto Sans Regular'],
+          'text-size': ['interpolate', ['linear'], ['zoom'], 4, 9, 12, 14],
+          'text-anchor': 'center'
+        },
+        paint: { 'text-color': c.label, 'text-halo-color': c.halo, 'text-halo-width': 1.4, 'text-opacity': 0.9 } }
+    ]
+  };
+}
+export const ORION_MAP_STYLE = buildMapStyle();
 
 // Rend une carte Orion-stylée dans un conteneur DOM. Renvoie l'instance MapLibre.
 export function renderMapInto(mapEl, activity) {
   if (!activity || !window.maplibregl || !mapEl) return null;
   const map = new maplibregl.Map({
     container: mapEl,
-    style: ORION_MAP_STYLE,
+    style: buildMapStyle(),
     center: [2.5, 46.5],
     zoom: 5,
     attributionControl: false
@@ -264,6 +277,7 @@ export function renderMapInto(mapEl, activity) {
   const coords = activity.points.map(p => [p.lon, p.lat]);
 
   map.on('load', () => {
+    const pal = mapPalette();
     // Source GeoJSON pour le tracé.
     map.addSource('track', {
       type: 'geojson',
@@ -274,19 +288,19 @@ export function renderMapInto(mapEl, activity) {
     map.addLayer({
       id: 'track-halo', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#E3B089', 'line-width': 12, 'line-opacity': 0.28, 'line-blur': 4 }
+      paint: { 'line-color': pal.trackHalo, 'line-width': 12, 'line-opacity': 0.28, 'line-blur': 4 }
     });
     // Halo brun intermédiaire
     map.addLayer({
       id: 'track-glow', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#B5703B', 'line-width': 7, 'line-opacity': 0.55 }
+      paint: { 'line-color': pal.trackGlow, 'line-width': 7, 'line-opacity': 0.55 }
     });
     // Trait principal khaki clair
     map.addLayer({
       id: 'track-main', type: 'line', source: 'track',
       layout: { 'line-cap': 'round', 'line-join': 'round' },
-      paint: { 'line-color': '#EBC29C', 'line-width': 3 }
+      paint: { 'line-color': pal.trackMain, 'line-width': 3 }
     });
 
     // Markers départ (crème) et arrivée (brun)

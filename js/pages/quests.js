@@ -46,7 +46,6 @@ export async function buildRunsControls(q, wk = weekKey()) {
   const goal = await runsGoalFor(wk, q);
   const wrap = el('div', { class: 'hq-runs-ctl' });
   const gRow = el('div', { class: 'hq-goal-pick' });
-  gRow.innerHTML = '<div class="dim text-xs">Objectif</div>';
   const ctr = el('div', { class: 'hq-count-row' });
   const minus = el('button', { class: 'cnt-btn' }, '−');
   const val = el('div', { class: 'cnt-val' }, String(goal));
@@ -171,10 +170,19 @@ export async function renderDayDashboard(root, afterRender) {
     </div>
   `;
 
-  root.querySelector('#sleep-toggle')?.addEventListener('change', async () => {
-    await toggleSleepNight(dateKey);
-    await loadAll();
-    render();
+  // Case sommeil : mise à jour sur place (pas de re-rendu de la page), pour que la case, le liseré de la carte
+  // et l'animation « pop » partent ensemble, comme pour les cases de la to-do.
+  const sleepBox = root.querySelector('#sleep-toggle');
+  sleepBox?.addEventListener('change', async () => {
+    const block = sleepBox.closest('.block');
+    const on = sleepBox.checked;
+    block.classList.toggle('done', on);
+    block.classList.remove('pop');
+    if (on) { void block.offsetWidth; block.classList.add('pop'); }
+    sleepBox.disabled = true;
+    try { await toggleSleepNight(dateKey); await loadAll(); }
+    catch (err) { console.error('Sleep toggle failed', err); sleepBox.checked = !on; block.classList.toggle('done', !on); block.classList.remove('pop'); }
+    sleepBox.disabled = false;
   });
 
   // Sélecteur de jour

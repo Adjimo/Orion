@@ -57,6 +57,13 @@ Déposer le contenu du dossier à la racine du dépôt (ou dans `/docs`) et acti
 
 Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exporter produit `dailyup-backup-AAAA-MM-JJ.json` ; Importer une sauvegarde le restaure.
 
+## v5.0 — Version 5
+
+- **Logo** : nouveau logo (D avec anneau cuivré et étoiles) intégré : `logo.png` (splash, fond transparent), `orion-192/512.png`, `orion-maskable-512.png` (logo réduit dans la zone sûre), `orion-favicon.png`, `badge.png` (silhouette blanche pour les notifications). Paramètre `?v=8` sur les icônes, manifeste et service worker (`dailyup-v5-0`).
+- **Planning** : titre « Planning » en haut (comme les autres pages) ; couleurs **unies** (plus de dégradé) ; nouvelle catégorie **Autre** pour les créneaux ajoutés ; **catégorie** choisissable dans l'éditeur de créneau ; bouton cible en haut à droite pour **choisir la couleur** de chaque catégorie (cours, colle, DS, temps libre, autre), mémorisée dans `prefs.planColors` (`PLAN_CATS`, `applyPlanColors` dans `features/prefs.js`).
+- **Mode clair / sombre** : réglage « Apparence » dans Options (`prefs.theme`), `data-theme` sur `<html>`, recopié dans `localStorage` (`dailyup-theme`) et lu dans `index.html` avant l'affichage. Le mode clair redéfinit seulement les variables CSS (fin de `style.css`). Graphiques Stats adaptés.
+- **Aujourd'hui** : la quête sommeil utilise la même case à cocher que le reste de l'app au lieu du bouton « Cocher ».
+
 ## v4.7 — To-do hebdomadaire (Planning › À faire)
 - Store `planTodo` + meta `todoState` (curseurs de rotation, derniers éléments faits, dernière semaine générée).
 - `features/todo-data.js` : catalogue (maths pondérées, budget 10 pts/semaine ; physique : 23 chapitres pondérés).

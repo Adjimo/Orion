@@ -19,7 +19,7 @@ const f1 = (n) => n.toFixed(1).replace('.', ',');
 // Le chiffre prend toujours la couleur exacte de l'icône (source unique : COLORS dans icons.js).
 const colorOf = (c) => COLORS[c.icon] || c.color;
 
-function arrow(d) { return d > 0.05 ? '<span class="cr-up">▲</span>' : d < -0.05 ? '<span class="cr-down">▼</span>' : '<span class="cr-eq">=</span>'; }
+function arrow(d) { return d > 0.05 ? `<span class="cr-up">${iconHtml('up')}</span>` : d < -0.05 ? `<span class="cr-down">${iconHtml('down')}</span>` : '<span class="cr-eq">=</span>'; }
 
 let cache = null, lastHeight = 0;
 const load = async () => {

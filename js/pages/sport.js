@@ -13,6 +13,7 @@ import { loadAll } from '../features/seed.js';
 import { runsGoalFor } from '../features/weekly-goals.js';
 import { SUBJECTS, computeWorkXp } from '../features/work.js';
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
+import { buildRunsControls } from './quests.js';
 import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
 
@@ -39,6 +40,13 @@ export function renderSport(root) {
   importLabel.appendChild(fileInput);
   title.appendChild(importLabel);
   page.appendChild(title);
+
+  // Objectif de sorties de la semaine (− / +) et justification : réglés ici, côté sport.
+  const runsBox = el('div', { class: 'hq sp-runs' });
+  runsBox.innerHTML = `<div class="hq-head"><span class="hq-icon">${iconHtml('run')}</span><div class="hq-titles"><div class="hq-title">Sorties de la semaine</div></div></div>`;
+  page.appendChild(runsBox);
+  const runsQ = State.quests.find(q => q.id === 'wq-runs');
+  if (runsQ) buildRunsControls(runsQ).then(c => runsBox.appendChild(c)); else runsBox.remove();
 
   if (State.activities.length === 0) {
     const empty = el('div', { class: 'card center', style: 'padding:40px; text-align:center;', html: `
@@ -323,7 +331,7 @@ export function showGpxPreview(parsed, type, splits, xp) {
           <span class="gpx-preview-icon">${iconHtml(typeIcon)}</span>
           <span>${escapeHtml(parsed.name)}</span>
         </div>
-        <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+        <button class="gpx-preview-close" aria-label="Fermer">${iconHtml('close')}</button>
       </div>
       <div class="gpx-preview-map" id="gpx-preview-map"></div>
       <div class="gpx-preview-metrics">
@@ -643,7 +651,7 @@ export async function editActivity(activity) {
         <span class="gpx-preview-icon">${iconHtml('pencil')}</span>
         <span>Catégorie de la sortie</span>
       </div>
-      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+      <button class="gpx-preview-close" aria-label="Fermer">${iconHtml('close')}</button>
     </div>
     <div style="padding: 16px 18px;">
       <label class="dim text-xs" style="display:block; margin-bottom:6px;">Catégorie</label>

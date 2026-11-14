@@ -1,17 +1,16 @@
-// Page Planning : agenda de la semaine (cours, colles, DS, temps de travail personnel)
+// Page Planning : emploi du temps de la semaine (cours, colles, DS, temps de travail personnel)
 import { MODE_LABELS, SCHOOL_START, YEAR_END, addDays, mondayOf, parseKey } from '../core/calendar.js';
+
 import { todayKey, weekKey } from '../core/dates.js';
-import { State } from '../core/state.js';
-import { showRunsExcuseModal } from './quests.js';
-import { openCycleEditor } from '../ui/cycle-editor.js';
-import { arePenaltiesActive } from '../features/penalties.js';
-import { RUNS_GOAL_MAX, runsGoalFor, setRunsGoal } from '../features/weekly-goals.js';
-import { loadAll } from '../features/seed.js';
+
 import { iconHtml } from '../ui/icons.js';
+
 import { DAY_LABELS, buildWeek, formatDuration, loadOverrides, removeOverride, saveOverride, toMin } from '../features/planning.js';
+
 import { el } from '../ui/helpers.js';
 
-const view = { monday: null, day: null, tab: 'agenda' };
+
+const view = { monday: null, day: null };
 const MIN_MONDAY = mondayOf(SCHOOL_START);
 const MAX_MONDAY = mondayOf(YEAR_END);
 
@@ -73,47 +72,13 @@ export async function renderPlanning(root) {
   };
   const title = week.index !== null ? `Semaine ${week.index}` : 'Semaine';
   root.appendChild(el('div', { class: 'pl-head' }, [
-    el('button', { class: 'pl-nav', onclick: () => go(-1), 'aria-label': 'Semaine précédente' }, '‹'),
+    el('button', { class: 'pl-nav', onclick: () => go(-1), 'aria-label': 'Semaine précédente', html: iconHtml('chevl') }),
     el('div', { class: 'pl-head-mid' }, [
       el('div', { class: 'pl-week' }, `${title !== 'Semaine' ? title + ' · ' : ''}${fmtShort(week.monday)} – ${fmtShort(addDays(week.monday, 6))}`),
       MODE_LABELS[week.mode] ? el('div', { class: 'pl-mode' }, MODE_LABELS[week.mode]) : null
     ]),
-    el('button', { class: 'pl-nav', onclick: () => go(1), 'aria-label': 'Semaine suivante' }, '›')
+    el('button', { class: 'pl-nav', onclick: () => go(1), 'aria-label': 'Semaine suivante', html: iconHtml('chevr') })
   ]));
-  // Trois tuiles : temps libre de la semaine · objectif de sorties · cycles de la to-do.
-  const runsQ = State.quests.find(q => q.id === 'wq-runs');
-  const wk = weekKey(parseKey(week.monday));
-  const canEdit = week.monday >= mondayOf(today);
-  const tiles = el('div', { class: 'ag-tiles' });
-  tiles.appendChild(el('div', { class: 'ag-tile' }, [
-    el('span', { class: 'ag-ico', html: iconHtml('stopwatch') }),
-    el('b', { class: 'ag-val' }, formatDuration(week.freeMinutes)),
-    el('small', {}, 'Libre')
-  ]));
-  if (runsQ) {
-    const goal = await runsGoalFor(wk, runsQ);
-    const change = async (d) => { await setRunsGoal(wk, goal + d); await loadAll(); rerender(); };
-    const ctl = canEdit ? [
-      el('button', { class: 'cnt-btn', 'aria-label': 'Moins de sorties', disabled: goal <= 1 ? 'disabled' : null, onclick: () => change(-1) }, '−'),
-      el('b', { class: 'ag-val' }, String(goal)),
-      el('button', { class: 'cnt-btn plus', 'aria-label': 'Plus de sorties', disabled: goal >= RUNS_GOAL_MAX ? 'disabled' : null, onclick: () => change(1) }, '+')
-    ] : [el('b', { class: 'ag-val' }, String(goal))];
-    tiles.appendChild(el('div', { class: 'ag-tile' }, [
-      el('span', { class: 'ag-ico', html: iconHtml('run') }),
-      el('div', { class: 'ag-ctl' }, ctl),
-      el('small', {}, 'Sorties')
-    ]));
-  }
-  tiles.appendChild(el('button', { class: 'ag-tile ag-btn', onclick: () => openCycleEditor(rerender) }, [
-    el('span', { class: 'ag-ico', html: iconHtml('cycle') }),
-    el('b', { class: 'ag-val' }, 'Cycles'),
-    el('small', {}, 'To-do')
-  ]));
-  root.appendChild(tiles);
-  if (runsQ && week.monday === mondayOf(today) && arePenaltiesActive()) {
-    root.appendChild(el('button', { class: 'ag-excuse', onclick: () => showRunsExcuseModal(runsQ) }, 'Justifier une semaine sans sortie'));
-  }
-
   root.appendChild(el('div', { class: 'pl-days' }, week.days.map((d, i) => el('button', {
     class: `pl-day${i === view.day ? ' active' : ''}${d.date === today ? ' today' : ''}`,
     onclick: () => { view.day = i; root.innerHTML = ''; renderPlanning(root); }
@@ -183,7 +148,7 @@ function openEditor(ev, week, rerender) {
   const modal = el('div', { class: 'gpx-preview-modal' }, [
     el('div', { class: 'gpx-preview-head' }, [
       el('div', { class: 'gpx-preview-title' }, isNew ? 'Nouveau créneau' : 'Modifier le créneau'),
-      el('button', { class: 'gpx-preview-close', 'aria-label': 'Fermer', onclick: close }, '✕')
+      el('button', { class: 'gpx-preview-close', 'aria-label': 'Fermer', onclick: close, html: iconHtml('close') })
     ]),
     el('div', { class: 'pl-form' }, [
       field('Intitulé', inTitle), field('Jour', inDay),

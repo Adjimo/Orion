@@ -1,19 +1,28 @@
 // Page Quêtes
-import { dayKeyFromDate, formatDate, prevWeekKey, todayKey, weekDateKeys, weekKey, weekStartDate } from '../core/dates.js';
+import { dayKeyFromDate, formatDate, prevWeekKey, todayKey, weekKey, weekStartDate } from '../core/dates.js';
 import { GHOST_BEFORE, dbAll, dbGet } from '../core/db.js';
+
 import { State } from '../core/state.js';
-import { PENALTIES_START, arePenaltiesActive, cancelExcuse, excuseQuestWeek, getMalusExcuses, setSubjectMinutesSmart, xpEarnedInWeek } from '../features/penalties.js';
-import { getCurrentCompletion, recomputeAutoQuests, setQuestValue } from '../features/quests.js';
+
+import { PENALTIES_START, arePenaltiesActive, cancelExcuse, excuseQuestWeek, getMalusExcuses, setSubjectMinutesSmart } from '../features/penalties.js';
+import { recomputeAutoQuests } from '../features/quests.js';
 import { DAYS, SPORT_TYPES } from '../features/schedule.js';
+
 import { loadAll } from '../features/seed.js';
+
 import { RUNS_GOAL_MAX, getSleepLog, runsGoalFor, setRunsGoal, toggleSleepNight } from '../features/weekly-goals.js';
+
 import { SUBJECTS, computeWorkXp, formatHours, formatMinutes, parseTimeInput } from '../features/work.js';
+
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
-import { COLORS, iconHtml } from '../ui/icons.js';
+
+import { iconHtml } from '../ui/icons.js';
 import { render } from '../ui/router.js';
+
 import { renderDayTodo } from '../ui/todo-widgets.js';
+
 import { dailyGoalHours } from '../features/work-goals.js';
-import { renderCaracPanels } from './hebdo-panels.js';
+
 
 // Page « Aujourd'hui » : tableau de bord du jour (sport, temps de travail par matière) + to-do du jour.
 export function renderToday(root) {
@@ -28,24 +37,13 @@ export function renderToday(root) {
 }
 
 
-// Page « Compétences » (route interne `hebdo`) : une carte sobre par caractéristique, avec ses barres.
-// L'objectif de sorties, la justification et les cycles de to-do se règlent dans Agenda ; le sommeil dans Aujourd'hui.
-export async function renderHebdo(root) {
-  const page = el('div', { class: 'page' });
-  page.appendChild(el('div', { class: 'page-title' }, [el('h1', {}, 'Compétences')]));
-  const panelsWrap = el('div', { class: 'hebdo-notes' });
-  page.appendChild(panelsWrap);
-  root.appendChild(page);
-  await renderCaracPanels(panelsWrap);
-}
-
-// Objectif de sorties d'une semaine (− / +) et justification d'une semaine sans sortie (malus). Utilisé par la page Planning.
+// Objectif de sorties d'une semaine (− / +) et justification d'une semaine sans sortie (malus). Utilisé par la page Sport.
 // wk : semaine concernée (YYYY-Www) ; modifiable pour la semaine en cours et les suivantes ; justification : semaine en cours.
 export async function buildRunsControls(q, wk = weekKey()) {
   const goal = await runsGoalFor(wk, q);
   const wrap = el('div', { class: 'hq-runs-ctl' });
   const gRow = el('div', { class: 'hq-goal-pick' });
-  gRow.innerHTML = '<div class="dim text-xs">Mon objectif de la semaine (sorties)</div>';
+  gRow.innerHTML = '<div class="dim text-xs">Objectif</div>';
   const ctr = el('div', { class: 'hq-count-row' });
   const minus = el('button', { class: 'cnt-btn' }, '−');
   const val = el('div', { class: 'cnt-val' }, String(goal));
@@ -62,7 +60,7 @@ export async function buildRunsControls(q, wk = weekKey()) {
     const excuses = await getMalusExcuses();
     const cur = excuses[`${wk}|${q.id}`];
     const row = el('div', { class: 'hq-excuse-row' });
-    row.innerHTML = cur ? `<span class="hq-excused">✓ Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>` : '<span></span>';
+    row.innerHTML = cur ? `<span class="hq-excused">${iconHtml('tick')} Justifié : ${cur.reason === 'malade' ? 'malade' : 'autre'}</span>` : '<span></span>';
     const eb = el('button', { class: 'btn ghost sm' }, cur ? 'Modifier' : 'Justifier une semaine sans sortie');
     eb.addEventListener('click', () => showRunsExcuseModal(q));
     row.appendChild(eb);
@@ -102,7 +100,7 @@ export async function renderDayDashboard(root, afterRender) {
     const sportMeta = SPORT_TYPES[todayPlan.sportType] || SPORT_TYPES.footing;
     const isWeekend = todayPlan.sport === 'weekend';
     const subtitle = sportDone
-      ? '✓ Sortie validée'
+      ? iconHtml('tick') + ' Sortie validée'
       : isWeekend
         ? 'Sortie longue à caser samedi ou dimanche'
         : 'Importe ton GPX quand c\'est fait';
@@ -124,7 +122,7 @@ export async function renderDayDashboard(root, afterRender) {
           <div class="block-title">Couché avant 23h30</div>
           <div class="dim text-xs">${isToday ? 'Hier soir' : 'La veille de ce jour'} · alimente la Discipline</div>
         </div>
-        <button class="btn sm ${slept ? '' : 'ghost'}" id="sleep-toggle">${slept ? '✓ Oui' : 'Cocher'}</button>
+        <button class="btn sm ${slept ? '' : 'ghost'}" id="sleep-toggle">${slept ? iconHtml('tick') + ' Oui' : 'Cocher'}</button>
       </div>`;
 
   let workBlock = '';
@@ -135,7 +133,7 @@ export async function renderDayDashboard(root, afterRender) {
         <div class="block-icon">${iconHtml('books')}</div>
         <div class="block-body">
           <div class="flex between">
-            <div class="block-title">Travail · objectif ${formatHours(goalHours)}${workDone ? ' <span class="pill warm" style="margin-left:8px;">✓</span>' : ''}</div>
+            <div class="block-title">Travail · objectif ${formatHours(goalHours)}${workDone ? ` <span class="pill warm" style="margin-left:8px;">${iconHtml('tick')}</span>` : ''}</div>
             <div class="work-pct" style="color:${barColor};">${Math.round(wi.ratio * 100)}%</div>
           </div>
           <div class="work-bar">
@@ -158,12 +156,12 @@ export async function renderDayDashboard(root, afterRender) {
     <div class="dash">
       <div class="dash-head">
         <div class="dim text-xs">${isToday ? dayLabel : 'Jour modifié · ' + dayLabel}</div>
-        ${wi.ratio >= 1 ? '<span class="text-xs" style="color:var(--accent);">Objectif atteint ✓</span>' : ''}
+        ${wi.ratio >= 1 ? `<span class="text-xs" style="color:var(--accent);">Objectif atteint ${iconHtml('tick')}</span>` : ''}
       </div>
       <div class="day-picker">
-        <button class="btn ghost sm" id="dp-prev" aria-label="Jour précédent" ${dateKey <= GHOST_BEFORE ? 'disabled' : ''}>‹</button>
+        <button class="btn ghost sm" id="dp-prev" aria-label="Jour précédent" ${dateKey <= GHOST_BEFORE ? 'disabled' : ''}>${iconHtml('chevl')}</button>
         <input class="input" id="dp-date" type="date" min="${GHOST_BEFORE}" max="${todayKey()}" value="${dateKey}" />
-        <button class="btn ghost sm" id="dp-next" aria-label="Jour suivant" ${isToday ? 'disabled' : ''}>›</button>
+        <button class="btn ghost sm" id="dp-next" aria-label="Jour suivant" ${isToday ? 'disabled' : ''}>${iconHtml('chevr')}</button>
         ${isToday ? '' : '<button class="btn ghost sm" id="dp-today">Aujourd\'hui</button>'}
       </div>
       ${!isToday && !inCurrentWeek ? '<div class="dim text-xs day-warn">Semaine passée : quêtes et notes de cette semaine sont recalculées automatiquement.</div>' : ''}
@@ -226,136 +224,6 @@ export async function renderDayDashboard(root, afterRender) {
   }
 }
 
-export async function renderWeeklyQuests(root, category = null) {
-  const wks = State.quests.filter(q =>
-    (q.type === 'weekly-hours' || q.type === 'weekly-count') &&
-    (category == null || q.category === category)
-  );
-  root.innerHTML = '';
-  for (const q of wks) {
-    await _renderOneQuest(root, q, category);
-  }
-}
-
-// Rendu d'une carte quête individuelle. Utilisé par renderWeeklyQuests.
-export async function _renderOneQuest(root, q, category) {
-  const c = await getCurrentCompletion(q);
-  const actual = c?.actualValue || 0;
-  const xp = c?.lastXp || 0;
-  const ratio = c?.ratio || 0;
-  const isHours = q.type === 'weekly-hours';
-  const goal = isHours ? q.goalHours : (q.id === 'wq-runs' ? await runsGoalFor(weekKey(), q) : q.goalCount);
-  const unit = isHours ? 'h' : (q.unit || 'fois');
-  const progress = goal > 0 ? Math.min(1, actual / (isHours ? goal * 60 : goal)) : 0;
-  const isAuto = q.autoFromActivities || q.autoFromWorkLog || q.autoFromLangues || q.autoFromLettres || q.autoFromSi || q.autoFromSleep;
-
-  const showAuto = isAuto && !['wq-runs', 'wq-sleep'].includes(q.id);   // ces deux-là sont dans la section « Manuel »
-  const col = COLORS[q.icon] || q.color;                                 // couleur = celle de l'icône
-  const div = el('div', {
-    class: 'hq' + (ratio >= 1 ? ' done' : ''),
-    style: `--hq-c: ${col || '#D08A4E'};`
-  });
-  div.innerHTML = `
-    <div class="hq-head">
-      <span class="hq-icon">${iconHtml(q.icon)}</span>
-      <div class="hq-titles">
-        <div class="hq-title">${escapeHtml(q.title)}</div>
-        <div class="hq-goal">Objectif : ${isHours ? formatHours(goal) : goal + ' ' + unit}${showAuto ? '<span class="auto-tag">auto</span>' : ''}</div>
-      </div>
-      <div class="hq-pct" style="color:${col}">${Math.round(ratio * 100)}%</div>
-    </div>
-    <div class="hq-bar">
-      <div class="hq-fill" style="width:${Math.min(100, progress * 100)}%; background:${col};"></div>
-    </div>
-    <div class="hq-info">
-      ${isHours
-        ? `<span class="dim text-xs">${formatMinutes(actual)} / ${formatHours(goal)}</span>`
-        : `<span class="dim text-xs">${actual} / ${goal} ${unit}</span>`}
-      ${xp > 0 ? `<span class="hq-xp">+${xp} XP</span>` : '<span></span>'}
-    </div>
-  `;
-
-  if (!isAuto) {
-    if (isHours) {
-      const row = el('div', { class: 'hq-input-row' });
-      const input = el('input', {
-        class: 'input', type: 'text',
-        placeholder: 'ex: 2h30, 1.5',
-        value: actual ? formatMinutes(actual) : ''
-      });
-      const btn = el('button', { class: 'btn primary sm' }, 'Valider');
-      const save = async () => {
-        const min = parseTimeInput(input.value);
-        await setQuestValue(q, min);
-        await loadAll();
-        render();
-        showToast({ type: 'xp', title: 'Mis à jour', text: q.title });
-      };
-      btn.addEventListener('click', save);
-      input.addEventListener('keydown', e => { if (e.key === 'Enter') save(); });
-      row.appendChild(input);
-      row.appendChild(btn);
-      div.appendChild(row);
-    } else {
-      const row = el('div', { class: 'hq-count-row' });
-      const minus = el('button', { class: 'cnt-btn' }, '−');
-      const val = el('div', { class: 'cnt-val' }, String(actual));
-      const plus = el('button', { class: 'cnt-btn plus' }, '+');
-      minus.disabled = actual <= 0;
-      const change = async (delta) => {
-        const nv = Math.max(0, actual + delta);
-        await setQuestValue(q, nv);
-        await loadAll();
-        render();
-      };
-      minus.addEventListener('click', () => change(-1));
-      plus.addEventListener('click', () => change(+1));
-      row.appendChild(minus);
-      row.appendChild(val);
-      row.appendChild(plus);
-      div.appendChild(row);
-    }
-  }
-
-  // Quête « Couché avant 23h30 » : compteur de la semaine en cours uniquement.
-  if (q.id === 'wq-sleep') {
-    const sleepLog = await getSleepLog();
-    const dayKeys = weekDateKeys(weekKey(new Date()));
-    const eligible = dayKeys.filter(k => k <= todayKey() && k >= GHOST_BEFORE);
-    const ticked = eligible.filter(k => sleepLog[k]);
-    const free = eligible.filter(k => !sleepLog[k]);
-    const row = el('div', { class: 'sleep-wrap' });
-    row.innerHTML = `
-      <div class="sleep-row">
-        <div class="hq-count-row sleep-counter">
-          <button class="cnt-btn" id="sl-minus" ${ticked.length ? '' : 'disabled'} aria-label="Retirer une nuit">−</button>
-          <div class="cnt-val">${ticked.length}/7</div>
-          <button class="cnt-btn plus" id="sl-plus" ${free.length ? '' : 'disabled'} aria-label="Ajouter une nuit">+</button>
-        </div>
-      </div>
-      <div class="dim text-xs sleep-cap">Cette semaine · appuie sur + pour ajouter une nuit couché avant 23h30</div>`;
-    // + ajoute la nuit la plus récente encore non cochée ; − retire la dernière cochée.
-    row.querySelector('#sl-plus').addEventListener('click', async () => {
-      if (!free.length) return;
-      await toggleSleepNight(free[free.length - 1]);
-      await loadAll();
-      render();
-    });
-    row.querySelector('#sl-minus').addEventListener('click', async () => {
-      if (!ticked.length) return;
-      await toggleSleepNight(ticked[ticked.length - 1]);
-      await loadAll();
-      render();
-    });
-    div.appendChild(row);
-  }
-
-  // Quête « Sorties course » : objectif choisi + justification (même bloc que dans la boîte Dextérité de Hebdo).
-  if (q.id === 'wq-runs') div.appendChild(await buildRunsControls(q));
-
-  root.appendChild(div);
-}
-
 // Modal : choisir une semaine, un motif (Malade / Autre) et une note facultative.
 export async function showRunsExcuseModal(q) {
   const startWk = weekKey(new Date(PENALTIES_START + 'T00:00:00'));
@@ -384,7 +252,7 @@ export async function showRunsExcuseModal(q) {
   modal.innerHTML = `
     <div class="gpx-preview-head">
       <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('stethoscope')}</span><span>Justifier une semaine sans sortie</span></div>
-      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+      <button class="gpx-preview-close" aria-label="Fermer">${iconHtml('close')}</button>
     </div>
     <div style="padding: 16px 18px;">
       <label class="dim text-xs" style="display:block; margin-bottom:6px;">Semaine</label>

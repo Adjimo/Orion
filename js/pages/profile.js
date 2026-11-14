@@ -2,10 +2,9 @@
 import { formatDate } from '../core/dates.js';
 import { dbAll } from '../core/db.js';
 import { APP_VERSION, State } from '../core/state.js';
-import { SKILL_META, deriveLevel } from '../core/xp.js';
 import { storageStatus, daysSince } from '../features/storage.js';
 import { downloadAutoBackup, exportData, onImportFile, renderRemindersCard } from '../features/backup.js';
-import { el, progressBar } from '../ui/helpers.js';
+import { el } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 
 // Sections du profil (compétences, bilan, rappels, sauvegarde), affichées en bas de l'Accueil.

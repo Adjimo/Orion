@@ -1,15 +1,15 @@
 // Page Accueil
-import { daysUntil, formatCountdown, formatDate, startOfWeek, todayKey } from '../core/dates.js';
+import { daysUntil, formatDate } from '../core/dates.js';
 import { State } from '../core/state.js';
 import { dbPut } from '../core/db.js';
 import { MAX_LEVEL, deriveLevel } from '../core/xp.js';
 import { computeYearProgress } from '../features/exams.js';
 import { loadAll } from '../features/seed.js';
-import { formatMinutes } from '../features/work.js';
 import { el, escapeHtml, progressBar } from '../ui/helpers.js';
 import { iconHtml } from '../ui/icons.js';
 import { navigate, render } from '../ui/router.js';
 import { renderCaracsCard } from './caracs-card.js';
+import { renderCaracPanels } from './skills-panels.js';
 
 export function greeting() {
   const h = new Date().getHours();
@@ -24,15 +24,6 @@ export function renderHome(root) {
   const p = State.profile;
   if (!p) return;
   const li = deriveLevel(p.totalXp);
-
-  const ws = startOfWeek();
-  const weekActs = State.activities.filter(a => new Date(a.date) >= ws);
-  const weekKm = weekActs.reduce((s, a) => s + (a.distanceKm || 0), 0);
-  const weekStart = todayKey(ws);
-  const weekLogs = State.workLogs.filter(l => l.date >= weekStart);
-  const weekWorkMin = weekLogs.reduce((s, l) => s + (l.totalMinutes || 0), 0);
-  const todayLog = State.workLogs.find(l => l.date === todayKey());
-  const todayWorkMin = todayLog?.totalMinutes || 0;
 
   const futureExams = State.exams
     .filter(e => e.enabled !== false)
@@ -62,36 +53,24 @@ export function renderHome(root) {
   const top = el('div', { class: 'home-top' });
   fit.appendChild(top);
 
-  top.appendChild(el('div', { class: 'card hero hm-card hm-level', html: `
-    <div>
-      <div class="hm-label hm-label-row"><span>Niveau</span><span>${p.totalXp} XP</span></div>
-      <div class="hm-big grad-text">${li.level}<span class="hm-of"> / ${MAX_LEVEL}</span></div>
-    </div>
-    <div>
-      ${progressBar(li.progress, 8)}
-      <div class="hm-sub mt-2">${li.max ? 'Niveau maximum atteint' : `${li.xpInLevel} / ${li.xpToNext} XP`}</div>
-      ${li.max ? '' : `<div class="hm-sub mute">Niv. ${li.level + 1} dans ${li.xpToNext - li.xpInLevel} XP</div>`}
-    </div>
-  ` }));
+  const card = (cls, label, right, big, pct, sub1, sub2) => el('div', { class: `card hm-card ${cls}`, html: `
+    <div class="hm-label hm-label-row"><span>${label}</span><span>${right}</span></div>
+    <div class="hm-big">${big}</div>
+    <div class="hm-meter">${progressBar(pct, 8)}</div>
+    <div class="hm-subs"><div class="hm-sub">${sub1}</div><div class="hm-sub mute">${sub2}</div></div>` });
 
-  // Prochaine échéance
+  top.appendChild(card('hm-level', 'Niveau', `${p.totalXp} XP`,
+    `<span style="color:var(--accent)">${li.level}</span><span class="hm-of"> / ${MAX_LEVEL}</span>`, li.progress,
+    li.max ? 'Niveau maximum atteint' : `${li.xpInLevel} / ${li.xpToNext} XP`,
+    li.max ? '&nbsp;' : `Niv. ${li.level + 1} dans ${li.xpToNext - li.xpInLevel} XP`));
+
   if (nextExam) {
-    const yearProgress = computeYearProgress(nextExam.date);
-    const yearPct = Math.round(yearProgress * 100);
-    const pctColor = yearPct < 25 ? '#E3B089' : yearPct < 50 ? '#C8814A' : yearPct < 75 ? '#D08A4E' : '#B5703B';
+    const yearPct = Math.round(computeYearProgress(nextExam.date) * 100);
     const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#B5703B' : nextExam.days < 180 ? '#D08A4E' : '#E3B089';
-    top.appendChild(el('div', { class: 'cd-card hm-card', html: `
-      <div class="cd-info">
-        <div class="hm-label">Prochaine échéance</div>
-        <div class="hm-name">${iconHtml(nextExam.icon)} ${escapeHtml(nextExam.short)}</div>
-        <div class="hm-sub">${nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)}</div>
-      </div>
-      <div class="hm-bottom">
-        <div class="hm-days-row"><span class="hm-days" style="color:${pctColor};">${yearPct}<span class="hm-pct">%</span></span><span class="hm-sub">année écoulée</span></div>
-        <div class="year-bar-wrap"><div class="year-bar"><div class="year-fill" style="width:${yearPct}%;"></div></div></div>
-        <div class="hm-sub mt-2"><b style="color:${urg};">J-${nextExam.days}</b> avant échéance · ${formatCountdown(nextExam.days)}</div>
-      </div>
-    ` }));
+    top.appendChild(card('hm-exam', 'Échéance', `${iconHtml(nextExam.icon)} ${escapeHtml(nextExam.short)}`,
+      `<span style="color:${urg}">J-${nextExam.days}</span>`, yearPct / 100,
+      `${yearPct} % de l'année écoulée`,
+      nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)));
   } else {
     top.firstChild.classList.add('full');
   }
@@ -101,20 +80,11 @@ export function renderHome(root) {
   fit.appendChild(caracsBox);
   renderCaracsCard(caracsBox).catch(err => console.error('Caracs card failed', err));
 
-  // Synthèse semaine
-  page.appendChild(el('h3', { class: 'mb-3' }, 'Cette semaine'));
-
-  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: iconHtml('run') + ' Sport' }));
-  page.appendChild(el('div', { class: 'stats-grid mb-4', html: `
-    <div class="stat"><div class="stat-val grad-text">${weekKm.toFixed(1)}</div><div class="stat-label">km</div></div>
-    <div class="stat"><div class="stat-val grad-text">${weekActs.length}</div><div class="stat-label">sorties</div></div>
-  `}));
-
-  page.appendChild(el('div', { class: 'dim text-xs mb-2', html: iconHtml('books') + ' Travail' }));
-  page.appendChild(el('div', { class: 'stats-grid mb-4', html: `
-    <div class="stat"><div class="stat-val grad-text">${formatMinutes(todayWorkMin)}</div><div class="stat-label">aujourd'hui</div></div>
-    <div class="stat"><div class="stat-val grad-text">${formatMinutes(weekWorkMin)}</div><div class="stat-label">cette semaine</div></div>
-  `}));
+  // Compétences : une carte par caractéristique, sous la toile
+  const skills = el('div', { class: 'hebdo-notes home-skills' });
+  page.appendChild(el('h3', { class: 'mb-3 mt-4' }, 'Compétences'));
+  page.appendChild(skills);
+  renderCaracPanels(skills).catch(err => console.error('Skills failed', err));
 
   root.appendChild(page);
 }

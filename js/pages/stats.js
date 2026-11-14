@@ -1,12 +1,19 @@
 // Page Statistiques
 import { todayKey, weekKey } from '../core/dates.js';
+
 import { State } from '../core/state.js';
+
 import { formatDuration } from '../features/gpx.js';
+
 import { RECORD_TYPES, activityVO2maxPoints, formatRecordValue, getRollingRecords } from '../features/records.js';
+
 import { SUBJECTS, formatMinutes } from '../features/work.js';
+
 import { el } from '../ui/helpers.js';
-import { COLORS, iconHtml } from '../ui/icons.js';
+
+import { iconHtml, subjColor } from '../ui/icons.js';
 import { render } from '../ui/router.js';
+
 
 export function renderStats(root) {
   const page = el('div', { class: 'page' });
@@ -409,11 +416,11 @@ export function renderSubjectsDonut(logs) {
     return;
   }
   const palette = {
-    maths: COLORS.sigma,        // couleurs = celles des icônes de chaque matière
-    physique: COLORS.atom,
-    si: COLORS.chip,
-    langues: COLORS.globe,
-    francais: COLORS.pen,
+    maths: subjColor('maths'),
+    physique: subjColor('physique'),
+    si: subjColor('si'),
+    langues: subjColor('langues'),
+    francais: subjColor('francais'),
     autre: '#7d7664'
   };
   const totalH = entries.reduce((s, [_, m]) => s + m, 0) / 60;

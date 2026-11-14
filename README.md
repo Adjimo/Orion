@@ -268,3 +268,15 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - **Répétitions retirées** : `TODO_SUBJECTS` ne duplique plus maths / physique (un seul libellé, celui du cycle) ; libellé redondant de la carte Sport.
 - **Code mort retiré** : `renderWeeklyQuests`, `_renderOneQuest`, `freeMinutesOf`, `saveSelfMalus`, `formatCountdown`, `view.tab` du planning, imports inutilisés, 144 sélecteurs CSS orphelins. Vocabulaire : « Planning » partout.
 - SW `orion-v117`, `APP_VERSION` 4.46.
+
+### v4.47
+- **Accueil** : carte Échéance = pourcentage en grand (barre = année écoulée), « J-X avant échéance » en dessous (couleur d'urgence conservée) ; plus de texte « de l'année écoulée ».
+- **Modificateurs D&D retirés** : le détail d'un sommet du radar n'affiche que la note ; `modifier` / `fmtMod` supprimés de `caracs.js`.
+- **Stats** : le graphique de répartition garde la couleur pleine de la matière au toucher (`hoverBackgroundColor`, pastille du tooltip).
+- **Catégories** (`features/competences.js`) : Dextérité = Sport ; Maths, Physique, SI / Info, Verbe = Travail ; Discipline sans catégorie. Pastille « Sport » / « Travail » sur les cartes Compétences. Les sous-compétences de catégorie Travail (Maths, Physique, SI / Info, Anglais, Français) sont les seules matières de la to-do, des cycles, des récurrents et du temps de travail d'Aujourd'hui (`WORK_SUBJECTS`, `WORK_IDS`, `WORK_KEYS`).
+- **Cycles** (`todo-cycle.js`, v3) : un cycle par matière de travail ; SI / Info ajouté désactivé et vide ; une matière personnalisée d'une ancienne sauvegarde est retirée de la liste des cycles (ses éléments déjà dans la to-do restent). « Ajouter une matière » et « Supprimer ce cycle » retirés (on désactive). **Interrupteur par élément** (`enabled`) : l'élément reste dans le cycle (onglet To-do) mais n'est plus généré ni reporté, et `purgeDisabledTodo()` le retire d'Aujourd'hui et des jours suivants de la semaine en cours (éléments faits et jours passés intacts, donc Discipline des semaines closes inchangée).
+- **Séances** : les jours de chaque cycle sont maintenant dans son dépliant (« Jours des séances ») ; Récurrents ne garde que Vocabulaire, Grammaire, SI et les éléments ajoutés (matière = matière de travail).
+- **Aujourd'hui** : texte « Détaille par matière (le total se calcule tout seul) » retiré ; la saisie des heures liste les matières de travail (« Autre » seulement s'il a déjà du temps saisi).
+- **Un seul bouton d'ajout** : `addBtn()` dans `ui/helpers.js` (pointillés cuivre + pastille « + ») pour to-do, planning, cycles, récurrents, notifications ; variante `solid` supprimée.
+- **Style unifié** : cartes dépliantes de To-do, Compétences (Accueil) et « À faire » (Aujourd'hui) partagent bordure, fond, bandeau et pastille d'icône (bloc « v4.47 » en fin de `style.css`). Accolade CSS orpheline corrigée (anciens styles de sommeil retirés).
+- SW `orion-v118`, `APP_VERSION` 4.47.

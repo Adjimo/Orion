@@ -57,7 +57,7 @@ export function navigate(route) {
     return;
   }
 
-  const routes = [...document.querySelectorAll('.tab')].map(t => t.dataset.route);
+  const routes = [...document.querySelectorAll('.tab:not([hidden])')].map(t => t.dataset.route);
   const a = routes.indexOf(prev), b = routes.indexOf(route);
   const dir = (a < 0 || b < 0) ? 0 : (b > a ? 1 : -1);   // 0 : depuis ou vers Options → fondu simple
   const out = view.animate(
@@ -130,7 +130,7 @@ export function initSwipeNav() {
     const dx = t.clientX - start.x, dy = t.clientY - start.y, dt = Date.now() - start.time;
     start = null;
     if (Math.abs(dx) < 70 || Math.abs(dx) < Math.abs(dy) * 1.8 || dt > 700) return;
-    const routes = [...document.querySelectorAll('.tab')].map(x => x.dataset.route);
+    const routes = [...document.querySelectorAll('.tab:not([hidden])')].map(x => x.dataset.route);
     if (!routes.includes(State.currentRoute)) return;   // pas de balayage depuis Options
     const i = routes.indexOf(State.currentRoute) + (dx < 0 ? 1 : -1);
     if (i >= 0 && i < routes.length) navigate(routes[i]);

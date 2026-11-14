@@ -9,6 +9,9 @@ import { recomputeAutoQuests } from './features/quests.js';
 import { initSeed, loadAll } from './features/seed.js';
 import { migrateSleepCounter } from './features/weekly-goals.js';
 import { recomputeAllRecords, recomputeAllXp } from './pages/sport.js';
+import { applyPrefsToShell, loadPrefs } from './features/prefs.js';
+import { startOnboarding } from './pages/onboarding.js';
+import { prefsNow } from './features/prefs.js';
 import { showToast } from './ui/helpers.js';
 import { hydrateStaticIcons } from './ui/icons.js';
 import { initSwipeNav, navigate } from './ui/router.js';
@@ -28,6 +31,8 @@ export function showSplash() {
 export async function init() {
   hydrateStaticIcons();   // icônes SVG du pack Orion pour les emplacements statiques
   showSplash();
+  await loadPrefs();
+  applyPrefsToShell();
   await initSeed();
   await loadAll();
   ensurePersistentStorage().catch(() => {});
@@ -77,6 +82,7 @@ export async function init() {
 
   initSwipeNav();
   navigate('home');
+  if (!prefsNow().onboarded) setTimeout(startOnboarding, 300);   // tutoriel d'inscription, une seule fois
   // Rappel d'export JSON (au plus une fois par jour), après les autres notifications de lancement.
   setTimeout(async () => {
     const r = await backupReminder().catch(() => null);

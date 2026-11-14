@@ -317,3 +317,9 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - **Options : dépliant « Horaires »** (logo lune) : fin de travail et coucher de chaque jour, avec le même éditeur que le tutoriel (`pages/hours-editor.js`, partagé). Bouton « Enregistrer les horaires » : enregistre `prefs.hours`, recalcule les caractéristiques et recharge les données.
 - Fins de travail par défaut = celles d'origine du planning (22h en semaine, 17h30 samedi, 18h dimanche), coucher 23h30 : rien ne change tant que rien n'est modifié.
 - SW `orion-v125`, `APP_VERSION` 4.54.
+
+### v4.55
+- **To-do › Cycles** : les « actualités de la semaine » sont retirées de tous les cycles à chaque chargement (elles ne vivent plus que dans les récurrents, samedi).
+- **To-do › Récurrents** : éléments rangés par matière, un dépliant par matière (Maths, Physique, SI / Info, Anglais, Français) avec le nombre d'éléments ; bouton « Ajouter en <matière> » dans chaque dépliant ; les dépliants restent ouverts après une modification.
+- **Options** (refonte) : ordre fixe Gamification, Sport, Objectifs, Horaires, Rappels, Sauvegarde, puis carte « Relancer le tutoriel » (logo, toujours visible, plus chaînée au chargement des autres blocs), puis version. Un bloc en erreur ne bloque plus les autres.
+- SW `orion-v126`, `APP_VERSION` 4.55.

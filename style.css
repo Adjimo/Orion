@@ -1863,3 +1863,5 @@ input[type="checkbox"]:checked { background-color: var(--accent); border-color: 
 .ob-val { color: var(--gold); }
 .ob-big { display: block; font-size: 2.4rem; margin: 14px 0 6px; color: var(--gold); }
 .ob-range { width: 100%; accent-color: var(--accent); height: 32px; }
+.opt-tuto { width: 100%; display: flex; align-items: center; justify-content: space-between; text-align: left; color: inherit; font: inherit; cursor: pointer; }
+.opt-tuto-go svg { width: 18px; height: 18px; color: var(--accent); }

@@ -1,8 +1,8 @@
 // Moteur du planning : assemble cours, colles, DS, périodes et modifications d'une semaine.
 import { dbAll, dbDelete, dbPut } from '../core/db.js';
 import { EDT_END, SCHOOL_START, addDays, dayInfo, diffDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
-import { prefsNow } from './prefs.js';
-import { BASE_COURSES, COLLES_G8, COLLE_SLOTS, DS_BY_INDEX, DS_DAY, DS_START, ITC_COURS_END, ITC_TP_LAST_INDEX, TDSI_ANCHOR, weekIndexOf } from './planning-data.js';
+import { colleProgramNow, prefsNow } from './prefs.js';
+import { BASE_COURSES, COLLE_SLOTS, DS_BY_INDEX, DS_DAY, DS_START, ITC_COURS_END, ITC_TP_LAST_INDEX, TDSI_ANCHOR, weekIndexOf } from './planning-data.js';
 
 export const DAY_LABELS = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
 // Fenêtre de la journée dans laquelle on calcule le temps libre.
@@ -18,7 +18,7 @@ export function formatDuration(min) {
 
 function courseActive(c, date, monday) {
   if (c.rule === 'tdsi') return diffDays(date, TDSI_ANCHOR) % 14 === 0;
-  if (c.rule === 'itcTP') { const i = weekIndexOf(monday); return i !== null && i % 2 === 0 && i <= ITC_TP_LAST_INDEX; }
+  if (c.rule === 'itcTP') { const i = weekIndexOf(monday); return i !== null && i % 2 === colleProgramNow().itcParity && i <= ITC_TP_LAST_INDEX + colleProgramNow().itcParity; }
   if (c.rule === 'itcCours') return date <= ITC_COURS_END;
   return true;
 }
@@ -44,7 +44,7 @@ function baseEvents(monday, mode) {
   }
   const idx = weekIndexOf(monday);
   if (mode === 'normal' && idx !== null) {
-    if (prefsNow().colles !== false) for (const code of COLLES_G8[idx] || []) {
+    if (prefsNow().colles !== false) for (const code of colleProgramNow().rotation[idx] || []) {
       const s = COLLE_SLOTS[code];
       const date = s.day ? addDays(monday, s.day - 1) : null;
       events.push({

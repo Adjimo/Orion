@@ -79,3 +79,18 @@ export const COLLES_G8 = {
   10: ['M10', 'P0'], 11: ['M7', 'A4'], 12: ['M5', 'P6'], 13: ['M3', 'A0'], 14: ['M1', 'P1'],
   15: ['M11', 'A4'], 16: ['M6', 'P3'], 17: ['M8', 'A1'], 18: ['M10', 'P4'], 20: ['M6', 'A6']
 };
+
+// Rotation du groupe 11 (Daphné Myoux, 1re de son trio : 1re plage des oraux blancs M0 = lundi 7h20, M1 = jeudi 7h20).
+// Source : planning_2026-2027_5.pdf. La colle de français (F0) tombe la semaine 10.
+export const COLLES_G11 = {
+  0: ['M10', 'P0'], 1: ['M5', 'A1'], 2: ['M12', 'P3'], 3: ['M8', 'A6'], 4: ['M1', 'P5'],
+  5: ['M2', 'A0'], 6: ['M11', 'P2'], 7: ['M6', 'A3'], 8: ['M7', 'P4'], 9: ['M10', 'A1'],
+  10: ['M3', 'P5', 'F0'], 11: ['M0', 'A2'], 12: ['M13', 'P1'], 13: ['M6', 'A6'], 14: ['M7', 'P3'],
+  15: ['M13', 'A3'], 16: ['M10', 'P1'], 17: ['M5', 'A2'], 18: ['M0', 'P6'], 20: ['M8', 'A4']
+};
+
+// Programmes proposés au tutoriel : groupe, rotation de colles et parité du TP ITC (groupes pairs : semaines paires ; impairs : semaines impaires).
+export const COLLE_PROGRAMS = {
+  thomas: { label: 'Thomas', group: 8, rotation: COLLES_G8, itcParity: 0 },     // Thomas Bailloux, groupe 8, 1er du trio
+  daphne: { label: 'Daphné', group: 11, rotation: COLLES_G11, itcParity: 1 }    // Daphné Myoux, groupe 11, 1re du trio
+};

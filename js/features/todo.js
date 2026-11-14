@@ -3,7 +3,8 @@
 import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { YEAR_END, SCHOOL_START, addDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
-import { COLLES_G8, weekIndexOf } from './planning-data.js';
+import { weekIndexOf } from './planning-data.js';
+import { colleProgramNow } from './prefs.js';
 import { OTHER_SUBJECT, TODO_SUBJECTS } from './todo-data.js';
 import { cycleNow, loadCycle } from './todo-cycle.js';
 import { loadRecur, recKey, recurDue, recurNow } from './todo-recur.js';
@@ -22,7 +23,7 @@ const saveState = (st) => dbPut('meta', { key: STATE_KEY, value: st });
 
 const hasAnglaisColle = (monday) => {
   const i = weekIndexOf(monday);
-  return i !== null && (COLLES_G8[i] || []).some(c => c.startsWith('A'));
+  return i !== null && (colleProgramNow().rotation[i] || []).some(c => c.startsWith('A'));
 };
 
 function makeItem(w, subj, key, label) {

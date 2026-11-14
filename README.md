@@ -323,3 +323,15 @@ Les données vivent uniquement dans le navigateur. Profil → Sauvegarde → Exp
 - **To-do › Récurrents** : éléments rangés par matière, un dépliant par matière (Maths, Physique, SI / Info, Anglais, Français) avec le nombre d'éléments ; bouton « Ajouter en <matière> » dans chaque dépliant ; les dépliants restent ouverts après une modification.
 - **Options** (refonte) : ordre fixe Gamification, Sport, Objectifs, Horaires, Rappels, Sauvegarde, puis carte « Relancer le tutoriel » (logo, toujours visible, plus chaînée au chargement des autres blocs), puis version. Un bloc en erreur ne bloque plus les autres.
 - SW `orion-v126`, `APP_VERSION` 4.55.
+
+### v4.56
+- **Options › Objectifs** : un seul dépliant (plus de sous-dépliant), texte explicatif réduit à une ligne.
+- **Horaires** : fin de travail 18h30–23h30 en semaine et 12h–23h le week-end ; coucher 21h–00h ; pas de 15 min (valeurs déjà enregistrées ramenées dans la plage à l'affichage).
+- **Rappels** : cases à cocher identiques au reste de l'app (anciens styles supprimés).
+- **Aujourd'hui** : une seule case « Travail » (total + une ligne par matière) ; nouvelle icône d'onglet (cible avec flèche), `?v=7` pour vider le cache.
+- SW `orion-v127`, `APP_VERSION` 4.56.
+
+### v4.57
+- **Tutoriel page 5** : plus de « colles admin » ; choix **Thomas** (Bailloux, groupe 8, 1er du trio : rotation d'origine inchangée) ou **Daphné** (Myoux, groupe 11, 1re du trio : M0 lundi 7h20, M1 jeudi 7h20). Données dans `planning-data.js` (`COLLES_G11`, `COLLE_PROGRAMS`), choix stocké dans `prefs.who`, lu par `colleProgramNow()` (planning et to-do). Le TP ITC suit la parité du groupe (groupe 11 impair : semaines impaires 1 à 15). Source : `planning_2026-2027_5.pdf` ; la colle de français de Daphné est placée en semaine 10 (même convention que le groupe 8).
+- **Deux versions** (drapeau `IS_ADMIN` dans `core/state.js`) : **admin** (`true`, « Relancer le tutoriel » dans Options) et **utilisateur** (`false`, sans cette fonction). Le tutoriel se lance toujours au premier démarrage.
+- SW `orion-v128`, `APP_VERSION` 4.57.

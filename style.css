@@ -1295,7 +1295,6 @@ img[src*="icons/ui/"] {
 .day-warn { margin: -4px 0 12px; line-height: 1.4; color: var(--clay); }
 
 .rem-row .rem-time { width: 124px; min-width: 0; padding: 6px 8px; }
-.rem-row .rem-on { width: 22px; height: 22px; accent-color: var(--khaki-400); }
 
 .wr-net { font-family: var(--font-mono); font-size: 2rem; font-weight: 700; text-align: center; }
 .wr-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; text-align: center; margin-top: 12px; }
@@ -1688,9 +1687,6 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 
 /* v4.38 : avertissement discret en début de semaine, cases des rappels, to-do */
 .hq-malus.early { color: var(--text-mute); }
-.rem-row .rem-on { appearance: none; -webkit-appearance: none; width: 24px; height: 24px; border-radius: 8px; border: 2px solid var(--border-strong); background: var(--bg-3); display: inline-grid; place-items: center; transition: background .15s, border-color .15s; }
-.rem-row .rem-on:checked { background: var(--grad); border-color: var(--accent); }
-.rem-row .rem-on:checked::after { content: ''; width: 6px; height: 11px; margin-top: -2px; border: solid var(--brown-900); border-width: 0 2.5px 2.5px 0; transform: rotate(45deg); }
 .add-btn.mt-2 { margin-top: 8px; }
 #rem-add { width: 100%; flex: 1 1 100%; white-space: nowrap; }
 

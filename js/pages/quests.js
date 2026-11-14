@@ -12,6 +12,7 @@ import { loadAll } from '../features/seed.js';
 
 import { RUNS_GOAL_MAX, getSleepLog, runsGoalFor, setRunsGoal, toggleSleepNight } from '../features/weekly-goals.js';
 
+import { WORK_KEYS } from '../features/competences.js';
 import { SUBJECTS, computeWorkXp, formatHours, formatMinutes, parseTimeInput } from '../features/work.js';
 
 import { el, escapeHtml, showToast } from '../ui/helpers.js';
@@ -146,7 +147,6 @@ export async function renderDayDashboard(root, afterRender) {
         </div>
       </div>
       <div class="subjects">
-        <div class="dim text-xs mb-2">Détaille par matière (le total se calcule tout seul)</div>
         <div class="subjects-grid" id="subjects-grid"></div>
       </div>
     `;
@@ -198,7 +198,10 @@ export async function renderDayDashboard(root, afterRender) {
 
   if (goalHours > 0) {
     const grid = root.querySelector('#subjects-grid');
-    for (const [key, meta] of Object.entries(SUBJECTS)) {
+    // Matières = sous-compétences de catégorie travail (Maths, Physique, SI / Info, Anglais, Français) ; « Autre » seulement s'il a déjà du temps saisi.
+    const keys = [...WORK_KEYS, ...((workLog?.bySubject?.autre || 0) > 0 ? ['autre'] : [])];
+    for (const key of keys) {
+      const meta = SUBJECTS[key];
       const minutes = workLog?.bySubject?.[key] || 0;
       const sub = el('div', { class: 'sub' });
       sub.innerHTML = `<label class="sub-label">${iconHtml(meta.icon)} ${meta.label}</label>`;

@@ -68,8 +68,8 @@ export function renderHome(root) {
     const yearPct = Math.round(computeYearProgress(nextExam.date) * 100);
     const urg = nextExam.days < 30 ? '#b8453a' : nextExam.days < 90 ? '#B5703B' : nextExam.days < 180 ? '#D08A4E' : '#E3B089';
     top.appendChild(card('hm-exam', 'Échéance', `${iconHtml(nextExam.icon)} ${escapeHtml(nextExam.short)}`,
-      `<span style="color:${urg}">J-${nextExam.days}</span>`, yearPct / 100,
-      `${yearPct} % de l'année écoulée`,
+      `<span style="color:var(--accent)">${yearPct}</span><span class="hm-of"> %</span>`, yearPct / 100,
+      `<span style="color:${urg};font-weight:700">J-${nextExam.days}</span> avant échéance`,
       nextExam.endDate ? new Date(nextExam.date + 'T00:00:00').getDate() + ' – ' + formatDate(nextExam.endDate) : formatDate(nextExam.date)));
   } else {
     top.firstChild.classList.add('full');

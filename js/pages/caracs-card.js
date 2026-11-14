@@ -1,7 +1,7 @@
 // Carte « Caractéristiques » (page Accueil) : toile d'araignée SVG, sans dépendance.
 // Un appui sur un sommet (point, icône) affiche un mini détail à côté de ce sommet.
 // La carte se peint tout de suite depuis un cache (préchargé par le routeur) : pas de saut de mise en page.
-import { CARACS, fmtMod, getCaracSettings, loadCaracHistory, modifier } from '../features/caracs.js';
+import { CARACS, getCaracSettings, loadCaracHistory } from '../features/caracs.js';
 import { el, escapeHtml } from '../ui/helpers.js';
 import { COLORS, iconHtml } from '../ui/icons.js';
 import { State } from '../core/state.js';
@@ -69,7 +69,7 @@ function paint(card, { hist, cfg }, ctl) {
     openI = i;
     const c = CARACS[i], v = last.values[c.id], d = prev ? v - prev.values[c.id] : null;
     const parts = last.details[c.id].filter(x => x.score != null).map(x => `${COMP_LABEL[x.key] || x.key} ${f1(x.score)}`).join(' · ');
-    tip.innerHTML = `<div class="cr-tip-title" style="color:${colorOf(c)}">${iconHtml(c.icon)} <strong>${c.label}</strong> ${Math.round(v)} (${fmtMod(modifier(v))}) ${d == null ? '' : arrow(d)}</div>`
+    tip.innerHTML = `<div class="cr-tip-title" style="color:${colorOf(c)}">${iconHtml(c.icon)} <strong>${c.label}</strong> ${Math.round(v)} ${d == null ? '' : arrow(d)}</div>`
       + `<div class="cr-tip-line">Semaine : ${f1(last.scores[c.id])} / ${cfg.scoreCap}${d == null ? '' : ` · ${d >= 0 ? '+' : ''}${f1(d)}`}</div>`
       + (parts ? `<div class="cr-tip-line mute">${escapeHtml(parts)}</div>` : '');
     const [x, y] = polar(i, v);

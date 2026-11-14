@@ -228,6 +228,7 @@ export function renderVO2maxChart(acts) {
         tooltip: {
           ...chartCommonOptions().plugins.tooltip,
           callbacks: {
+            labelColor: (c) => { const col = c.dataset.backgroundColor[c.dataIndex]; return { borderColor: col, backgroundColor: col, borderWidth: 0, borderRadius: 3 }; },
             label: (c) => `${c.parsed.y} ml/kg/min`,
             title: (items) => points[items[0].dataIndex].name || items[0].label
           }
@@ -431,6 +432,7 @@ export function renderSubjectsDonut(logs) {
       datasets: [{
         data: entries.map(([_, m]) => Math.round(m / 60 * 10) / 10),
         backgroundColor: entries.map(([s]) => palette[s] || '#999'),
+        hoverBackgroundColor: entries.map(([s]) => palette[s] || '#999'),   // la couleur ne s'éclaircit plus au toucher
         borderColor: CHART_COLORS.bg,
         borderWidth: 3,
         hoverOffset: 10,
@@ -446,6 +448,7 @@ export function renderSubjectsDonut(logs) {
         tooltip: {
           ...chartCommonOptions().plugins.tooltip,
           callbacks: {
+            labelColor: (c) => { const col = c.dataset.backgroundColor[c.dataIndex]; return { borderColor: col, backgroundColor: col, borderWidth: 0, borderRadius: 3 }; },
             label: (c) => {
               const pct = totalH > 0 ? Math.round(c.parsed / totalH * 100) : 0;
               return `${c.label} · ${c.parsed} h (${pct}%)`;

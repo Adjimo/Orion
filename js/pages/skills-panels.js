@@ -4,6 +4,7 @@
 // extras = { <idCarac>: nœud DOM } : contrôles ajoutés en bas d'une boîte.
 import { CARACS, projectCurrentWeek } from '../features/caracs.js';
 import { SUBJECTS, formatHours, formatMinutes } from '../features/work.js';
+import { CATEGORY_LABEL } from '../features/competences.js';
 import { el } from '../ui/helpers.js';
 import { COLORS, iconHtml } from '../ui/icons.js';
 
@@ -60,7 +61,7 @@ export async function renderCaracPanels(root, extras = {}) {
     card.innerHTML = `
       <div class="hn-head">
         <span class="hn-ico">${iconHtml(c.icon)}</span>
-        <div class="hn-title"><b>${c.label}</b></div>
+        <div class="hn-title"><div class="t1"><b>${c.label}</b>${c.cat ? `<i class="cat-chip">${CATEGORY_LABEL[c.cat]}</i>` : ''}</div></div>
         <span class="hn-note"><span class="hn-to">${f1(p.projected)}</span>${delta}</span>
       </div>`;
     card.appendChild(el('div', { class: 'hn-body' }, p.comps.map(partEl)));

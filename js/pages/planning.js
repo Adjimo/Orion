@@ -7,7 +7,7 @@ import { iconHtml } from '../ui/icons.js';
 
 import { DAY_LABELS, buildWeek, formatDuration, loadOverrides, removeOverride, saveOverride, toMin } from '../features/planning.js';
 
-import { el } from '../ui/helpers.js';
+import { addBtn, el } from '../ui/helpers.js';
 
 
 const view = { monday: null, day: null };
@@ -96,7 +96,7 @@ export async function renderPlanning(root) {
     ]));
   }
   root.appendChild(dayList(week.days[view.day], week.mode, (ev) => openEditor(ev, week, rerender)));
-  root.appendChild(el('button', { class: 'add-btn pl-add', onclick: () => openEditor(null, week, rerender), html: '<span class="add-plus">+</span> Ajouter un créneau' }));
+  root.appendChild(addBtn('Ajouter un créneau', () => openEditor(null, week, rerender), 'pl-add'));
 }
 
 // ── Édition d'un créneau (sans jamais toucher à l'emploi du temps de base) ───

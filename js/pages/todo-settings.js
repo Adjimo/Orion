@@ -1,12 +1,13 @@
 // Onglet « To-do » : cycles (matières à éléments pondérés) et éléments récurrents (jours + fréquence).
 // Tout s'enregistre à chaque modification ; les changements comptent à partir de la semaine suivante.
 import { DAY_LABELS } from '../features/planning.js';
-import { loadCycle, saveCycle, TODO_SUBJECTS } from '../features/todo.js';
-import { newSubjectId, resetCycle } from '../features/todo-cycle.js';
+import { loadCycle, purgeDisabledTodo, saveCycle, TODO_SUBJECTS } from '../features/todo.js';
+import { resetCycle } from '../features/todo-cycle.js';
+import { CATEGORY_LABEL, WORK_IDS } from '../features/competences.js';
 import { loadRecur, newRecurId, saveRecur } from '../features/todo-recur.js';
 import { todayKey } from '../core/dates.js';
 import { mondayOf, parseKey } from '../core/calendar.js';
-import { el } from '../ui/helpers.js';
+import { addBtn, el } from '../ui/helpers.js';
 import { SUBJ_ICON, iconHtml, subjClass } from '../ui/icons.js';
 
 const subjIcon = (id) => `<span class="${subjClass(id)}">${iconHtml(SUBJ_ICON[id] || 'book')}</span>`;
@@ -17,7 +18,7 @@ const stepper = (value, onChange, { min = 1, max = 99, fmt = String } = {}) => e
   el('span', { class: 'cy-val' }, fmt(value)),
   el('button', { type: 'button', 'aria-label': 'Plus', disabled: value >= max ? 'disabled' : null, onclick: () => onChange(Math.min(max, value + 1)) }, '+')
 ]);
-const toggle = (on, onChange, label) => el('button', { type: 'button', class: 'sw' + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: () => onChange(!on) }, [el('span', { class: 'sw-knob' })]);
+const toggle = (on, onChange, label, size = '') => el('button', { type: 'button', class: 'sw' + size + (on ? ' on' : ''), role: 'switch', 'aria-checked': String(!!on), 'aria-label': label, onclick: () => onChange(!on) }, [el('span', { class: 'sw-knob' })]);
 
 export async function renderTodoSettings(root) {
   const cycle = JSON.parse(JSON.stringify(await loadCycle()));
@@ -31,7 +32,7 @@ export async function renderTodoSettings(root) {
   root.appendChild(page);
 
   const keepScroll = (fn) => { const y = window.scrollY; fn(); window.scrollTo(0, y); };
-  const saveC = () => saveCycle(cycle);
+  const saveC = async () => { await saveCycle(cycle); await purgeDisabledTodo(); };   // un élément désactivé quitte Aujourd'hui et les jours suivants
   const saveR = () => saveRecur(recur);
 
   // ── Cycles ────────────────────────────────────────────────────────────────
@@ -41,7 +42,7 @@ export async function renderTodoSettings(root) {
     const total = sub.items.reduce((s, i) => s + i.w, 0);
     card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(sub.id) : open.add(sub.id); draw(); } }, [
       el('span', { class: 'ts-ico', html: subjIcon(sub.id) }),
-      el('div', { class: 'ts-title' }, [el('b', {}, sub.label), el('small', {}, `${sub.items.length} éléments · ${sub.budget} pts / sem.`)]),
+      el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, sub.label), el('i', { class: 'cat-chip' }, CATEGORY_LABEL.travail)]), el('small', {}, `${sub.items.filter(i => i.enabled !== false).length === sub.items.length ? sub.items.length : sub.items.filter(i => i.enabled !== false).length + '/' + sub.items.length} éléments · ${sub.budget} pts / sem.`)]),
       el('span', { onclick: (e) => e.stopPropagation() }, [toggle(sub.enabled !== false, async (v) => { sub.enabled = v; await saveC(); keepScroll(draw); }, 'Activer le cycle')]),
       el('span', { class: 'ts-chev' + (isOpen ? ' open' : ''), html: iconHtml('chevr') })
     ]));
@@ -55,33 +56,36 @@ export async function renderTodoSettings(root) {
     sub.items.forEach((it, i) => {
       const input = el('input', { class: 'cy-name', value: it.name, 'aria-label': 'Nom' });
       input.addEventListener('change', async () => { it.name = input.value.trim() || it.name; await saveC(); });
-      list.appendChild(el('div', { class: 'cy-row' }, [
-        el('div', { class: 'cy-move' }, [
-          el('button', { 'aria-label': 'Monter', disabled: i === 0 ? 'disabled' : null, onclick: async () => { [sub.items[i - 1], sub.items[i]] = [sub.items[i], sub.items[i - 1]]; await saveC(); keepScroll(draw); }, html: iconHtml('chevu') }),
-          el('button', { 'aria-label': 'Descendre', disabled: i === sub.items.length - 1 ? 'disabled' : null, onclick: async () => { [sub.items[i + 1], sub.items[i]] = [sub.items[i], sub.items[i + 1]]; await saveC(); keepScroll(draw); }, html: iconHtml('chevd') })
-        ]),
+      list.appendChild(el('div', { class: 'cy-row' + (it.enabled === false ? ' off' : '') }, [
         input,
-        stepper(it.w, async (v) => { it.w = v; await saveC(); keepScroll(draw); }, { min: 1, max: 20 }),
-        el('button', { class: 'td-del', 'aria-label': 'Retirer', onclick: async () => { sub.items.splice(i, 1); await saveC(); keepScroll(draw); }, html: iconHtml('close') })
+        el('button', { class: 'td-del', 'aria-label': 'Retirer', onclick: async () => { sub.items.splice(i, 1); await saveC(); keepScroll(draw); }, html: iconHtml('close') }),
+        el('div', { class: 'cy-ctl' }, [
+          el('div', { class: 'cy-move' }, [
+            el('button', { 'aria-label': 'Monter', disabled: i === 0 ? 'disabled' : null, onclick: async () => { [sub.items[i - 1], sub.items[i]] = [sub.items[i], sub.items[i - 1]]; await saveC(); keepScroll(draw); }, html: iconHtml('chevu') }),
+            el('button', { 'aria-label': 'Descendre', disabled: i === sub.items.length - 1 ? 'disabled' : null, onclick: async () => { [sub.items[i + 1], sub.items[i]] = [sub.items[i], sub.items[i + 1]]; await saveC(); keepScroll(draw); }, html: iconHtml('chevd') })
+          ]),
+          stepper(it.w, async (v) => { it.w = v; await saveC(); keepScroll(draw); }, { min: 1, max: 20 }),
+          el('span', { class: 'cy-on' }, [el('small', {}, it.enabled === false ? 'Désactivé' : 'Actif'), toggle(it.enabled !== false, async (v) => { it.enabled = v; await saveC(); keepScroll(draw); }, 'Activer l\u2019élément', ' sm')])
+        ])
       ]));
     });
     b.appendChild(list);
-    b.appendChild(el('button', { class: 'add-btn', onclick: async () => { sub.items.push({ name: 'Nouvel élément', w: 3 }); await saveC(); keepScroll(draw); } }, [el('span', { class: 'add-plus' }, '+'), ' Ajouter un élément']));
-    b.appendChild(el('button', { class: 'ts-danger', onclick: async () => { if (!confirm(`Supprimer le cycle « ${sub.label} » ?`)) return; cycle.subjects.splice(si, 1); await saveC(); keepScroll(draw); } }, 'Supprimer ce cycle'));
+    b.appendChild(addBtn('Ajouter un élément', async () => { sub.items.push({ name: 'Nouvel élément', w: 3, enabled: true }); await saveC(); keepScroll(draw); }));
+    // Séances : les jours où les éléments du cycle tombent (un par jour, le dernier jour reçoit le reste).
+    b.appendChild(el('div', { class: 'ts-sub' }, 'Jours des séances'));
+    b.appendChild(el('div', { class: 'ts-days' }, DAY_SHORT.map((l, i) => el('button', {
+      type: 'button', class: 'ts-day' + (sub.days.includes(i + 1) ? ' active' : ''), 'aria-label': DAY_LABELS[i],
+      onclick: async () => { sub.days = sub.days.includes(i + 1) ? sub.days.filter(d => d !== i + 1) : [...sub.days, i + 1].sort((a, c) => a - c); await saveC(); keepScroll(draw); }
+    }, l))));
     card.appendChild(b);
     return card;
   }
 
   function drawCycles() {
-    cycle.subjects.forEach((s, i) => body.appendChild(cycleCard(s, i)));
-    body.appendChild(el('button', { class: 'add-btn solid', onclick: async () => {
-      const name = prompt('Nom de la matière :'); if (!name?.trim()) return;
-      const id = newSubjectId(); cycle.subjects.push({ id, label: name.trim(), budgetMode: 'points', budget: 6, enabled: true, items: [{ name: 'Premier élément', w: 3 }] });
-      open.add(id); await saveC(); TODO_SUBJECTS.length; keepScroll(draw);
-    } }, [el('span', { class: 'add-plus' }, '+'), ' Ajouter une matière']));
+    cycle.subjects.forEach((sub, i) => body.appendChild(cycleCard(sub, i)));
     body.appendChild(el('button', { class: 'ts-danger', onclick: async () => {
       if (!confirm('Remplacer tous les cycles par les valeurs par défaut ?')) return;
-      Object.assign(cycle, JSON.parse(JSON.stringify(await resetCycle()))); keepScroll(draw);
+      Object.assign(cycle, JSON.parse(JSON.stringify(await resetCycle()))); await purgeDisabledTodo(); keepScroll(draw);
     } }, 'Valeurs par défaut'));
   }
 
@@ -93,7 +97,7 @@ export async function renderTodoSettings(root) {
     const rhythm = r.every > 1 ? `toutes les ${r.every} sem.` : 'chaque semaine';
     card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(r.id) : open.add(r.id); draw(); } }, [
       el('span', { class: 'ts-ico', html: subjIcon(r.subj) }),
-      el('div', { class: 'ts-title' }, [el('b', {}, r.label), el('small', {}, `${when} · ${rhythm}`)]),
+      el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, r.label)]), el('small', {}, `${when} · ${rhythm}`)]),
       el('span', { onclick: (e) => e.stopPropagation() }, [toggle(r.enabled, async (v) => { r.enabled = v; await saveR(); keepScroll(draw); }, 'Activer l\u2019élément')]),
       el('span', { class: 'ts-chev' + (isOpen ? ' open' : ''), html: iconHtml('chevr') })
     ]));
@@ -122,34 +126,13 @@ export async function renderTodoSettings(root) {
     return card;
   }
 
-  // Séances d'un cycle : les jours où ses éléments tombent (anglais, français, maths, physique…).
-  function sessionCard(sub) {
-    const id = 'ses-' + sub.id, isOpen = open.has(id);
-    const when = sub.days.length ? sub.days.map(d => DAY_SHORT[d - 1]).join(' ') : 'aucun jour';
-    const card = el('div', { class: 'ts-card' + (sub.enabled === false ? ' off' : '') });
-    card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(id) : open.add(id); draw(); } }, [
-      el('span', { class: 'ts-ico', html: subjIcon(sub.id) }),
-      el('div', { class: 'ts-title' }, [el('b', {}, `${sub.label} · séances`), el('small', {}, `${when} · cycle`)]),
-      el('span', { class: 'ts-chev' + (isOpen ? ' open' : ''), html: iconHtml('chevr') })
-    ]));
-    if (isOpen) card.appendChild(el('div', { class: 'ts-inner' }, [
-      el('div', { class: 'ts-sub' }, 'Jours des éléments du cycle'),
-      el('div', { class: 'ts-days' }, DAY_SHORT.map((l, i) => el('button', {
-        type: 'button', class: 'ts-day' + (sub.days.includes(i + 1) ? ' active' : ''), 'aria-label': DAY_LABELS[i],
-        onclick: async () => { sub.days = sub.days.includes(i + 1) ? sub.days.filter(d => d !== i + 1) : [...sub.days, i + 1].sort((a, c) => a - c); await saveC(); keepScroll(draw); }
-      }, l)))
-    ]));
-    return card;
-  }
-
   function drawRecur() {
-    cycle.subjects.forEach(sub => body.appendChild(sessionCard(sub)));
     recur.items.forEach((r, i) => body.appendChild(recurCard(r, i)));
-    body.appendChild(el('button', { class: 'add-btn solid', onclick: async () => {
+    body.appendChild(addBtn('Ajouter un élément récurrent', async () => {
       const id = newRecurId();
-      recur.items.push({ id, label: 'Nouvel élément', subj: 'autre', days: [parseKey(todayKey()).getDay() || 7], every: 1, anchor: mondayOf(todayKey()), enabled: true, noCarry: true });
+      recur.items.push({ id, label: 'Nouvel élément', subj: WORK_IDS[0], days: [parseKey(todayKey()).getDay() || 7], every: 1, anchor: mondayOf(todayKey()), enabled: true, noCarry: true });
       open.add(id); await saveR(); keepScroll(draw);
-    } }, [el('span', { class: 'add-plus' }, '+'), ' Ajouter un élément récurrent']));
+    }));
   }
 
   function draw() {

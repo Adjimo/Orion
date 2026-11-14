@@ -44,7 +44,7 @@ export function renderHome(root) {
   }, html: iconHtml('pencil') });
   fit.appendChild(el('div', { class: 'header home-head flex between' }, [
     el('div', {}, [
-      el('div', { class: 'dim text-xs home-since' }, `${greeting()} · membre depuis ${new Date(p.createdAt).toLocaleDateString('fr-FR')}`),
+      el('div', { class: 'dim text-xs home-since' }, greeting()),
       el('div', { class: 'text-xl home-name' }, p.name)
     ]),
     el('div', { class: 'flex gap-2' }, [editBtn, el('button', { class: 'btn ghost sm', 'aria-label': 'Options', onclick: () => navigate('options'), html: iconHtml('gear') })])

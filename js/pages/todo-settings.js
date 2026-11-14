@@ -130,23 +130,27 @@ export async function renderTodoSettings(root) {
     return card;
   }
 
-  const openSubj = new Set();   // matières dépliées (mémorisées entre deux affichages)
-  function drawRecur() {
+  function drawRecur() {   // même boîte que les cycles : en-tête de matière (icône, titre, nombre d'éléments) puis contenu
     for (const sj of TODO_SUBJECTS) {
       const mine = recur.items.map((r, i) => [r, i]).filter(([r]) => r.subj === sj.id);
-      const d = el('details', { class: 'card mb-3 cs-fold opt-fold' }, [el('summary', { class: 'cs-fold-head', html: subjIcon(sj.id) + `<span>${sj.label}</span><small class="mute" style="margin-left:6px">${mine.length}</small>` })]);
-      if (openSubj.has(sj.id)) d.setAttribute('open', '');
-      d.addEventListener('toggle', () => { d.open ? openSubj.add(sj.id) : openSubj.delete(sj.id); });
-      const inner = el('div', { class: 'opt-fold-body' });
-      mine.forEach(([r, i]) => inner.appendChild(recurCard(r, i)));
-      if (!mine.length) inner.appendChild(el('small', { class: 'mute', style: 'display:block;margin-bottom:8px' }, 'Aucun élément récurrent.'));
-      inner.appendChild(addBtn(`Ajouter en ${sj.label}`, async () => {
-        const id = newRecurId();
-        recur.items.push({ id, label: 'Nouvel élément', subj: sj.id, days: [parseKey(todayKey()).getDay() || 7], every: 1, anchor: mondayOf(todayKey()), enabled: true, noCarry: true });
-        open.add(id); openSubj.add(sj.id); await saveR(); keepScroll(draw);
-      }));
-      d.appendChild(inner);
-      body.appendChild(d);
+      const key = 'rs:' + sj.id, isOpen = open.has(key);
+      const card = el('div', { class: 'ts-card' + (mine.length && mine.every(([r]) => !r.enabled) ? ' off' : '') });
+      card.appendChild(el('div', { class: 'ts-head', onclick: () => { isOpen ? open.delete(key) : open.add(key); draw(); } }, [
+        el('span', { class: 'ts-ico', html: subjIcon(sj.id) }),
+        el('div', { class: 'ts-title' }, [el('div', { class: 't1' }, [el('b', {}, sj.label), el('i', { class: 'cat-chip' }, CATEGORY_LABEL.travail)]), el('small', {}, mine.length ? `${mine.length} élément${mine.length > 1 ? 's' : ''} · ${mine.filter(([r]) => r.enabled).length} actif${mine.filter(([r]) => r.enabled).length > 1 ? 's' : ''}` : 'Aucun élément')]),
+        el('span', { class: 'ts-chev' + (isOpen ? ' open' : ''), html: iconHtml('chevr') })
+      ]));
+      if (isOpen) {
+        const b = el('div', { class: 'ts-inner' });
+        mine.forEach(([r, i]) => b.appendChild(recurCard(r, i)));
+        b.appendChild(addBtn(`Ajouter en ${sj.label}`, async () => {
+          const id = newRecurId();
+          recur.items.push({ id, label: 'Nouvel élément', subj: sj.id, days: [parseKey(todayKey()).getDay() || 7], every: 1, anchor: mondayOf(todayKey()), enabled: true, noCarry: true });
+          open.add(id); await saveR(); keepScroll(draw);
+        }));
+        card.appendChild(b);
+      }
+      body.appendChild(card);
     }
   }
 

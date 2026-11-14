@@ -9,6 +9,7 @@ import { loadAll } from '../features/seed.js';
 import { DEFAULT_HOURS, loadPrefs, prefsNow, savePrefs } from '../features/prefs.js';
 import { startOnboarding } from './onboarding.js';
 import { recomputeCaracs } from '../features/caracs.js';
+import { APP_VERSION } from '../core/state.js';
 
 export function renderOptions(root) {
   const page = el('div', { class: 'page' });
@@ -35,8 +36,13 @@ export function renderOptions(root) {
       row('sport', 'run', 'Sport', 'Onglet Sport, compétence Dextérité et quête de sorties', () => recomputeCaracs().catch(() => {}))
     );
   });
+  // Ordre fixe : conteneurs créés d'avance, remplis ensuite (un bloc en erreur ne bloque jamais les autres).
+  const holders = ['hours', 'goals', 'profile'].map(() => el('div', {}));
+  const [hoursHolder, goalsHolder, profileHolder] = holders;
+  page.append(goalsHolder, hoursHolder, profileHolder);
+
   const hoursFold = el('details', { class: 'card mb-3 cs-fold opt-fold' }, [el('summary', { class: 'cs-fold-head', html: iconHtml('moon') + '<span>Horaires</span>' })]);
-  page.appendChild(hoursFold);
+  hoursHolder.appendChild(hoursFold);
   loadPrefs().then(() => {   // dépliant Horaires : fin de travail (fin du temps libre) et coucher, par jour
     const hours = (prefsNow().hours || DEFAULT_HOURS()).map(h => ({ ...h }));
     hoursFold.appendChild(el('div', { class: 'cs-card' }, [
@@ -49,8 +55,18 @@ export function renderOptions(root) {
         showToast({ type: 'xp', icon: 'check', title: 'Horaires enregistrés', text: 'Objectifs recalculés.' }, 3000);
       } }, 'Enregistrer les horaires')
     ]));
-  });
-  renderCaracsSettings(page).then(() => renderProfileSections(page)).then(() => page.appendChild(
-    el('button', { class: 'btn ghost sm mb-3', style: 'width:100%', onclick: startOnboarding }, 'Relancer le tutoriel (sans perdre de données)')));   // d'abord les réglages des caractéristiques, puis rappels, sauvegarde, version
+  }).catch(() => {});
+  renderCaracsSettings(goalsHolder).catch(() => {});   // dépliant Objectifs
+  try { renderProfileSections(profileHolder); } catch (e) { /* rappels / sauvegarde indisponibles */ }   // dépliants Rappels et Sauvegarde
+
+  // Tutoriel : carte toujours visible, juste sous les dépliants, avec son logo.
+  page.appendChild(el('button', { type: 'button', class: 'card mb-3 opt-pref opt-tuto', onclick: () => startOnboarding() }, [
+    el('div', { class: 'opt-pref-t' }, [
+      el('span', { class: 'opt-pico', html: iconHtml('sparkles') }),
+      el('div', {}, [el('b', {}, 'Relancer le tutoriel'), el('small', { class: 'mute', style: 'display:block' }, 'Revoir les pages d\u2019accueil, sans perdre tes données')])
+    ]),
+    el('span', { class: 'opt-tuto-go', html: iconHtml('chevr') })
+  ]));
+  page.appendChild(el('div', { class: 'dim text-xs mt-5', style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);' }, `DailyUp v${APP_VERSION}`));
   root.appendChild(page);
 }

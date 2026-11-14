@@ -130,13 +130,24 @@ export async function renderTodoSettings(root) {
     return card;
   }
 
+  const openSubj = new Set();   // matières dépliées (mémorisées entre deux affichages)
   function drawRecur() {
-    recur.items.forEach((r, i) => body.appendChild(recurCard(r, i)));
-    body.appendChild(addBtn('Ajouter un élément récurrent', async () => {
-      const id = newRecurId();
-      recur.items.push({ id, label: 'Nouvel élément', subj: WORK_IDS[0], days: [parseKey(todayKey()).getDay() || 7], every: 1, anchor: mondayOf(todayKey()), enabled: true, noCarry: true });
-      open.add(id); await saveR(); keepScroll(draw);
-    }));
+    for (const sj of TODO_SUBJECTS) {
+      const mine = recur.items.map((r, i) => [r, i]).filter(([r]) => r.subj === sj.id);
+      const d = el('details', { class: 'card mb-3 cs-fold opt-fold' }, [el('summary', { class: 'cs-fold-head', html: subjIcon(sj.id) + `<span>${sj.label}</span><small class="mute" style="margin-left:6px">${mine.length}</small>` })]);
+      if (openSubj.has(sj.id)) d.setAttribute('open', '');
+      d.addEventListener('toggle', () => { d.open ? openSubj.add(sj.id) : openSubj.delete(sj.id); });
+      const inner = el('div', { class: 'opt-fold-body' });
+      mine.forEach(([r, i]) => inner.appendChild(recurCard(r, i)));
+      if (!mine.length) inner.appendChild(el('small', { class: 'mute', style: 'display:block;margin-bottom:8px' }, 'Aucun élément récurrent.'));
+      inner.appendChild(addBtn(`Ajouter en ${sj.label}`, async () => {
+        const id = newRecurId();
+        recur.items.push({ id, label: 'Nouvel élément', subj: sj.id, days: [parseKey(todayKey()).getDay() || 7], every: 1, anchor: mondayOf(todayKey()), enabled: true, noCarry: true });
+        open.add(id); openSubj.add(sj.id); await saveR(); keepScroll(draw);
+      }));
+      d.appendChild(inner);
+      body.appendChild(d);
+    }
   }
 
   function draw() {

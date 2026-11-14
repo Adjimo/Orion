@@ -69,10 +69,4 @@ export function renderProfileSections(page) {
     }
   }, 0);
 
-  // Footer version : juste l'info, discret.
-  page.appendChild(el('div', {
-    class: 'dim text-xs mt-5',
-    style: 'text-align:center; padding-top: 12px; border-top: 1px solid var(--border);'
-  }, `DailyUp v${APP_VERSION}`));
-
 }

@@ -9,6 +9,8 @@ import { DAY_LABELS, buildWeek, formatDuration, loadOverrides, removeOverride, s
 
 import { addBtn, el } from '../ui/helpers.js';
 
+import { PLAN_CATS, PLAN_SWATCHES, applyPlanColors, planColor, prefsNow, savePrefs } from '../features/prefs.js';
+
 
 const view = { monday: null, day: null };
 const MIN_MONDAY = mondayOf(SCHOOL_START);
@@ -71,6 +73,10 @@ export async function renderPlanning(root) {
     view.monday = next; view.day = 0; root.innerHTML = ''; renderPlanning(root);
   };
   const title = week.index !== null ? `Semaine ${week.index}` : 'Semaine';
+  root.appendChild(el('div', { class: 'page-title' }, [
+    el('h1', {}, 'Planning'),
+    el('button', { class: 'btn ghost sm', 'aria-label': 'Couleurs du planning', onclick: () => openColors(rerender), html: iconHtml('target') })
+  ]));
   root.appendChild(el('div', { class: 'pl-head' }, [
     el('button', { class: 'pl-nav', onclick: () => go(-1), 'aria-label': 'Semaine précédente', html: iconHtml('chevl') }),
     el('div', { class: 'pl-head-mid' }, [
@@ -85,7 +91,7 @@ export async function renderPlanning(root) {
   }, [el('span', {}, d.label.slice(0, 3)), el('b', {}, String(parseKey(d.date).getDate())),
       el('i', { class: (d.events.length || d.info.vacation || d.info.holiday) ? 'on' : '' })]))));
 
-  root.appendChild(el('div', { class: 'pl-legend' }, [['Cours', 'var(--ev-cours)'], ['Colle', 'var(--ev-colle)'], ['DS', 'var(--ev-ds)'], ['Libre', 'var(--border-strong)']].map(([l, c]) => el('span', { style: `--c:${c}` }, l))));
+  root.appendChild(el('div', { class: 'pl-legend' }, PLAN_CATS.map(c => [c.label, `var(--ev-${c.key})`]).map(([l, c]) => el('span', { style: `--c:${c}` }, l))));
 
   if (week.unscheduled.length) {
     root.appendChild(el('div', { class: 'pl-card pl-colle pl-unsched pl-tap' }, [
@@ -111,6 +117,8 @@ function openEditor(ev, week, rerender) {
   const inDay = el('select', {}, DAY_LABELS.map((l, i) => el('option', i === dayIdx ? { value: i + 1, selected: 'selected' } : { value: i + 1 }, l)));
   const inStart = el('input', { type: 'time', value: cur.start || '' });
   const inEnd = el('input', { type: 'time', value: cur.end || '' });
+  const curType = cur.type || 'autre';
+  const inType = el('select', {}, PLAN_CATS.filter(c => c.key !== 'libre').map(c => el('option', c.key === curType ? { value: c.key, selected: 'selected' } : { value: c.key }, c.label)));
   const inTeacher = el('input', { type: 'text', value: cur.teacher || '', placeholder: 'Professeur' });
   const inRoom = el('input', { type: 'text', value: cur.room || '', placeholder: 'Salle' });
   const recurring = isNew || !!ev.recurKey;
@@ -121,7 +129,7 @@ function openEditor(ev, week, rerender) {
   ]) : null;
   function setScope(v, e) { scope = v; scopeBox.querySelectorAll('.pl-seg').forEach(b => b.classList.toggle('active', b === e.currentTarget)); }
 
-  const fields = () => ({ day: Number(inDay.value), start: inStart.value, end: inEnd.value, title: inTitle.value.trim(), teacher: inTeacher.value.trim() || null, room: inRoom.value.trim() || null });
+  const fields = () => ({ type: inType.value, day: Number(inDay.value), start: inStart.value, end: inEnd.value, title: inTitle.value.trim(), teacher: inTeacher.value.trim() || null, room: inRoom.value.trim() || null });
   const stamp = () => new Date().toISOString();
   const done = () => { close(); rerender(); };
 
@@ -151,7 +159,7 @@ function openEditor(ev, week, rerender) {
       el('button', { class: 'gpx-preview-close', 'aria-label': 'Fermer', onclick: close, html: iconHtml('close') })
     ]),
     el('div', { class: 'pl-form' }, [
-      field('Intitulé', inTitle), field('Jour', inDay),
+      field('Intitulé', inTitle), field('Catégorie (couleur)', inType), field('Jour', inDay),
       el('div', { class: 'pl-row2' }, [field('Début', inStart), field('Fin', inEnd)]),
       field('Professeur', inTeacher), field('Salle', inRoom),
       scopeBox ? el('div', { class: 'pl-hint' }, 'S\u2019applique à :') : null, scopeBox,
@@ -161,5 +169,37 @@ function openEditor(ev, week, rerender) {
     ])
   ]);
   overlay.appendChild(modal);
+  document.body.appendChild(overlay);
+}
+
+// ── Couleurs du planning : une couleur par catégorie (cours, colle, DS, temps libre, autre) ──
+function openColors(rerender) {
+  const close = () => { overlay.remove(); rerender(); };
+  const body = el('div', { class: 'pl-form' });
+  const draw = () => {
+    body.innerHTML = '';
+    for (const c of PLAN_CATS) {
+      const cur = planColor(c.key);
+      const set = async (v) => { await savePrefs({ planColors: { ...prefsNow().planColors, [c.key]: v } }); applyPlanColors(); draw(); };
+      const picker = el('input', { type: 'color', class: 'pl-color-in', value: cur, 'aria-label': `Couleur personnalisée : ${c.label}` });
+      picker.addEventListener('change', () => set(picker.value));
+      body.appendChild(el('div', { class: 'pl-color-row' }, [
+        el('div', { class: 'pl-color-name' }, [el('span', { class: 'pl-color-dot', style: `background:${cur}` }), c.label]),
+        el('div', { class: 'pl-swatches' }, [
+          ...PLAN_SWATCHES.map(h => el('button', { type: 'button', class: 'pl-sw' + (h.toLowerCase() === cur.toLowerCase() ? ' on' : ''), style: `background:${h}`, 'aria-label': h, onclick: () => set(h) })),
+          picker
+        ])
+      ]));
+    }
+    body.appendChild(el('button', { class: 'btn full', onclick: async () => { await savePrefs({ planColors: {} }); applyPlanColors(); draw(); } }, 'Couleurs d\u2019origine'));
+  };
+  draw();
+  const overlay = el('div', { class: 'gpx-preview-overlay', onclick: (e) => { if (e.target === overlay) close(); } });
+  overlay.appendChild(el('div', { class: 'gpx-preview-modal' }, [
+    el('div', { class: 'gpx-preview-head' }, [
+      el('div', { class: 'gpx-preview-title' }, 'Couleurs du planning'),
+      el('button', { class: 'gpx-preview-close', 'aria-label': 'Fermer', onclick: close, html: iconHtml('close') })
+    ]), body
+  ]));
   document.body.appendChild(overlay);
 }

@@ -125,7 +125,7 @@ export async function renderDayDashboard(root, afterRender) {
           <div class="block-title">Couché avant ${bedLabelFor(addDays(dateKey, -1))}</div>
           <div class="dim text-xs">${isToday ? 'Hier soir' : 'La veille de ce jour'} · alimente la Discipline</div>
         </div>
-        <button class="btn sm ${slept ? '' : 'ghost'}" id="sleep-toggle">${slept ? iconHtml('tick') + ' Oui' : 'Cocher'}</button>
+        <input type="checkbox" class="sleep-check" id="sleep-toggle" aria-label="Couché à l'heure" ${slept ? 'checked' : ''}>
       </div>`;
 
   let workBlock = '';
@@ -171,7 +171,7 @@ export async function renderDayDashboard(root, afterRender) {
     </div>
   `;
 
-  root.querySelector('#sleep-toggle')?.addEventListener('click', async () => {
+  root.querySelector('#sleep-toggle')?.addEventListener('change', async () => {
     await toggleSleepNight(dateKey);
     await loadAll();
     render();

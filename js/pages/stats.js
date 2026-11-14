@@ -131,17 +131,18 @@ export function renderStats(root) {
 }
 
 // Helpers de styling Chart.js cohérents avec la palette Orion.
+const isLight = () => document.documentElement.dataset.theme === 'light';
 export const CHART_COLORS = {
-  text: '#B8B2A7',
-  textMute: '#8C8579',
-  grid: 'rgba(187, 166, 119, 0.12)',
-  gold: '#E3B089',
-  goldFade: 'rgba(230,195,106, 0.18)',
+  get text() { return isLight() ? '#5E5242' : '#B8B2A7'; },
+  get textMute() { return isLight() ? '#857A68' : '#8C8579'; },
+  get grid() { return isLight() ? 'rgba(90, 70, 40, 0.14)' : 'rgba(187, 166, 119, 0.12)'; },
+  get gold() { return isLight() ? '#8E5128' : '#E3B089'; },
+  get goldFade() { return isLight() ? 'rgba(142, 81, 40, 0.16)' : 'rgba(230,195,106, 0.18)'; },
   warm: '#D08A4E',
   cool: '#C8814A',
   violet: '#b0705a',
   pink: '#B5703B',
-  bg: '#1E1E1E'
+  get bg() { return isLight() ? '#FBF8F2' : '#1E1E1E'; }
 };
 
 export function chartCommonOptions() {

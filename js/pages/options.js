@@ -28,6 +28,17 @@ export function renderOptions(root) {
       } }, [el('span', { class: 'sw-knob' })])
     ])]);
   };
+  // Apparence : mode sombre (par défaut) ou mode clair
+  const themeCard = el('div', { class: 'card mb-3 opt-pref' });
+  page.appendChild(themeCard);
+  loadPrefs().then(() => {
+    const cur = prefsNow().theme;
+    const seg = (val, label) => el('button', { type: 'button', class: 'pl-seg' + (cur === val ? ' active' : ''), 'aria-pressed': String(cur === val), onclick: async () => { await savePrefs({ theme: val }); navigate('options'); } }, label);
+    themeCard.append(
+      el('div', { class: 'opt-pref-t' }, [el('span', { class: 'opt-pico', html: iconHtml('moon') }), el('div', {}, [el('b', {}, 'Apparence'), el('small', { class: 'mute', style: 'display:block' }, 'Mode sombre ou mode clair')])]),
+      el('div', { class: 'pl-scope opt-theme' }, [seg('dark', 'Sombre'), seg('light', 'Clair')])
+    );
+  });
   const switches = el('div', {});
   page.appendChild(switches);
   loadPrefs().then(() => {   // interrupteurs sans dépliant : Gamification et Sport

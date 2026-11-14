@@ -2219,22 +2219,34 @@ input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
 .hm-pct { font-size: 0.55em; font-weight: 700; margin-left: 2px; opacity: 0.85; }
 .hm-days-row .hm-sub { min-width: 0; text-align: right; }
 
-/* v4.42 : Compétences sobre (même style que les cartes .hq / .block de Aujourd'hui) */
+/* v4.44 : Compétences au style des anciennes cartes de quêtes (.hq) : bandeau, titre or, pourcentage, barre cuivre, valeur dessous */
 .hebdo-notes { display: flex; flex-direction: column; gap: 12px; margin-bottom: 24px; }
-.hn-card { border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-2); overflow: hidden; }
-.hn-head { display: flex; align-items: center; gap: 10px; padding: 10px 14px; background: var(--bg-3); }
-.hn-ico { flex: none; display: grid; place-items: center; }
-.hn-ico .ico, .hn-ico svg { width: 22px; height: 22px; }
+.hn-card { --hn-c: var(--accent); border-radius: var(--r-md); border: 1px solid var(--border); background: var(--bg-2); overflow: hidden; transition: border-color .2s, box-shadow .2s; }
+.hn-card.done { border-color: var(--accent); box-shadow: 0 0 14px rgba(200,129,74,.18); }
+.hn-head { display: flex; align-items: center; gap: 10px; padding: 11px 14px; background: linear-gradient(90deg, color-mix(in srgb, var(--hn-c) 14%, var(--bg-3)), var(--bg-3) 75%); border-bottom: 1px solid var(--border); }
+.hn-ico { flex: none; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 10px; background: color-mix(in srgb, var(--hn-c) 16%, var(--bg-0)); }
+.hn-ico .ico, .hn-ico svg { width: 21px; height: 21px; }
 .hn-title { flex: 1; min-width: 0; }
-.hn-title b { font-size: 0.88rem; font-weight: 600; color: var(--gold); }
-.hn-to { font-family: var(--font-mono); font-size: 0.95rem; font-weight: 700; color: var(--text); }
-.hn-body { padding: 2px 14px 14px; }
-.hn-part { padding-top: 12px; }
-.hn-name { font-size: 0.82rem; color: var(--text-dim); }
-.hn-bar { height: 6px; margin-top: 7px; border-radius: 6px; background: var(--bg-0); overflow: hidden; }
-.hn-fill { height: 100%; border-radius: 6px; background: var(--grad); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.hn-title b { font-size: 0.95rem; font-weight: 600; color: var(--gold); }
+.hn-note { display: inline-flex; align-items: baseline; gap: 7px; }
+.hn-to { font-family: var(--font-mono); font-size: 1.35rem; font-weight: 800; color: var(--hn-c); letter-spacing: -0.02em; line-height: 1; }
+.hn-delta { font-size: 0.7rem; font-weight: 700; }
+.hn-delta.up { color: #E8A13A; } .hn-delta.down { color: #c4584a; } .hn-delta.eq { color: var(--text-mute); font-weight: 500; }
+.hn-body { padding: 2px 14px 12px; }
+.hn-part { padding: 12px 0 0; }
+.hn-part + .hn-part { margin-top: 12px; border-top: 1px solid var(--border); }
+.hn-line { display: flex; align-items: center; gap: 8px; }
+.hn-pico { flex: none; display: grid; place-items: center; }
+.hn-pico .ico, .hn-pico svg { width: 18px; height: 18px; }
+.hn-name { flex: 1; font-size: 0.88rem; font-weight: 600; color: var(--text); }
+.hn-pct { font-family: var(--font-mono); font-weight: 700; font-size: 0.85rem; color: var(--gold); }
+.hn-bar { height: 8px; margin-top: 8px; border-radius: 999px; background: var(--bg-0); overflow: hidden; }
+.hn-fill { height: 100%; border-radius: inherit; background: var(--grad); transition: width .6s cubic-bezier(.2,.8,.2,1); }
+.hn-part.full .hn-pct { color: var(--accent); }
 .hn-part.off { opacity: .5; }
-.hn-sub { margin-top: 6px; font-size: 0.74rem; color: var(--text-mute); }
+.hn-info { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-top: 6px; min-height: 1em; }
+.hn-val { font-family: var(--font-mono); font-size: 0.74rem; color: var(--text-mute); white-space: nowrap; }
+.hn-sub { font-size: 0.74rem; color: var(--text-mute); text-align: right; }
 .hn-sub b { color: var(--text); font-weight: 600; } .hn-sub i { margin: 0 6px; font-style: normal; opacity: .5; }
 .hn-extra { margin-top: 12px; }
 

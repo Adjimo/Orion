@@ -143,7 +143,7 @@ export async function showWeekReport(wk) {
   const r = await buildWeekReport(wk);
   const prev = await buildWeekReport(prevWeekKey(wk));
   const chk = (await dbGet('meta', 'xpCheckResult'))?.value;
-  const chkTxt = !chk ? '' : chk.diff === 0 ? 'XP vérifiée : tout est cohérent ✓'
+  const chkTxt = !chk ? '' : chk.diff === 0 ? 'XP vérifiée : tout est cohérent'
     : `XP vérifiée : écart de ${chk.diff > 0 ? '+' : '−'}${Math.abs(chk.diff)} corrigé`;
   const ws = weekStartDate(wk);
   const we = new Date(ws.getFullYear(), ws.getMonth(), ws.getDate() + 6);
@@ -157,12 +157,12 @@ export async function showWeekReport(wk) {
     <div class="rg-row wr-quest">
       <span class="wr-ico">${x.q.icon ? iconHtml(x.q.icon) : '•'}</span>
       <span class="rg-reason">${escapeHtml(x.q.title)}${x.excused ? ' <span class="dim text-xs">(justifiée)</span>' : ''}</span>
-      <span class="mono text-xs ${x.ok ? 'wr-ok' : 'wr-ko'}">${Math.round(x.ratio * 100)}% ${x.ok ? '✓' : '✗'}</span>
+      <span class="mono text-xs ${x.ok ? 'wr-ok' : 'wr-ko'}">${Math.round(x.ratio * 100)}% ${iconHtml(x.ok ? 'tick' : 'close')}</span>
     </div>`).join('');
   modal.innerHTML = `
     <div class="gpx-preview-head">
       <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('chart')}</span><span>Bilan · ${fd(ws)} – ${fd(we)}</span></div>
-      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+      <button class="gpx-preview-close" aria-label="Fermer">${iconHtml('close')}</button>
     </div>
     <div style="padding: 16px 18px; overflow-y: auto;">
       <div class="wr-net grad-text">${sign(r.net)} XP</div>
@@ -429,7 +429,7 @@ function openNotificationModal(onAdded) {
   modal.innerHTML = `
     <div class="gpx-preview-head">
       <div class="gpx-preview-title"><span class="gpx-preview-icon">${iconHtml('bell')}</span><span>Nouvelle notification</span></div>
-      <button class="gpx-preview-close" aria-label="Fermer">✕</button>
+      <button class="gpx-preview-close" aria-label="Fermer">${iconHtml('close')}</button>
     </div>
     <div style="padding: 16px 18px; overflow-y: auto;">
       <div class="dim text-xs mb-1">Motif</div>
@@ -488,7 +488,7 @@ export async function renderRemindersCard(card) {
         <div class="rg-row rem-row" data-cid="${c.id}">
           <span class="rg-reason">${iconHtml('bell')} ${escapeHtml(c.label)}</span>
           <span class="mono text-xs dim">${c.time}${c.daily ? ' · chaque jour' : ''}</span>
-          <button class="btn ghost sm rem-del" aria-label="Supprimer">✕</button>
+          <button class="btn ghost sm rem-del" aria-label="Supprimer">${iconHtml('close')}</button>
         </div>`).join('')}
     </div>
     <div class="dim text-xs mt-2">${permTxt}.</div>

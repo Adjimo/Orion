@@ -4,8 +4,9 @@ import { dbAll, dbDelete, dbGet, dbPut } from '../core/db.js';
 import { YEAR_END, SCHOOL_START, addDays, mondayOf, parseKey, weekMode } from '../core/calendar.js';
 import { todayKey } from '../core/dates.js';
 import { COLLES_G8, weekIndexOf } from './planning-data.js';
-import { ANGLAIS_FIXED, DAY_PLAN, SI_LABEL, TODO_SUBJECTS, VOCAB_DAYS } from './todo-data.js';
+import { TODO_SUBJECTS } from './todo-data.js';
 import { cycleNow, loadCycle } from './todo-cycle.js';
+import { loadRecur, recKey, recurDue, recurNow } from './todo-recur.js';
 
 const STATE_KEY = 'todoState';
 const isoDay = (key) => parseKey(key).getDay() || 7;
@@ -28,18 +29,19 @@ function makeItem(w, subj, key, label) {
   return { id: `${w}|${key}`, weekKey: w, subj, key, label, done: false, doneAt: null, carried: false, origin: null, carriedTo: null, custom: false, noCarry: false, day: 1, ord: nextOrd() };
 }
 
-// Répartition par jour : un chapitre de maths / de physique par jour, SI, anglais et français sur des jours fixes.
+// Répartition par jour : les éléments d'un cycle suivent les jours réglés pour sa matière (un par jour, le dernier jour reçoit le reste) ;
+// les éléments récurrents ont leurs propres jours ; les éléments ajoutés à la main gardent leur jour.
 export function assignDays(items, fromDay = 1) {
   const byOrder = (a, b) => (b.carried - a.carried) || ((a.ord || 0) - (b.ord || 0));
-  for (const subj of cycleNow().subjects.map(x => x.id)) {
-    items.filter(i => i.subj === subj && i.key && !i.custom).sort(byOrder).forEach((it, idx) => { it.day = Math.min(7, fromDay + idx); });
+  for (const sub of cycleNow().subjects) {
+    const days = (sub.days || [1, 2, 3, 4, 5, 6, 7]).filter(d => d >= fromDay);
+    const pool = days.length ? days : [Math.max(fromDay, 1)];
+    items.filter(i => i.subj === sub.id && i.key && !i.custom && !i.rec).sort(byOrder).forEach((it, idx) => { it.day = pool[Math.min(idx, pool.length - 1)]; });
   }
   for (const it of items) {
-    if (!it.key || it.custom) { it.day = Math.max(it.day || 1, fromDay); continue; }
-    if (it.key === 'si:main') it.day = Math.max(DAY_PLAN.si, fromDay);
-    else if (it.key.startsWith('anglais:vocab')) { it.day = Number(it.key.split(':')[2]) || 1; it.noCarry = true; }
-    else if (it.subj === 'anglais') it.day = Math.max(DAY_PLAN.anglaisSession, fromDay);
-    else if (it.subj === 'francais') it.day = Math.max(DAY_PLAN.francais, fromDay);
+    if (it.rec) continue;
+    if (it.key?.startsWith('anglais:vocab')) { it.day = Number(it.key.split(':')[2]) || 1; it.noCarry = true; }
+    else if (!it.key || it.custom) it.day = Math.max(it.day || 1, fromDay);
   }
 }
 
@@ -50,9 +52,9 @@ function generate(w, st, items, fromDay = 1) {
 
   for (const sub of cycleNow().subjects) {
     const subj = sub.id, cat = sub.items;
-    if (!cat.length) continue;
+    if (!cat.length || sub.enabled === false) continue;   // cycle désactivé : rien n'est généré
     const weight = (key) => cat.find(c => `${subj}:${c.name}` === key)?.w || 0;
-    let pts = items.filter(i => i.subj === subj && i.key).reduce((s, i) => s + weight(i.key), 0);
+    let pts = items.filter(i => i.subj === subj && i.key && !i.rec).reduce((s, i) => s + weight(i.key), 0);
     let cur = (st.cursors[subj] || 0) % cat.length;
     const named = cat.findIndex(c => c.name === st.cursorNames?.[subj]);   // le curseur suit le nom du chapitre : insérer ou déplacer ne décale plus le cycle
     if (named >= 0) cur = named;
@@ -60,7 +62,7 @@ function generate(w, st, items, fromDay = 1) {
     let budget = cycleBudget(sub, w, cur);
     if (subj === 'anglais' && hasAnglaisColle(w)) budget = Math.ceil(budget / 2);   // semaine de colle d'anglais : la grammaire prend la place
     let guard = cat.length;
-    while ((pts < budget || !items.some(i => i.subj === subj)) && guard-- > 0) {
+    while ((pts < budget || !items.some(i => i.subj === subj && !i.rec)) && guard-- > 0) {
       const c = cat[cur];
       cur = (cur + 1) % cat.length;
       if (has(`${subj}:${c.name}`)) continue;
@@ -72,9 +74,16 @@ function generate(w, st, items, fromDay = 1) {
     (st.cursorNames ||= {})[subj] = cat[cur].name;
   }
 
-  for (const d of VOCAB_DAYS.filter(x => x >= fromDay)) { add('anglais', `anglais:vocab:${d}`, ANGLAIS_FIXED.vocab); const v = items.find(i => i.key === `anglais:vocab:${d}`); v.day = d; v.noCarry = true; }
-  if (hasAnglaisColle(w)) add('anglais', 'anglais:gram', ANGLAIS_FIXED.gram);
-  add('si', 'si:main', SI_LABEL);
+  // Éléments récurrents (onglet To-do) : jours choisis, toutes les N semaines.
+  for (const r of recurNow().items) {
+    if (!r.enabled || (r.cond === 'colle' && !hasAnglaisColle(w)) || !recurDue(r, w)) continue;
+    for (const d of r.days.filter(x => x >= fromDay)) {
+      const key = recKey(r, d);
+      add(r.subj, key, r.label);
+      const it = items.find(i => i.key === key);
+      it.day = d; it.noCarry = r.noCarry; it.rec = r.id;
+    }
+  }
   assignDays(items, fromDay);
 }
 
@@ -125,6 +134,7 @@ async function run(today) {
   if (target < first) return;
   if (target > last) target = last;
   await loadCycle();
+  await loadRecur();
   let st = await loadState();
   let all = await dbAll('planTodo');
   // Remise à zéro unique : la to-do démarre aujourd'hui (pas de reports d'avant la fonctionnalité).
@@ -191,8 +201,7 @@ export function availableCatalog(items, day = 1) {
     if (g) g.entries.push(...e); else if (e.length) groups.push({ subj, entries: e });
   };
   for (const sub of cycleNow().subjects) push(sub.id, sub.items.map(c => ({ key: `${sub.id}:${c.name}`, label: c.name })));
-  push('anglais', [{ key: `anglais:vocab:${day}`, label: ANGLAIS_FIXED.vocab }, { key: 'anglais:gram', label: ANGLAIS_FIXED.gram }]);
-  push('si', [{ key: 'si:main', label: SI_LABEL }]);
+  for (const r of recurNow().items) push(r.subj, [{ key: recKey(r, r.id === 'vocab' || r.days.length > 1 ? day : r.days[0] || day), label: r.label }]);
   return groups;
 }
 

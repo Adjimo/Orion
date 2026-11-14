@@ -5,16 +5,17 @@ import { GHOST_BEFORE, dbAll, dbAllLive, dbPut } from '../core/db.js';
 import { awardXp, removeXp } from '../core/xp.js';
 import { getSleepLog, runsGoalFor } from './weekly-goals.js';
 import { computeWorkXp } from './work.js';
+import { COLORS } from '../ui/icons.js';
 
 export const SEED_WEEKLY_QUESTS = [
   // Principales — donnent des malus si pas faites (à partir du 2026-09-07)
-  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: 'run', color: '#B5703B', autoFromActivities: true, category: 'main' },
-  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: 'stopwatch', color: '#D08A4E', autoFromWorkLog: true, category: 'main' },
-  { id: 'wq-sleep',   title: 'Couché avant 23h30', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: 'moon', color: '#C8814A', autoFromSleep: true, category: 'main' },
+  { id: 'wq-runs',    title: 'Sorties course', type: 'weekly-count', goalCount: 3, unit: 'sorties', skill: 'endurance',  icon: 'run', color: COLORS.run, autoFromActivities: true, category: 'main' },
+  { id: 'wq-work',    title: 'Heures de travail', type: 'weekly-hours', goalHours: 35, skill: 'discipline', icon: 'stopwatch', color: COLORS.stopwatch, autoFromWorkLog: true, category: 'main' },
+  { id: 'wq-sleep',   title: 'Couché avant 23h30', type: 'weekly-count', goalCount: 7, unit: 'soirs', skill: 'discipline', icon: 'moon', color: COLORS.moon, autoFromSleep: true, category: 'main' },
   // Secondaires — donnent des bonus si dépassées (à partir du 2026-09-07)
-  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: 'globe', color: '#C8814A', autoFromLangues: true, category: 'secondary' },
-  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: 'pen', color: '#E3B089', autoFromLettres: true, category: 'secondary' },
-  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: 'chip', color: '#a98a52', autoFromSi: true, category: 'secondary' }
+  { id: 'wq-langues', title: 'Anglais', type: 'weekly-hours', goalHours: 2, skill: 'langues', icon: 'globe', color: COLORS.globe, autoFromLangues: true, category: 'secondary' },
+  { id: 'wq-lettres', title: 'Lettres', type: 'weekly-hours', goalHours: 2, skill: 'lettres', icon: 'pen', color: COLORS.pen, autoFromLettres: true, category: 'secondary' },
+  { id: 'wq-si',      title: 'SI / Info', type: 'weekly-hours', goalHours: 1.5, skill: 'si', icon: 'chip', color: COLORS.chip, autoFromSi: true, category: 'secondary' }
 ];
 
 // XP de compétences d'une quête. Les quêtes « discipline » (heures de travail,

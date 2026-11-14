@@ -42,8 +42,3 @@ export async function questGoalHours(quest, wk, ctx = null) {
   if (!key || quest.type !== 'weekly-hours') return quest.goalHours;
   return (await weekGoalsFor(weekDateKeys(wk)[0], ctx))[key] / 60;
 }
-
-// Temps libre (minutes) d'une semaine du planning, quelle que soit la date (affichage du calculateur).
-export async function freeMinutesOf(monday, ctx = null) {
-  return (await weekOf(ctx || await makeGoalCtx(), monday)).freeMinutes;
-}

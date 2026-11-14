@@ -31,15 +31,16 @@ import { getMalusExcuses } from './penalties.js';
 import { buildWeek, loadOverrides } from './planning.js';
 import { isRunActivity } from './schedule.js';
 import { getRunsGoals, getSleepLog } from './weekly-goals.js';
+import { COLORS } from '../ui/icons.js';
 
 // ── Définition des 6 caractéristiques (icônes et couleurs du pack : chaud, sans bleu/violet/vert)
 export const CARACS = [
-  { id: 'dex',  label: 'Dextérité',  short: 'DEX', icon: 'run',    color: '#E0794A' },
-  { id: 'math', label: 'Maths',      short: 'MAT', icon: 'sigma',  color: '#E39A3B' },
-  { id: 'phys', label: 'Physique',   short: 'PHY', icon: 'atom',   color: '#D2694B' },
-  { id: 'si',   label: 'SI / Info',  short: 'SI',  icon: 'chip',   color: '#D4735F' },
-  { id: 'verb', label: 'Verbe',      short: 'VER', icon: 'pen',    color: '#D68F86' },
-  { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: '#E0A39A' }
+  { id: 'dex',  label: 'Dextérité',  short: 'DEX', icon: 'run',    color: COLORS.run },
+  { id: 'math', label: 'Maths',      short: 'MAT', icon: 'sigma',  color: COLORS.sigma },
+  { id: 'phys', label: 'Physique',   short: 'PHY', icon: 'atom',   color: COLORS.atom },
+  { id: 'si',   label: 'SI / Info',  short: 'SI',  icon: 'chip',   color: COLORS.chip },
+  { id: 'verb', label: 'Verbe',      short: 'VER', icon: 'pen',    color: COLORS.pen },
+  { id: 'disc', label: 'Discipline', short: 'DIS', icon: 'lotus',  color: COLORS.lotus }
 ];
 
 // ── Réglages (meta `caracSettings`), tous modifiables ; toute modification → recalcul complet.

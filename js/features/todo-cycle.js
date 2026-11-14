@@ -5,7 +5,7 @@
 //                (points restants du tour en cours ÷ semaines de to-do restantes).
 // Par défaut : Maths et Physique, repris de todo-data.js (rien n'est perdu).
 import { dbGet, dbPut } from '../core/db.js';
-import { TODO_BUDGET, TODO_CATALOG, TODO_FIXED_SUBJECTS, TODO_SUBJECTS } from './todo-data.js';
+import { DEFAULT_CYCLE_DAYS, TODO_BUDGET, TODO_CATALOG, TODO_FIXED_SUBJECTS, TODO_SUBJECTS } from './todo-data.js';
 
 const KEY = 'todoCycle';
 let cache = null;
@@ -32,8 +32,9 @@ function clean(v) {
     v: 2,
     subjects: base.subjects.map(s => ({
       id: String(s.id), label: String(s.label || 'Matière'),
-      budgetMode: s.budgetMode === 'period' ? 'period' : 'points',
-      budget: Math.max(1, Number(s.budget) || 10), endDate: s.endDate || null,
+      budgetMode: 'points', enabled: s.enabled !== false,
+      days: [...new Set((s.days && s.days.length ? s.days : DEFAULT_CYCLE_DAYS[s.id] || [1, 2, 3, 4, 5, 6, 7]).map(Number).filter(d => d >= 1 && d <= 7))].sort((a, b) => a - b),
+      budget: Math.max(1, Number(s.budget) || 10), endDate: null,
       items: (s.items || []).filter(i => i && String(i.name || '').trim()).map(i => ({ name: String(i.name).trim(), w: Math.max(1, Math.round(Number(i.w) || 1)) }))
     }))
   };

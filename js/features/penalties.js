@@ -321,8 +321,6 @@ export const SELF_PCT_CAP = 60;         // plafond cumulé des auto-sanctions
 
 export async function getSelfMalus() { return (await dbGet('meta', 'selfMalus'))?.value || {}; }
 
-export async function saveSelfMalus(m) { await dbPut('meta', { key: 'selfMalus', value: m }); }
-
 // Pourcentage total (0-1) retiré à la fin de la semaine `wk`.
 export async function computeSelfWeekPenalty(wk) {
   const entries = (await getSelfMalus())[wk] || [];

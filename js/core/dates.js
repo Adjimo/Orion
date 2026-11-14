@@ -38,17 +38,6 @@ export function daysUntil(dateStr) {
   return Math.floor((target.getTime() - today.getTime()) / 86400000);
 }
 
-export function formatCountdown(days) {
-  if (days < 0) return 'Passé';
-  if (days === 0) return 'Aujourd\'hui';
-  if (days === 1) return 'Demain';
-  if (days < 60) return `J-${days}`;
-  if (days < 365) return `${Math.floor(days / 30)} mois`;
-  const years = Math.floor(days / 365);
-  const remMonths = Math.floor((days % 365) / 30);
-  return remMonths > 0 ? `${years}a ${remMonths}m` : `${years}a`;
-}
-
 export function formatDate(dateStr) {
   return new Date(dateStr).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 }
